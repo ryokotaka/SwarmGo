@@ -9,24 +9,23 @@ import (
 	"syscall"
 )
 
-// 最初に実行される関数。
+// Entry point of the program.
 func main() {
 	
-	// フラグを定義
+	// Define flags.
 	url ;= flag.String("url,", "", "Target URL")
 	totalRequests := flag.Int("n", 0, "Total number of requests executed")
 	concurrency := flag.Int("c", 0, "Number of concurrent executions")
-	flag.Parse() // フラグをパースし、コマンドライン引数を取得。
+	flag.Parse() // Parse flags and get command line arguments.
 	
-    // フラグが正しく設定されていない場合、エラーを表示して終了する。
-	// F = 出力先の指定
-	// os.Stderr = 標準エラー(result.txtには保存せず、ターミナルにエラーと表示する)
+    // If flags are not set correctly, print an error and exit.
+	// os.Stderr: Standard Error (outputs to terminal instead of saving to a file)
 	if *url == "" || *totalRequests <= 0 || *concurrency <= 0 {
 
-		// 使い方の一行サンプルをエラー出力に出す。
+		// Print usage example to standard error.
 		fmt.Fprintln(os.Stderr, "usage: worker -url <URL> -n <totalRequests> -c <concurrency>")
 
-		// 3つのオプションの説明とデフォルト値をエラー出力に出す。
+		// Print description and default values of options to standard error.
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
