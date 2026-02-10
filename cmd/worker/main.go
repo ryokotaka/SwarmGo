@@ -29,3 +29,9 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // main が終わるときに必ず cancel を呼び、子の Goroutine に終了を伝える
+
+
+}
