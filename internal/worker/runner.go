@@ -127,3 +127,18 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 		close(myResults)
 	}()
 
+	// myResults から結果を1件ずつ受け取り、集計する（1つの Goroutine だけが書くので安全）
+	mySum := &MySummary{MyStatusCodeCnt: make(map[int]int)} // MyStatusCodeCnt は map なので make が必要
+	for myRes := range myResults {
+		mySum.MyTotal++                         // 総数に 1 足す
+		mySum.MyTotalDuration += myRes.MyDuration   // かかった時間を合計に加える
+		if myRes.MyErr != nil {
+			mySum.MyFailed++                    // エラーなら失敗数に 1 足して次へ
+			continue
+		}
+		mySum.MySuccess++                       // 成功数に 1 足す
+		mySum.MyStatusCodeCnt[myRes.MyStatusCode]++ // そのステータスコードの出現回数を 1 増やす
+	}
+
+	return mySum, nil // 集計結果を呼び出し元に返す
+}
