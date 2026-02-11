@@ -13,7 +13,7 @@ import (
 func main() {
 	
 	// Define flags.
-	url ;= flag.String("url,", "", "Target URL")
+	url := flag.String("url,", "", "Target URL")
 	totalRequests := flag.Int("n", 0, "Total number of requests executed")
 	concurrency := flag.Int("c", 0, "Number of concurrent executions")
 	flag.Parse() // Parse flags and get command line arguments.
