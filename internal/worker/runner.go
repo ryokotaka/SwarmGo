@@ -73,3 +73,12 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 			case <-mySem:
 			}
 			defer func() { mySem <- struct{}{} }()
+
+
+			// 実際に HTTP GET を送る
+ 			// かかった時間を計るため、リクエスト送信直前の時刻を返す
+			myStart := time.Now()
+
+			// 標準: http.NewRequestWithContext で「GET でこの URL、この context で」というリクエストオブジェクトを作る。
+			// ちなみにこっちからサーバーに送るリクエスト側のBodyはないということでnilを第四引数に。
+			myReq, myErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
