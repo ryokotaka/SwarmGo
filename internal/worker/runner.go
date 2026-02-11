@@ -46,4 +46,8 @@ func NewRunner() *Runner {
 	return &Runner{Client: Client}  // Returns the Runner with the created Client.
 }
 
-
+func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurrency int) (*MySummary, error) {
+	// 引数チェック。回数や同時実行数が 0 以下ならエラーを返す
+	if totalRequests <= 0 || concurrency <= 0 {
+		return nil, fmt.Errorf("totalRequests and concurrency must be positive, got %d, %d", totalRequests, concurrency)
+	}
