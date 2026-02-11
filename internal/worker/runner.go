@@ -61,7 +61,7 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 
 	for myI := 0; myI < totalRequests; myI++ {
 		go func() {
-			
+			defer myWg.Done() // この Goroutine が終わったら「1本終了」と WaitGroup に伝える
 
 			// 事前にキャンセルされてるかどうかを確認し、2つ目の select を実行・評価するコストを削減する。
 			select {
