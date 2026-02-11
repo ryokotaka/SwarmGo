@@ -30,8 +30,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 「やめ」の合図を受け取れるようにする（Ctrl+C や kill で止めるとき用）		
+	// cancel を呼ぶと、まだ始まっていない処理はやめて、今やっている処理は終わるまで待つ
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // main が終わるときに必ず cancel を呼び、子の Goroutine に終了を伝える
+
+	// Ctrl+C（SIGINT）や kill（SIGTERM）が来たら cancel を呼ぶようにする
+	// 受け取る goroutine が <-sigCh に到達するより先にシグナルが来る可能性があるので、バッファ1をつける
+	sigCh := make(chan os.Signal, 1)
+
+	// signal.Notify(チャネル, シグナル...) で、チャネルにシグナルが来たらチャネルに値を送る。
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// メインの処理の裏で、シグナルが来たら終了するための goroutine を起動する。
+	go func() {
+		sig := <-sigCh                    // シグナルが sigCh に送られるまでここで止まり、届いたらその値を sig に入れる
+		fmt.Fprintf(os.Stderr, "received %v, shutting down gracefully...\n", sig)
+		cancel()                          // 終了の合図を送る（Run 側で ctx.Done() が閉じる）
+	}()
 
 
 }
