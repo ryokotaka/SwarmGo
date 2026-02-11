@@ -51,3 +51,25 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 	if totalRequests <= 0 || concurrency <= 0 {
 		return nil, fmt.Errorf("totalRequests and concurrency must be positive, got %d, %d", totalRequests, concurrency)
 	}
+
+
+	for myI := 0; myI < totalRequests; myI++ {
+		go func() {
+			
+
+			// 事前にキャンセルされてるかどうかを確認し、2つ目の select を実行・評価するコストを削減する。
+			select {
+			case <-ctx.Done():
+				myResults <- MyResult{MyErr: ctx.Err()}
+				return
+			default:
+			}
+
+			// 2つのcaseのうちどちらかを実行する。
+			select {
+			case <-ctx.Done():
+				myResults <- MyResult{MyErr: ctx.Err()}
+				return
+			case <-mySem:
+			}
+			defer func() { mySem <- struct{}{} }()
