@@ -52,6 +52,14 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 		return nil, fmt.Errorf("totalRequests and concurrency must be positive, got %d, %d", totalRequests, concurrency)
 	}
 
+
+	// 「同時に動いていい数」を concurrency に制限するためのセマフォ。
+	// チャネルに concurrency 個だけ値を入れてく。
+	mySem := make(chan struct{}, concurrency)
+	for myI := 0; myI < concurrency; myI++ {
+		mySem <- struct{}{} // 最初にトークンを concurrency 個入れておく
+	}
+
 	// 結果を送る先・受け取る元になる 1 本のチャネルを、事前に 1 回だけ用意（集計は1つの Goroutine だけで行うので競合しない）
 	myResults := make(chan MyResult, totalRequests)
 
