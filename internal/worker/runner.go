@@ -52,6 +52,12 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 		return nil, fmt.Errorf("totalRequests and concurrency must be positive, got %d, %d", totalRequests, concurrency)
 	}
 
+	// 結果を送る先・受け取る元になる 1 本のチャネルを、事前に 1 回だけ用意（集計は1つの Goroutine だけで行うので競合しない）
+	myResults := make(chan MyResult, totalRequests)
+
+	// WaitGroup という型の変数 wg を用意することで Add / Done / Wait が使える
+	var myWg sync.WaitGroup
+	myWg.Add(totalRequests) // 起動する数だけ Add しておく
 
 	for myI := 0; myI < totalRequests; myI++ {
 		go func() {
@@ -112,3 +118,12 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 			}
 		}()
 	}
+
+	// すべての Goroutine が終わったら myResults チャネルを閉じる
+	go func() {
+		// カウントが 0 になるまでブロック。
+		myWg.Wait()
+		// チャネルを閉じる。
+		close(myResults)
+	}()
+
