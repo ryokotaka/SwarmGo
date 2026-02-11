@@ -48,6 +48,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, "received %v, shutting down gracefully...\n", sig)
 		cancel()                          // 終了の合図を送る（Run 側で ctx.Done() が閉じる）
 	}()
+	
+	// 負荷試験を実行する MyRunner を作り、MyRun で実際にリクエストを送る
+	myRunner := worker.NewMyRunner()
+	sum, err := myRunner.MyRun(ctx, *url, *totalRequests, *concurrency)
+
+	// runnner.go 54-56行目のエラー時の処理(引数チェック)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "run error:", err) // Run がエラーを返したらメッセージを出して異常終了
+		os.Exit(1)
+	}
+	
+	
 
 
 }
