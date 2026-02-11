@@ -82,3 +82,25 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 			// 標準: http.NewRequestWithContext で「GET でこの URL、この context で」というリクエストオブジェクトを作る。
 			// ちなみにこっちからサーバーに送るリクエスト側のBodyはないということでnilを第四引数に。
 			myReq, myErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+
+			// リクエストを作る処理のエラー（主に URL まわり）
+			if myErr != nil {
+				myResults <- MyResult{MyErr: myErr}
+				return
+			}
+			// 標準: *http.Client の Do(myReq) で、そのリクエストを実際に送り、レスポンスが返るまで待つ。
+			// ちなみにレスポンスのBodyがここで返ってくる。
+			myResp, myErr := r.MyClient.Do(myReq)
+
+			// myStart（リクエスト送信直前）から今（レスポンスが返った直後）までの時間＝この1回のHTTPリクエストにかかった時間 
+			myDuration := time.Since(myStart) 
+
+			// 主にネットワークまわり処理のエラー
+			if myErr != nil {
+				myResults <- MyResult{MyErr: myErr, MyDuration: myDuration}
+				return
+			}
+
+			// Go では myResp.Body が中身を少しずつ読むためのストリーム（ ReadCloser )なので、この仕組みが裏でネットワークの接続やバッファを使っているため、Bodyは使い終わったら閉じること。
+			defer myResp.Body.Close() 
+
