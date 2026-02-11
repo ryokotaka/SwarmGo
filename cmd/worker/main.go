@@ -59,7 +59,13 @@ func main() {
 		os.Exit(1)
 	}
 	
-	
-
-
-}
+	// 結果を画面に表示する（成功数・失敗数・ステータスコード別の件数など）
+	fmt.Printf("Total: %d, Success: %d, Failed: %d, TotalDuration: %s\n",
+		sum.MyTotal, sum.MySuccess, sum.MyFailed, sum.MyTotalDuration)
+	if len(sum.MyStatusCodeCnt) > 0 { // ステータスコード別の内訳があるときだけ表示する
+		fmt.Println("Status codes:")
+		for code, cnt := range sum.MyStatusCodeCnt {
+			fmt.Printf("  %d: %d\n", code, cnt)
+		}
+	}
+}	
