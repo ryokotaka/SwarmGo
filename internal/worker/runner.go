@@ -103,4 +103,12 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 
 			// Go では myResp.Body が中身を少しずつ読むためのストリーム（ ReadCloser )なので、この仕組みが裏でネットワークの接続やバッファを使っているため、Bodyは使い終わったら閉じること。
 			defer myResp.Body.Close() 
-
+			
+			// 結果をチャネルに送る（ステータスコード・かかった時間・エラーなし）
+			myResults <- MyResult{
+				MyStatusCode: myResp.StatusCode,
+				MyDuration:   myDuration,
+				MyErr:        nil,
+			}
+		}()
+	}
