@@ -51,20 +51,20 @@ func main() {
 	
 	// 負荷試験を実行する MyRunner を作り、MyRun で実際にリクエストを送る
 	myRunner := worker.NewMyRunner()
-	sum, err := myRunner.MyRun(ctx, *url, *totalRequests, *concurrency)
+	mySum, myErr := myRunner.MyRun(ctx, *url, *totalRequests, *concurrency)
 
 	// runnner.go 54-56行目のエラー時の処理(引数チェック)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "run error:", err) // Run がエラーを返したらメッセージを出して異常終了
+	if myErr != nil {
+		fmt.Fprintln(os.Stderr, "run error:", myErr) // Run がエラーを返したらメッセージを出して異常終了
 		os.Exit(1)
 	}
 	
 	// 結果を画面に表示する（成功数・失敗数・ステータスコード別の件数など）
 	fmt.Printf("Total: %d, Success: %d, Failed: %d, TotalDuration: %s\n",
-		sum.MyTotal, sum.MySuccess, sum.MyFailed, sum.MyTotalDuration)
-	if len(sum.MyStatusCodeCnt) > 0 { // ステータスコード別の内訳があるときだけ表示する
+		mySum.MyTotal, mySum.MySuccess, mySum.MyFailed, mySum.MyTotalDuration)
+	if len(mySum.MyStatusCodeCnt) > 0 { // ステータスコード別の内訳があるときだけ表示する
 		fmt.Println("Status codes:")
-		for code, cnt := range sum.MyStatusCodeCnt {
+		for code, cnt := range mySum.MyStatusCodeCnt {
 			fmt.Printf("  %d: %d\n", code, cnt)
 		}
 	}
