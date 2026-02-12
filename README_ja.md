@@ -1,46 +1,51 @@
-# SwarmGo
+<div align="center">
 
-**SwarmGo** は、Go言語での軽量なHTTP負荷試験ツールです。
-シンプルなCLIインターフェースで、大規模な並行リクエストを安定して計測できるように設計しています。
+# SwarmGo 🐝
+
+[![Go](https://img.shields.io/badge/Go-1.22+-red?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
+[![English](https://img.shields.io/badge/README-English-00ADD8?style=for-the-badge)](./README.md)
+
+<br>
+
+SwarmGo は、Go言語での軽量かつHTTP負荷試験ツールです。<br>
+Worker Pool パターンと Graceful Shutdown を採用し、並行処理と安定性を重視して設計しました。
+
+</div>
 
 ![Demo](demo.gif)
+
 
 ## 🚀 機能
 
 - **Worker Pool アーキテクチャ**: ゴルーチン（Goroutine）の生成数を制御し、数百万リクエスト規模でもメモリ枯渇を起こさない設計にしました。
 - **シンプルなCLI**: 複雑な設定ファイル不要で、「URL」「リクエスト総数」「並列数」をフラグで指定するだけです。
-- **グレースフルシャットダウン**: `Ctrl+C` での割り込み時も、実行中のリクエスト完了を待ってから安全に終了させます。
 - **詳細なレポート**: ステータスコードごとの集計、成功/失敗数、合計所要時間を結果として出します。
+- **グレースフルシャットダウン**: `Ctrl+C` での割り込み時も、実行中のリクエスト完了を待ってから安全に終了させます。
 
 ## 🛠 アーキテクチャ
 
 ```mermaid
 graph TD
-    Init[Start / Flags Parsing] --> Runner
-    Runner --> Dispatch[Job Dispatcher]
-    
-    Dispatch -->|Fill Jobs| JobCh[Job Channel (Buffered)]
-    
-    subgraph "Worker Pool (Concurrency Limit)"
-        JobCh --> W1[Worker 1]
-        JobCh --> W2[Worker 2]
-        JobCh --> W3[Worker ...]
+    Init["Start / Flags Parsing"] --> Runner
+    Runner --> Dispatch["Job Dispatcher"]
+    Dispatch -->|Fill Jobs| JobCh["Job Channel (Buffered)"]
+    subgraph WorkerPool["Worker Pool (Concurrency Limit)"]
+        JobCh --> W1["Worker 1"]
+        JobCh --> W2["Worker 2"]
+        JobCh --> W3["Worker ..."]
     end
-    
-    W1 -->|HTTP GET| Target[Target Service]
+    W1 -->|HTTP GET| Target["Target Service"]
     W2 -->|HTTP GET| Target
     W3 -->|HTTP GET| Target
-    
     Target -->|Response| W1
     Target -->|Response| W2
     Target -->|Response| W3
-    
-    W1 -->|Result| ResCh[Result Channel]
+    W1 -->|Result| ResCh["Result Channel"]
     W2 -->|Result| ResCh
     W3 -->|Result| ResCh
-    
-    ResCh --> Agg[Aggregator (Summary)]
-    Agg --> Report[Print Report]
+    ResCh --> Agg["Aggregator (Summary)"]
+    Agg --> Report["Print Report"]
 ```
 
 ## 💡 技術的なハイライト: メモリ枯渇問題の解決
