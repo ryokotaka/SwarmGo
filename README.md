@@ -1,9 +1,22 @@
-# SwarmGo
+[<div align="center">
 
-A lightweight, high-performance load testing tool written in Go.
+# SwarmGo 
+
+[![Go](https://img.shields.io/badge/Go-1.22+-red?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
+[![Language](https://img.shields.io/badge/README-日本語-00ADD8?style=for-the-badge)](./README_ja.md)
+
+<p>
+A lightweight, high-performance load testing tool written in Go.<br>
 Designed with concurrency patterns (Worker Pool) and graceful shutdown capabilities.
+</p>
+
+
 
 ![Demo](demo.gif)
+
+
+</div>
 
 ## 🚀 Features
 
