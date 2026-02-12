@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/ryokotaka/SwarmGo/internal/worker" 
 
@@ -52,23 +53,53 @@ func main() {
 		cancel()                          // Send the shutdown signal (Run will see ctx.Done() closed).
 	}()
 	
+	// The moment the start button is pressed.
+    runStart := time.Now()
+	
 	// Create a MyRunner to run the load test and send requests via MyRun.
 	myRunner := worker.NewMyRunner()
 	mySum, myErr := myRunner.MyRun(ctx, *url, *totalRequests, *concurrency)
 
+	// Calculate the total execution time of the test.
+    runElapsed := time.Since(runStart)
+	
 	// Error handling for invalid arguments (see runner.go lines 54-56).
 	if myErr != nil {
 		fmt.Fprintln(os.Stderr, "run error:", myErr) // On Run error, print message and exit with failure.
 		os.Exit(1)
 	}
 	
-	// Print results (success count, failure count, status code breakdown, etc.).
-	fmt.Printf("Total: %d, Success: %d, Failed: %d, TotalDuration: %s\n",
-		mySum.MyTotal, mySum.MySuccess, mySum.MyFailed, mySum.MyTotalDuration)
-	if len(mySum.MyStatusCodeCnt) > 0 { // Only show status code breakdown when there is any.
-		fmt.Println("Status codes:")
-		for code, cnt := range mySum.MyStatusCodeCnt {
-			fmt.Printf("  %d: %d\n", code, cnt)
-		}
-	}
+// --- 結果計算エリア ---
+
+    // Calculate RPS (Requests Per Second) = Total Requests / Total Elapsed Time (seconds)
+    rps := 0.0
+    if runElapsed.Seconds() > 0 {
+        rps = float64(mySum.MyTotal) / runElapsed.Seconds()
+    }
+
+	// Calculate Mean Latency = Total Duration of all requests / Total Requests
+    avgLatency := time.Duration(0)
+    if mySum.MyTotal > 0 {
+        avgLatency = mySum.MyTotalDuration / time.Duration(mySum.MyTotal)
+    }
+
+    // --- 結果出力エリア ---
+    fmt.Println("--------------------------------------------------")
+    fmt.Printf("Summary:\n")
+    fmt.Printf("  Total Requests: %d\n", mySum.MyTotal)
+    fmt.Printf("  Success:        %d\n", mySum.MySuccess)
+    fmt.Printf("  Failed:         %d\n", mySum.MyFailed)
+    fmt.Printf("  Total Duration: %s\n", runElapsed) // テスト全体にかかった時間
+    fmt.Println("--------------------------------------------------")
+    // RPSと平均レイテンシを表示
+    fmt.Printf("  RPS:            %.2f req/s\n", rps)
+    fmt.Printf("  Mean Latency:   %s\n", avgLatency)
+    fmt.Println("--------------------------------------------------")
+
+    if len(mySum.MyStatusCodeCnt) > 0 {
+        fmt.Println("Status codes:")
+        for code, cnt := range mySum.MyStatusCodeCnt {
+            fmt.Printf("  %d: %d\n", code, cnt)
+        }
+    }
 }	
