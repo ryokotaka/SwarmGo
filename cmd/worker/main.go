@@ -33,39 +33,39 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 「やめ」の合図を受け取れるようにする（Ctrl+C や kill で止めるとき用）		
-	// cancel を呼ぶと、まだ始まっていない処理はやめて、今やっている処理は終わるまで待つ
+	// Set up to receive a shutdown signal (e.g. Ctrl+C or kill).
+	// Calling cancel stops any not-yet-started work and waits for in-flight work to finish.
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // main が終わるときに必ず cancel を呼び、子の Goroutine に終了を伝える
+	defer cancel() // Ensure cancel is called when main exits so child goroutines are notified to stop.
 
-	// Ctrl+C（SIGINT）や kill（SIGTERM）が来たら cancel を呼ぶようにする
-	// 受け取る goroutine が <-sigCh に到達するより先にシグナルが来る可能性があるので、バッファ1をつける
+	// When Ctrl+C (SIGINT) or kill (SIGTERM) is received, call cancel.
+	// Use a buffer of 1 so that a signal can be sent before the receiving goroutine reaches <-sigCh.
 	sigCh := make(chan os.Signal, 1)
 
-	// signal.Notify(チャネル, シグナル...) で、チャネルにシグナルが来たらチャネルに値を送る。
+	// signal.Notify(channel, signals...) sends to the channel when the given signals are received.
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// メインの処理の裏で、シグナルが来たら終了するための goroutine を起動する。
+	// Start a goroutine that shuts down when a signal is received, in parallel with the main work.
 	go func() {
-		sig := <-sigCh                    // シグナルが sigCh に送られるまでここで止まり、届いたらその値を sig に入れる
+		sig := <-sigCh                    // Block until a signal is sent on sigCh, then assign it to sig.
 		fmt.Fprintf(os.Stderr, "received %v, shutting down gracefully...\n", sig)
-		cancel()                          // 終了の合図を送る（Run 側で ctx.Done() が閉じる）
+		cancel()                          // Send the shutdown signal (Run will see ctx.Done() closed).
 	}()
 	
-	// 負荷試験を実行する MyRunner を作り、MyRun で実際にリクエストを送る
+	// Create a MyRunner to run the load test and send requests via MyRun.
 	myRunner := worker.NewMyRunner()
 	mySum, myErr := myRunner.MyRun(ctx, *url, *totalRequests, *concurrency)
 
-	// runnner.go 54-56行目のエラー時の処理(引数チェック)
+	// Error handling for invalid arguments (see runner.go lines 54-56).
 	if myErr != nil {
-		fmt.Fprintln(os.Stderr, "run error:", myErr) // Run がエラーを返したらメッセージを出して異常終了
+		fmt.Fprintln(os.Stderr, "run error:", myErr) // On Run error, print message and exit with failure.
 		os.Exit(1)
 	}
 	
-	// 結果を画面に表示する（成功数・失敗数・ステータスコード別の件数など）
+	// Print results (success count, failure count, status code breakdown, etc.).
 	fmt.Printf("Total: %d, Success: %d, Failed: %d, TotalDuration: %s\n",
 		mySum.MyTotal, mySum.MySuccess, mySum.MyFailed, mySum.MyTotalDuration)
-	if len(mySum.MyStatusCodeCnt) > 0 { // ステータスコード別の内訳があるときだけ表示する
+	if len(mySum.MyStatusCodeCnt) > 0 { // Only show status code breakdown when there is any.
 		fmt.Println("Status codes:")
 		for code, cnt := range mySum.MyStatusCodeCnt {
 			fmt.Printf("  %d: %d\n", code, cnt)
