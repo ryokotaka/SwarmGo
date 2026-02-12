@@ -1,4 +1,4 @@
-[<div align="center">
+<div align="center">
 
 # SwarmGo 
 
@@ -21,10 +21,28 @@ It uses the <strong>Worker Pool pattern</strong> to handle high concurrency with
 
 ## 🚀 Features
 
-- **📊 Results at a glance**: Mean latency, RPS, success/failure counts, and a per–status-code breakdown (200, 500, etc.) so you can see how the server really behaved.
-- **⚡ Up and running with one command**: No config files—just URL, count, and concurrency; you can start a test in seconds.
-- **💻 Low memory footprint, high load on the target**: Worker Pool keeps memory low while you push the target to its limits.
-- **🛡 Interrupt safely—results stay accurate**: On `Ctrl+C`, in-flight requests finish before exit, so your numbers stay trustworthy.
+
+<table>
+  <tbody>
+    <tr>
+      <td><strong><span style="color:#ff4d4f;"> Results at a glance</span></strong></td>
+      <td>Mean latency, RPS, success/failure counts, and a per-status-code breakdown (200, 500, etc.) so you can see how the server behaved.</td>
+    </tr>
+    <tr>
+      <td><strong><span style="color:#ff4d4f;"> Up and running with one command</span></strong></td>
+      <td>No config files—just URL, count, and concurrency. Start a test in seconds.</td>
+    </tr>
+    <tr>
+      <td><strong><span style="color:#ff4d4f;"> Low memory footprint, high load on the target</span></strong></td>
+      <td>Uses a Worker Pool to keep memory usage stable while pushing high concurrency to the target.</td>
+    </tr>
+    <tr>
+      <td><strong><span style="color:#ff4d4f;"> Interrupt safely—results stay accurate</span></strong></td>
+      <td>On <code>Ctrl+C</code>, in-flight requests finish before exit, so your numbers stay trustworthy.</td>
+    </tr>
+  </tbody>
+</table>
+
 
 ## 🛠 Architecture
 
