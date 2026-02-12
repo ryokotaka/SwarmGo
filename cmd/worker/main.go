@@ -69,7 +69,7 @@ func main() {
 		os.Exit(1)
 	}
 	
-// --- 結果計算エリア ---
+// --- Result Calculation Area ---
 
     // Calculate RPS (Requests Per Second) = Total Requests / Total Elapsed Time (seconds)
     rps := 0.0
@@ -83,15 +83,15 @@ func main() {
         avgLatency = mySum.MyTotalDuration / time.Duration(mySum.MyTotal)
     }
 
-    // --- 結果出力エリア ---
+    // --- Result Output Area ---
     fmt.Println("--------------------------------------------------")
     fmt.Printf("Summary:\n")
     fmt.Printf("  Total Requests: %d\n", mySum.MyTotal)
     fmt.Printf("  Success:        %d\n", mySum.MySuccess)
     fmt.Printf("  Failed:         %d\n", mySum.MyFailed)
-    fmt.Printf("  Total Duration: %s\n", runElapsed) // テスト全体にかかった時間
+    fmt.Printf("  Total Duration: %s\n", runElapsed) // Total time taken for the test
     fmt.Println("--------------------------------------------------")
-    // RPSと平均レイテンシを表示
+    // Display RPS and Mean Latency
     fmt.Printf("  RPS:            %.2f req/s\n", rps)
     fmt.Printf("  Mean Latency:   %s\n", avgLatency)
     fmt.Println("--------------------------------------------------")
