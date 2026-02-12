@@ -1,4 +1,3 @@
-```markdown
 # SwarmGo
 
 A lightweight, high-performance load testing tool written in Go.
@@ -32,11 +31,34 @@ graph TD
         ResChannel -->|Aggregate| Summary
     end
     Summary -->|Report| Output[Console]
-📦 InstallationBashgit clone https://github.com/ryokotaka/SwarmGo.git
+```
+
+## 📦 Installation
+
+```bash
+git clone https://github.com/ryokotaka/SwarmGo.git
 cd SwarmGo
 go mod tidy
-📖 UsageRun the worker with the target URL, total requests, and concurrency level.Bashgo run cmd/worker/main.go -url https://example.com -n 100 -c 10
-OptionsFlagDescriptionDefault-urlTarget URL to test(Required)-nTotal number of requests0-cNumber of concurrent executions0📊 Output ExamplePlaintextSummary:
+```
+
+## 📖 Usage
+
+**Syntax:**
+
+```bash
+worker -url <Target_URL> -n <Total_Requests> -c <Concurrency>
+```
+
+**Example:** Send 100 requests to example.com with 10 concurrent workers
+
+```bash
+worker -url https://example.com -n 100 -c 10
+```
+
+## 📊 Output Example
+
+```
+Summary:
   Total Requests: 10
   Success:        10
   Failed:         0
@@ -47,6 +69,8 @@ OptionsFlagDescriptionDefault-urlTarget URL to test(Required)-nTotal number of r
 --------------------------------------------------
 Status codes:
   200: 10
-📜 LicenseMIT
----
+```
 
+## 📜 License
+
+MIT
