@@ -8,49 +8,50 @@
 
 <br>
 
-SwarmGo は、Go言語での軽量かつHTTP負荷試験ツールです。<br>
-Worker Pool パターンと Graceful Shutdown を採用し、並行処理と安定性を重視して設計しました。
+Goの並行処理能力を最大限に引き出す、HTTP負荷試験ツールです。<br>
+Worker Poolアーキテクチャにより、数百万リクエスト規模でもメモリを枯渇させず、アクセスを安定して送り続けられます。
 
 </div>
+<br>
 
 ![Demo](demo.gif)
 
 
 ## 🚀 機能
 
-- **Worker Pool アーキテクチャ**: ゴルーチン（Goroutine）の生成数を制御し、数百万リクエスト規模でもメモリ枯渇を起こさない設計にしました。
-- **シンプルなCLI**: 複雑な設定ファイル不要で、「URL」「リクエスト総数」「並列数」をフラグで指定するだけです。
-- **詳細なレポート**: ステータスコードごとの集計、成功/失敗数、合計所要時間を結果として出します。
-- **グレースフルシャットダウン**: `Ctrl+C` での割り込み時も、実行中のリクエスト完了を待ってから安全に終了させます。
+- **📊 サーバーの「限界」と「弱点」を即座に特定**:
+  ただ成功・失敗を表示するだけでなく、平均の速さやエラーの内訳（200 OK, 500 Errorなど）を表示します。「どこでサーバーが悲鳴を上げているか」がひと目でわかります。
+- **⚡️ 手元のPCはサクサク、相手には強力な負荷**:
+  独自の効率化（Worker Pool）により、自分のPCを重くすることなく、大量のアクセスを安定して送り込めます。「テスト中に自分のPCが固まる」といったストレスがありません。
+- **🛠️ 1行のコマンドで、今すぐテスト開始**:
+  面倒な設定や準備は一切不要です。「URL」「回数」「同時に送る数」を指定するだけで、思い立ったその瞬間に負荷テストを実行できます。
+- **🛡 途中で止めてもデータは正確**: `Ctrl+C` での中断時も、進行中のリクエストを最後まで処理してから終了。テスト結果の信頼性を損ないません。
+
 
 ## 🛠 アーキテクチャ
 
 ```mermaid
 graph TD
-    Init["Start / Flags Parsing"] --> Runner
-    Runner --> Dispatch["Job Dispatcher"]
-    Dispatch -->|Fill Jobs| JobCh["Job Channel (Buffered)"]
-    subgraph WorkerPool["Worker Pool (Concurrency Limit)"]
-        JobCh --> W1["Worker 1"]
-        JobCh --> W2["Worker 2"]
-        JobCh --> W3["Worker ..."]
+    User((User)) -->|Start Command| Main[Main Process]
+    subgraph "SwarmGo Worker Node"
+        Main -->|Init| Runner
+        Runner -->|Dispatch| JobChannel[Job Channel]
+        subgraph "Worker Pool"
+            W1[Worker 1]
+            W2[Worker 2]
+            WX[Worker ...]
+        end
+        JobChannel --> W1 & W2 & WX
+        W1 & W2 & WX -->|HTTP Req| Target[Target Service]
+        W1 & W2 & WX -->|Result| ResChannel[Result Channel]
+        ResChannel -->|Aggregate| Summary
     end
-    W1 -->|HTTP GET| Target["Target Service"]
-    W2 -->|HTTP GET| Target
-    W3 -->|HTTP GET| Target
-    Target -->|Response| W1
-    Target -->|Response| W2
-    Target -->|Response| W3
-    W1 -->|Result| ResCh["Result Channel"]
-    W2 -->|Result| ResCh
-    W3 -->|Result| ResCh
-    ResCh --> Agg["Aggregator (Summary)"]
-    Agg --> Report["Print Report"]
+    Summary -->|Report| Output[Console]
 ```
 
 ## 💡 技術的なハイライト: メモリ枯渇問題の解決
 
-最初頃の実装では、総リクエスト数の数だけゴルーチンを起動していました。そのため、100万リクエストのような大規模なテストでは、大量のゴルーチンが待機状態となり、数GBのメモリを消費してプロセスがクラッシュしてしまいました。
+最初頃の実装では、総リクエスト数の数だけゴルーチンを起動していたため、100万リクエストのような大規模なテストでは、大量のゴルーチンが待機状態となり、数GBのメモリを消費しクラッシュしてしまっていました。
 
 そこで、**Worker Pool パターン**を導入し、同時実行数の分だけゴルーチンを起動して、それらがジョブキューからタスクを取得して処理する方式に変更しました。これにより、メモリ使用量を数MB〜数十MBに抑えつつ、高速な処理を可能にしています。
 
@@ -72,7 +73,7 @@ go mod tidy
 # ビルド
 go build -o swarmgo cmd/worker/main.go
 
-# 実行例: 100回のリクエストを、10並列で実行
+# 実行例: 100回のリクエストを、https://example.com に10並列で実行
 ./swarmgo -url https://example.com -n 100 -c 10
 ```
 
