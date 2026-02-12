@@ -1,3 +1,4 @@
+```markdown
 # SwarmGo
 
 A lightweight, high-performance load testing tool written in Go.
@@ -10,6 +11,7 @@ Designed with concurrency patterns (Worker Pool) and graceful shutdown capabilit
 - **Concurrent Execution**: Uses Go routines and channels (Worker Pool pattern) for efficient load generation.
 - **Graceful Shutdown**: Handles signals (SIGINT/SIGTERM) to safely stop ongoing requests.
 - **Real-time Metrics**: Calculates RPS (Requests Per Second) and Mean Latency.
+- **Resource Efficient**: Reuse TCP connections with a custom HTTP Transport configuration.
 
 ## 🛠 Architecture
 
@@ -30,41 +32,21 @@ graph TD
         ResChannel -->|Aggregate| Summary
     end
     Summary -->|Report| Output[Console]
-
-## 📦 Installation
-
-git clone [https://github.com/ryokotaka/SwarmGo.git](https://github.com/ryokotaka/SwarmGo.git)
+📦 InstallationBashgit clone https://github.com/ryokotaka/SwarmGo.git
 cd SwarmGo
 go mod tidy
-
-## 📖 Usage
-# Syntax
-worker -url <Target_URL> -n <Total_Requests> -c <Concurrency>
-
-# Example: Send 100 requests to example.com with 10 concurrent workers
-worker -url [https://example.com](https://example.com) -n 100 -c 10
-
-### Options
-Flag,Description,Default
--url,Target URL to test,(Required)
--n,Total number of requests,0
--c,Number of concurrent executions,0
-
-## 📊 Output Example
-Summary:
-  Total Requests: 100
-  Success:        100
+📖 UsageRun the worker with the target URL, total requests, and concurrency level.Bashgo run cmd/worker/main.go -url https://example.com -n 100 -c 10
+OptionsFlagDescriptionDefault-urlTarget URL to test(Required)-nTotal number of requests0-cNumber of concurrent executions0📊 Output ExamplePlaintextSummary:
+  Total Requests: 10
+  Success:        10
   Failed:         0
-  Total Duration: 5.2s
+  Total Duration: 116.75ms
 --------------------------------------------------
   RPS:            85.65 req/s
   Mean Latency:   23.26ms
 --------------------------------------------------
 Status codes:
-  200: 100
-
-
-## 📜 License
-MIT
-
+  200: 10
+📜 LicenseMIT
+---
 
