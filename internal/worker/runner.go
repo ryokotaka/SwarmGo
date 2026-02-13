@@ -55,18 +55,11 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 		return nil, fmt.Errorf("totalRequests and concurrency must be positive, got %d, %d", totalRequests, concurrency)
 	}
 
-	// Channel for job dispatch (each item represents one request for workers to process).
-	myJobs := make(chan struct{}, totalRequests)
+	// Channel for job dispatch (buffer size = concurrency so memory stays O(concurrency) even with huge totalRequests).
+	myJobs := make(chan struct{}, concurrency)
 	// Single channel for sending and receiving results; one goroutine does all aggregation so no locking is needed.
-	myResults := make(chan MyResult, totalRequests)
+	myResults := make(chan MyResult, concurrency)
 
-	// Enqueue totalRequests jobs, then close the channel.
-	for i := 0; i < totalRequests; i++ {
-		myJobs <- struct{}{}
-	}
-	close(myJobs)
-
-	// Use a WaitGroup so we can Add / Done / Wait.
 	var myWg sync.WaitGroup
 
 	// Start exactly concurrency workers (loop only starts them, so it exits quickly).
@@ -80,7 +73,7 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 				select {
 				case <-ctx.Done():
 					myResults <- MyResult{MyErr: ctx.Err()}
-					continue
+					return
 				default:
 				}
 				// Execute one HTTP request and send the result.
@@ -88,6 +81,18 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 			}
 		}()
 	}
+
+	// Producer: enqueue jobs in a separate goroutine so we can react to ctx.Done() and avoid blocking main.
+	go func() {
+		defer close(myJobs)
+		for i := 0; i < totalRequests; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			case myJobs <- struct{}{}:
+			}
+		}
+	}()
 
 	// Close the results channel after all workers finish (done once, outside the loop).
 	go func() {
@@ -98,14 +103,15 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 	// Receive results one by one from myResults and aggregate (safe because only this goroutine writes).
 	mySum := &MySummary{MyStatusCodeCnt: make(map[int]int)} // MyStatusCodeCnt is a map, so it must be made.
 	for res := range myResults {
-		mySum.MyTotal++                         // Increment total count.
-		mySum.MyTotalDuration += res.MyDuration // Add this request's duration to the total.
 		if res.MyErr != nil {
-			mySum.MyFailed++ // On error, increment failure count and continue.
+			mySum.MyTotal++
+			mySum.MyFailed++
 			continue
 		}
-		mySum.MySuccess++                           // Increment success count.
-		mySum.MyStatusCodeCnt[res.MyStatusCode]++ // Increment count for this status code.
+		mySum.MyTotal++
+		mySum.MyTotalDuration += res.MyDuration
+		mySum.MySuccess++
+		mySum.MyStatusCodeCnt[res.MyStatusCode]++
 	}
 	return mySum, nil // Return the aggregated result to the caller.
 }

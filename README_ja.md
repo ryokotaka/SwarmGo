@@ -1,6 +1,6 @@
 <div align="center">
 
-# SwarmGo 🐝
+# SwarmGo 
 
 [![Go](https://img.shields.io/badge/Go-1.22+-red?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
@@ -27,7 +27,7 @@ Worker Poolで並行数を管理し、リソース（特にメモリ）の使用
     </tr>
     <tr>
       <td><strong><span style="color:#ff4d4f;"> 1行のコマンドでテスト開始</span></strong></td>
-      <td>面倒な設定や準備は不要です。<code>URL / 合計回数 / 同時に送る数</code> を指定するだけで、すぐに負荷テストを実行できます。</td>
+      <td><code>URL / 合計回数 / 同時に送る数</code> を指定するだけで、すぐに負荷テストを実行できます。</td>
     </tr>
     <tr>
       <td><strong><span style="color:#ff4d4f;"> 高並行でもメモリが増えにくい設計</span></strong></td>
