@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/ryokotaka/SwarmGo/proto";
+
+// 1. Worker -> Master への登録・報告サービス
+service SwarmService {
+  // WorkerがMasterに接続し、双方向ストリーミングを開始する
+  rpc Connect (stream WorkerMsg) returns (stream MasterCmd);
+}
+
+// MasterからWorkerへの命令
+message MasterCmd {
+  oneof cmd {
+    StartCmd start = 1; // テスト開始命令
+    StopCmd stop = 2;   // テスト停止命令
+    QuitCmd quit = 3;   // アプリ終了命令
+  }
+}
+
+// WorkerからMasterへのメッセージ
+message WorkerMsg {
+  oneof msg {
+    RegisterMsg register = 1; // 最初の挨拶（スペック情報など）
+    StatsMsg stats = 2;       // 途中経過（RPSなど）
+    FinishMsg finish = 3;     // 完了報告
+  }
+}
+
+// 詳細なデータ構造定義
+message StartCmd {
+  string target_url = 1;
+  int32 total_requests = 2; // Workerごとの割当量
+  int32 concurrency = 3;
+}
+
+message StopCmd {}
+message QuitCmd {}
+
+message RegisterMsg {
+  string worker_id = 1;
+  string cpu_arch = 2; // "arm64", "amd64" など（デバッグ用）
+}
+
+message StatsMsg {
+  int32 success_count = 1;
+  int32 fail_count = 2;
+  double current_rps = 3; // リアルタイムRPS
+}
+
+message FinishMsg {
+  int32 total_duration_ms = 1;
+}
