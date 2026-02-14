@@ -1,0 +1,30 @@
+services:
+  # 司令塔サーバー
+  master:
+    build: .
+    command: master
+    ports:
+      - "50051:50051"
+    stdin_open: true # TUIのために標準入力を開ける（重要）
+    tty: true        # TUIのために擬似端末を割り当てる（重要）
+    networks:
+      - swarm-net
+
+  # 兵隊サーバー (3台構成)
+  worker:
+    build: .
+    command: worker
+    deploy:
+      replicas: 3 # ここを変えれば100台にも増やせる！
+    restart: always
+    environment:
+      - MASTER_ADDR=master:50051 # コンテナ名で接続する
+    depends_on:
+      - master
+    networks:
+      - swarm-net
+
+networks:
+  swarm-net:
+
+
