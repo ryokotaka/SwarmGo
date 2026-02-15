@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-    // 引数が足りない場合は、ヘルプを表示して終了するか、デフォルト動作にする
+    // 「os.Args」はCLI引数を取得し、0番目が実行ファイル名、1番目が引数
     if len(os.Args) < 2 {
         printHelp()
         os.Exit(1)
@@ -34,10 +34,7 @@ func main() {
         // Workerモードのフラグ解析と実行
         runWorker()
     default:
-        // 従来のスタンドアローンモード（引数がURLなどの場合）として扱うか、
-        // あるいは "standalone" というサブコマンドを作るか。
-        // ここでは互換性のため、サブコマンドなしはスタンドアローンとみなす実装も可能ですが、
-        // 明示的に分けたほうが設計としては綺麗です。今回はヘルプを出します。
+
         fmt.Printf("Unknown command: %s\n", os.Args[1])
         printHelp()
         os.Exit(1)
