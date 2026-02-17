@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 
 	"github.com/ryokotaka/SwarmGo/proto"
 )
@@ -31,7 +32,14 @@ type LogLine struct {
 	Message string
 }
 
-// Server は SwarmService の gRPC サーバー実装。
+// Server = このプログラムの「Master」の正体。1 プロセスに 1 つだけ。
+// Worker を束ねて命令を送る側。gRPC の窓口でもある。
+//
+// 中身（この構造体が持っているもの）:
+//   - workers … 今つながっている Worker の名簿（ID → その子との通信路）
+//   - mu … 名簿を触るときの鍵（同時に触らないようにする）
+//   - uiChan … 画面（TUI）にログを送るための管。SetUIChan で渡す。
+//   - uiChanMu … その管の設定を守る鍵
 type Server struct {
 	proto.UnimplementedSwarmServiceServer
 
@@ -41,7 +49,8 @@ type Server struct {
 	uiChanMu sync.Mutex
 }
 
-// サーバーの初期化
+// NewServer は Master の「実体」を 1 個作り、その「住所」（*Server）を返す。
+// 住所を渡すので、もらった人みんなが同じ 1 個を触れる。コピーではない。
 func NewServer() *Server {
 	return &Server{
 		workers: make(map[string]proto.SwarmService_ConnectServer),
@@ -141,15 +150,107 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 	}
 }
 
-// サーバーの起動（1 つの Server インスタンスで全 Connect が同じ workers を共有する）
+// WorkerInfo は list コマンド用の接続中 Worker の情報（ID とアドレス）
+type WorkerInfo struct {
+	ID   string
+	Addr string
+}
+
+// BroadcastCommand は接続中の全 Worker に同じ命令を送信する。
+//
+// 
+//   - 目的: 分散負荷テストで、Master が複数 Worker に同じ指示を一斉に出してまとめて制御する。
+//   - この関数の役割: 「今つながっている全 Worker に、同じ 1 個の命令（開始/停止/終了）を一斉に送る」API。
+//   - 実装の工夫: 送信先リストは共有の s.workers。ロックを長く持ちたくないので、
+//     ロック中は「写し（snapshot）」を取るだけにして、ロックを外してからその写しに対して Send する。
+func (s *Server) BroadcastCommand(cmd *proto.MasterCmd) {
+	// 共有データ s.workers（map）を触る前に Mutex をロック。他 goroutine はここで待たされる。
+	s.mu.Lock()
+	// 新しい map を作成。キー=WorkerID(string)、値=ストリーム。第2引数は容量ヒントで、len(s.workers) ぶん確保し追加時の再確保を減らす。
+	snapshot := make(map[string]proto.SwarmService_ConnectServer, len(s.workers))
+	for id, stream := range s.workers {
+		snapshot[id] = stream
+	}
+	s.mu.Unlock()
+	// ロックはここまで。以降は snapshot だけを触るので、stream.Send() のように時間がかかる処理をロック外で実行できる。
+
+	for id, stream := range snapshot {
+		if err := stream.Send(cmd); err != nil {
+			s.logOrSendToUI("Failed to send command to %s: %v", id, err)
+		}
+	}
+}
+
+// ListWorkers は現在接続中の Worker 一覧（ID, アドレス）を返す。
+//
+// 
+//   - 目的: TUI/CLI で「今どの Worker がつながっているか」を表示するために一覧を取得する。
+//   - この関数の役割: 名簿（s.workers）を安全に読んで、呼び出し元が使いやすい形（[]WorkerInfo）で返す API。
+//   - 実装の工夫: 読むだけなのでロック中に list を組み立てて返す（Send のような重い処理はないため写しは取らない）。
+func (s *Server) ListWorkers() []WorkerInfo {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	list := make([]WorkerInfo, 0, len(s.workers)) // 返却用スライス。長さ0、容量は Worker 数で事前確保。
+	for id, stream := range s.workers {
+		addr := "" // この Worker の接続元アドレス。取れなければ空文字列のまま。
+		if p, ok := peer.FromContext(stream.Context()); ok && p.Addr != nil {
+			addr = p.Addr.String() // peer=接続の相手（Worker）、Addr=そのネットワーク上の住所（IP:ポート）
+		}
+		list = append(list, WorkerInfo{ID: id, Addr: addr})
+	}
+	return list
+}
+
+// StartGRPCServer は 1 つの Server インスタンスで全 Connect が同じ workers を共有する。ブロッキング。
+//
+// 起動の流れ:
+//  1. リッスン … net.Listen でポートを開き、窓口で接続を待ち受ける準備をする。
+//  2. サーバーを用意 … grpc.NewServer で窓口での処理（gRPC の受け方）を決め、Register で RPC を登録する。
+//  3. サーブ … grpcServer.Serve(lis) でその窓口で接続を受け付け続ける（戻ってこない）。
 func StartGRPCServer(port string) error {
+	// 1. リッスン: このポートで TCP 接続を待ち受ける（標準ライブラリ net）
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
+	// 2. サーバーを用意: gRPC 用のサーバーを作り、SwarmService の処理を登録する（公式 grpc ライブラリ）
 	grpcServer := grpc.NewServer()
 	srv := NewServer()
 	proto.RegisterSwarmServiceServer(grpcServer, srv)
 	log.Printf("Master server listening on port %s...", port)
+	// 3. サーブ: 窓口で接続を受け付け続ける（ブロック）
 	return grpcServer.Serve(lis)
+}
+
+// RunGRPCServer は「gRPC を裏で動かしつつ、すぐに Master の住所（*Server）を返す」関数。
+//
+// なぜ返すか:
+//  画面TUIが一覧表示、全員に開始をやりたいとき、
+//  「その Master の住所」を渡す。
+//
+// 返すのは「コピー」じゃなく「住所」。もらった人は srv.ListWorkers() や
+// srv.BroadcastCommand() で、裏で動いているあの 1 個の Master を触れる。
+//
+// やっていることは StartGRPCServer と同じ 3 段階。違うのは「待ち受け（Serve）」を
+// 別 goroutine でやるだけ。だからこっちはすぐ return して、*Server を渡せる。
+func RunGRPCServer(port string) (*Server, error) {
+	// 1. ポートを開いて、接続を待つ準備
+	lis, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen: %v", err)
+	}
+	// 2. gRPC のサーバーを作り、この srv を「SwarmService の実装」として登録
+	grpcServer := grpc.NewServer()
+	srv := NewServer()
+	proto.RegisterSwarmServiceServer(grpcServer, srv)
+	log.Printf("Master server listening on port %s...", port)
+
+	// 3. 接続の待ち受けは「ずっとブロックする」ので、別 goroutine で実行。ここでは return する。
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+
+	// この 1 個の Master の住所を返す。TUI はこれで同じ Master を操作する。
+	return srv, nil
 }
