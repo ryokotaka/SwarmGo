@@ -10,19 +10,19 @@ import (
 
 // MyResult represents the outcome of a single request.
 type MyResult struct {
-	MyStatusCode int // HTTP status code to return
-	MyDuration time.Duration // Duration of the request from start to response completion
-	MyErr error // Failure of the communication itself
+	MyStatusCode int           // HTTP status code to return
+	MyDuration   time.Duration // Duration of the request from start to response completion
+	MyErr        error         // Failure of the communication itself
 }
 
 // MySummary represents the results after all requests are completed.
 // For performance reasons, only updated from a single goroutine (no locks needed).
 type MySummary struct {
-	MyTotal         int            // Total number of requests executed
-	MySuccess       int            // Number of successful requests
-	MyFailed        int            // Number of failed requests
-	MyStatusCodeCnt map[int]int    // Number of requests for each status code (pair of [status code] and [number of requests])
-	MyTotalDuration time.Duration  // Total duration of all requests (used for average calculation)
+	MyTotal         int               // Total number of requests executed
+	MySuccess       int               // Number of successful requests
+	MyFailed        int               // Number of failed requests
+	MyStatusCodeCnt map[int]int       // Number of requests for each status code (pair of [status code] and [number of requests])
+	MyTotalDuration time.Duration    // Total duration of all requests (used for average calculation)
 }
 
 // MyRunner is the main struct for running the load test.
@@ -43,7 +43,7 @@ func NewMyRunner() *MyRunner {
 		Transport: myTransport,
 		Timeout:   30 * time.Second, // Request is aborted after 30 seconds
 	}
-	return &MyRunner{MyClient: myClient}  // Returns the MyRunner with the created MyClient.
+	return &MyRunner{MyClient: myClient} // Returns the MyRunner with the created MyClient.
 }
 
 // MyRun sends totalRequests GET requests to the given URL, with up to concurrency concurrent executions.
