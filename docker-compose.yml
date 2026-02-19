@@ -24,6 +24,7 @@ services:
     restart: always
     environment:
       - MASTER_ADDR=master:50051
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
     depends_on:
       - master
     networks:

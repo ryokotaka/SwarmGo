@@ -13,13 +13,16 @@ COPY . .
 # バイナリのビルド (Linux用)
 RUN CGO_ENABLED=0 go build -o swarmgo ./cmd/swarmgo/
 
-# 2. 実行用ステージ（完成品だけを入れる軽量な箱）
-FROM alpine:latest
+# 2. 実行用ステージ（安定感抜群のDebian軽量版）
+FROM debian:bookworm-slim
 
 WORKDIR /root/
+
+# Debian標準の確実な証明書リストをインストール
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && update-ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # ビルドしたバイナリをコピー
 COPY --from=builder /app/swarmgo .
 
-# 実行コマンド（docker-compose で command を渡して master / worker を切り替える）
+# 実行コマンド
 ENTRYPOINT ["./swarmgo"]
