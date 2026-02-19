@@ -8,8 +8,8 @@
 <br>
 <br>
 <p>
-A lightweight HTTP load testing tool written in Go.<br>
-It uses the <strong>Worker Pool pattern</strong> to handle high concurrency with stable memory usage.
+A distributed HTTP load testing tool written in Go.<br>
+<strong>Master</strong> (TUI or headless) coordinates <strong>Workers</strong> over gRPC; each Worker uses a <strong>Worker Pool</strong> for stable memory under high concurrency.
 </p>
 <br>
 
@@ -25,20 +25,20 @@ It uses the <strong>Worker Pool pattern</strong> to handle high concurrency with
 <table>
   <tbody>
     <tr>
-      <td><strong><span style="color:#ff4d4f;"> Results at a glance</span></strong></td>
-      <td>Mean latency, RPS, success/failure counts, and a per-status-code breakdown (200, 500, etc.) so you can see how the server behaved.</td>
+      <td><strong><span style="color:#ff4d4f;"> Master + Workers over gRPC</span></strong></td>
+      <td>One Master (TUI or headless) commands multiple Workers; scale by adding more Worker processes or machines.</td>
     </tr>
     <tr>
-      <td><strong><span style="color:#ff4d4f;"> Up and running with one command</span></strong></td>
-      <td>No config files—just URL, count, and concurrency. Start a test in seconds.</td>
+      <td><strong><span style="color:#ff4d4f;"> TUI dashboard</span></strong></td>
+      <td>See connected Workers, live RPS, success/fail counts, and logs. Press <code>s</code> to start a test, <code>q</code> to quit and signal Workers.</td>
     </tr>
     <tr>
-      <td><strong><span style="color:#ff4d4f;"> Low memory footprint, high load on the target</span></strong></td>
-      <td>Uses a Worker Pool to keep memory usage stable while pushing high concurrency to the target.</td>
+      <td><strong><span style="color:#ff4d4f;"> Low memory per Worker</span></strong></td>
+      <td>Each Worker uses a fixed-size Worker Pool so memory stays stable under high concurrency.</td>
     </tr>
     <tr>
-      <td><strong><span style="color:#ff4d4f;"> Interrupt safely—results stay accurate</span></strong></td>
-      <td>On <code>Ctrl+C</code>, in-flight requests finish before exit, so your numbers stay trustworthy.</td>
+      <td><strong><span style="color:#ff4d4f;"> Headless Master</span></strong></td>
+      <td>Use <code>-no-tui</code> for gRPC-only Master (CI, SSH, or scripted runs).</td>
     </tr>
   </tbody>
 </table>
@@ -46,25 +46,17 @@ It uses the <strong>Worker Pool pattern</strong> to handle high concurrency with
 
 ## 🛠 Architecture
 
-This tool uses a buffered channel for job dispatching and a fixed-size worker pool for execution.
+- **Master**: gRPC server with an optional TUI dashboard. Sends Start/Stop/Quit to Workers and shows connection count, RPS, and logs.
+- **Worker**: Connects to Master, receives commands, and runs HTTP load tests using a fixed-size worker pool (buffered job channel) for stable memory.
 
 ```mermaid
-graph TD
-    User((User)) -->|Start Command| Main[Main Process]
-    subgraph "SwarmGo Worker Node"
-        Main -->|Init| Runner
-        Runner -->|Dispatch| JobChannel[Job Channel]
-        subgraph "Worker Pool"
-            W1[Worker 1]
-            W2[Worker 2]
-            WX[Worker ...]
-        end
-        JobChannel --> W1 & W2 & WX
-        W1 & W2 & WX -->|HTTP Req| Target[Target Service]
-        W1 & W2 & WX -->|Result| ResChannel[Result Channel]
-        ResChannel -->|Aggregate| Summary
-    end
-    Summary -->|Report| Output[Console]
+graph LR
+    User((User)) -->|s: start / q: quit| Master[Master TUI]
+    Master -->|gRPC stream| W1[Worker 1]
+    Master -->|gRPC stream| W2[Worker 2]
+    Master -->|gRPC stream| WN[Worker N]
+    W1 & W2 & WN -->|HTTP GET| Target[Target URL]
+    W1 & W2 & WN -->|Stats / Finish| Master
 ```
 
 ## 💡 Why Worker Pool? (Solving OOM)
@@ -81,49 +73,112 @@ Requires Go 1.22+.
 git clone https://github.com/ryokotaka/SwarmGo.git
 cd SwarmGo
 go mod tidy
+go build -o swarmgo ./cmd/swarmgo/
 ```
 
 ## 📖 Usage
 
-Build and run via CLI.
+### Master (commander)
+
+Start the Master; it runs a gRPC server and an optional TUI dashboard.
 
 ```bash
-# Build
-go build -o swarmgo cmd/worker/main.go
+# With TUI (default): dashboard, press 's' to start a test, 'q' to quit
+./swarmgo master -p 50051
 
-# Example: Run 100 requests with 10 concurrency
-./swarmgo -url https://example.com -n 100 -c 10
+# Headless (no TUI): gRPC only, e.g. for CI or remote servers
+./swarmgo master -p 50051 -no-tui
 ```
 
-### Options
+| Flag     | Description              | Default  |
+|----------|--------------------------|----------|
+| `-p`     | gRPC listen port         | `50051`  |
+| `-no-tui`| Run without TUI (headless)| false    |
 
-| Flag | Description | Required | Default |
-|------|-------------|:--------:|---------|
-| `-url` | Target URL | ✓ | - |
-| `-n` | Total requests | ✓ | 0 |
-| `-c` | Concurrency (Worker count) | ✓ | 0 |
+### Worker (load generator)
 
-## 📊 Output Example
+Workers connect to the Master and run load tests when the Master sends a Start command.
 
+```bash
+# Same machine (default Master address: localhost:50051)
+./swarmgo worker
+
+# Custom Master address
+./swarmgo worker -addr 192.168.1.10:50051
+
+# Or use environment variable
+MASTER_ADDR=master.example.com:50051 ./swarmgo worker
 ```
-Summary:
-  Total Requests: 10
-  Success:        10
-  Failed:         0
-  Total Duration: 116.75ms
---------------------------------------------------
-  RPS:            85.65 req/s
-  Mean Latency:   23.26ms
---------------------------------------------------
-Status codes:
-  200: 10
+
+| Option         | Description                    | Default          |
+|----------------|--------------------------------|------------------|
+| `-addr`        | Master address (host:port)     | (see below)      |
+| `MASTER_ADDR`  | Master address (env)            | `localhost:50051`|
+
+### Quick run
+
+1. Terminal 1: `./swarmgo master -p 50051`
+2. Terminal 2: `./swarmgo worker` (add more terminals for more workers)
+3. In the Master TUI, press **s** to start a test (target/requests/concurrency are set in the TUI for now).
+
+### Run with Docker
+
+Go をインストールしていなくても、Docker だけで Master（TUI 付き）と Worker を動かせます。
+
+**1. バックグラウンドで起動（推奨）**  
+ログでターミナルが埋まらず、スクロールも自由にできます。
+
+```bash
+docker compose up -d --build
 ```
+
+- **master**: TUI 付きで起動。ポート 50051 を公開。
+- **worker**: 3 台起動（`--scale worker=5` で台数変更可能）。
+
+**2. 止めるとき**
+
+```bash
+docker compose down
+```
+
+**3. Master の TUI を操作する（s で開始・q で終了）**
+
+```bash
+# Master コンテナにアタッチ（TUI が表示される）
+docker attach $(docker compose ps -q master)
+# 終了: Ctrl+P → Ctrl+Q でデタッチ（コンテナは動いたまま）。q を押すと Master が終了。
+```
+
+**フォアグラウンドで起動する場合**（ログが流れ続け、Ctrl+C で止まる）:
+
+```bash
+docker compose up --build
+```
+
+**単体で動かす例:**
+
+```bash
+docker build -t swarmgo .
+
+# Master（TUI 付き。 -it でインタラクティブに）
+docker run -it --rm -p 50051:50051 swarmgo master -p 50051
+
+# Worker（別ターミナル。--link やネットワークで master に接続）
+docker run --rm swarmgo worker -addr host.docker.internal:50051
+```
+
+## 📊 Output
+
+- **Master TUI**: Workers count, total RPS graph, success/fail counters, and a log of connect/disconnect/finish events.
+- **Worker** (when run with TUI Master): Receives Start, runs HTTP load test, reports Stats and Finish to Master.
+
+Standalone worker-style output (RPS, mean latency, status codes) appears in each Worker’s log when a test finishes.
 
 ## 🗺 Roadmap
 
-- [ ] Real-time progress bar
-- [ ] Support POST methods
-- [ ] RPS measurement
+- [ ] Configurable target URL / requests / concurrency from TUI
+- [ ] Real-time progress in TUI
+- [ ] Support POST and other methods
 - [ ] Latency distribution (P50, P99)
 
 ## 📜 License
