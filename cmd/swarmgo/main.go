@@ -40,7 +40,7 @@ func main() {
 func printHelp() {
 	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker> [options]")
 	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server (TUI). Options: -p port (default 50051)")
-	fmt.Fprintln(os.Stderr, "  worker  - connect to Master and run load test tasks. Use MASTER_ADDR for Master address (default localhost:50051)")
+	fmt.Fprintln(os.Stderr, "  worker  - connect to Master and run load test tasks. Option: -addr (or MASTER_ADDR, default localhost:50051)")
 }
 
 // runMaster は「親」の Master を、画面付きで起動する。
@@ -80,10 +80,18 @@ func runMaster() {
 }
 
 func runWorker() {
-	addr := os.Getenv("MASTER_ADDR")
+	workerCmd := flag.NewFlagSet("worker", flag.ExitOnError)
+	addrFlag := workerCmd.String("addr", "", "Master address (host:port). Overrides MASTER_ADDR.")
+	workerCmd.Parse(os.Args[2:])
+
+	addr := *addrFlag
+	if addr == "" {
+		addr = os.Getenv("MASTER_ADDR")
+	}
 	if addr == "" {
 		addr = "localhost:50051"
 	}
+
 	client, err := worker.NewGRPCClient(addr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "worker: %v\n", err)
