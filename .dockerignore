@@ -1,0 +1,19 @@
+# Git / IDE（ビルドに不要）
+.git
+.gitignore
+.cursor
+.cursorrules
+.DS_Store
+*.md
+demo.gif
+terminals
+
+# ビルド成果物・キャッシュ
+*.exe
+*.test
+vendor/
+
+# Docker 用（コンテキストに含めなくてよい）
+Dockerfile
+docker-compose*.yml
+.dockerignore

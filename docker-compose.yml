@@ -1,0 +1,34 @@
+# Master は TUI 付き、Worker は replicas で台数指定
+# 起動: docker compose up -d --build  （-d でバックグラウンド、ターミナルが空く）
+# 停止: docker compose down
+# TUI 操作: docker attach $(docker compose ps -q master)  → s 開始 / q 終了 / Ctrl+P,Ctrl+Q でデタッチ
+
+services:
+  # 司令塔サーバー（TUI 付き。attach で s=開始, q=終了）
+  master:
+    build: .
+    command: ["master", "-p", "50051"]
+    ports:
+      - "50051:50051"
+    stdin_open: true  # TUI のために標準入力を開ける
+    tty: true         # TUI のために擬似端末を割り当てる
+    networks:
+      - swarm-net
+
+  # Worker（replicas を変えれば台数を変更可能）
+  worker:
+    build: .
+    command: ["worker"]
+    deploy:
+      replicas: 3
+    restart: always
+    environment:
+      - MASTER_ADDR=master:50051
+    depends_on:
+      - master
+    networks:
+      - swarm-net
+
+networks:
+  swarm-net:
+    driver: bridge
