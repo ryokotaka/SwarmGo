@@ -167,7 +167,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := &proto.MasterCmd{
 				Cmd: &proto.MasterCmd_Start{
 					Start: &proto.StartCmd{
-						TargetUrl:     "https://google.com",
+						TargetUrl:     "https://example.com",
 						TotalRequests: 5,
 						Concurrency:   1,
 					},
@@ -243,6 +243,9 @@ func (m model) View() string {
 	}
 	if len(m.logs) == 0 {
 		logContent += "  (no events yet)\n"
+		if workerCount == 0 {
+			logContent += "  → Start Worker in another terminal: ./swarmgo worker\n"
+		}
 	}
 	logBox := boxStyle.Render(logContent)
 
