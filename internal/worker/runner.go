@@ -2,8 +2,11 @@ package worker
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -21,6 +24,7 @@ type MySummary struct {
 	MyTotal         int               // Total number of requests executed
 	MySuccess       int               // Number of successful requests
 	MyFailed        int               // Number of failed requests
+	MyFirstErr      error             // First error encountered (for logging when MyFailed > 0)
 	MyStatusCodeCnt map[int]int       // Number of requests for each status code (pair of [status code] and [number of requests])
 	MyTotalDuration time.Duration    // Total duration of all requests (used for average calculation)
 }
@@ -31,19 +35,55 @@ type MyRunner struct {
 	MyClient *http.Client
 }
 
+// loadRootCAs tries to load CA certs from SSL_CERT_FILE, then common paths.
+// Returns nil if none found (Go will use default); used when CGO_ENABLED=0 and OS path discovery fails.
+func loadRootCAs() *x509.CertPool {
+	candidates := []string{
+		os.Getenv("SSL_CERT_FILE"),
+		"/etc/ssl/certs/ca-certificates.crt", // Alpine (Debian style)
+		"/etc/ssl/cert.pem",                 // Alpine alternative
+	}
+	for _, path := range candidates {
+		if path == "" {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		pool := x509.NewCertPool()
+		if pool.AppendCertsFromPEM(data) {
+			return pool
+		}
+	}
+	return nil
+}
+
 // NewMyRunner creates and returns a single MyRunner.
 // HTTP client settings (connection pooling and timeouts) are configured here.
+// If INSECURE_SKIP_VERIFY=1 or true, TLS certificate verification is skipped (Docker/dev use).
+// Otherwise, RootCAs are loaded explicitly from SSL_CERT_FILE or common paths so that static Go binaries (CGO_ENABLED=0) on Alpine find the CA bundle.
 func NewMyRunner() *MyRunner {
+	tlsInsecure := os.Getenv("INSECURE_SKIP_VERIFY") == "1" || os.Getenv("INSECURE_SKIP_VERIFY") == "true"
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: tlsInsecure,
+	}
+	if !tlsInsecure {
+		if pool := loadRootCAs(); pool != nil {
+			tlsConfig.RootCAs = pool
+		}
+	}
 	myTransport := &http.Transport{
-		MaxIdleConns:        100,             // Maximum number of idle connections
-		MaxIdleConnsPerHost: 100,             // Maximum number of idle connections per host
-		IdleConnTimeout:     90 * time.Second, // Idle connections are closed after 90 seconds
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 100,
+		IdleConnTimeout:     90 * time.Second,
+		TLSClientConfig:     tlsConfig,
 	}
 	myClient := &http.Client{
 		Transport: myTransport,
-		Timeout:   30 * time.Second, // Request is aborted after 30 seconds
+		Timeout:   30 * time.Second,
 	}
-	return &MyRunner{MyClient: myClient} // Returns the MyRunner with the created MyClient.
+	return &MyRunner{MyClient: myClient}
 }
 
 // MyRun sends totalRequests GET requests to the given URL, with up to concurrency concurrent executions.
@@ -106,6 +146,9 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 		if res.MyErr != nil {
 			mySum.MyTotal++
 			mySum.MyFailed++
+			if mySum.MyFirstErr == nil {
+				mySum.MyFirstErr = res.MyErr
+			}
 			continue
 		}
 		mySum.MyTotal++

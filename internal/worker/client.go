@@ -111,6 +111,9 @@ func (c *GRPCClient) Start() error {
 
 			log.Printf("Run finished: total=%d success=%d failed=%d duration=%v",
 				summary.MyTotal, summary.MySuccess, summary.MyFailed, summary.MyTotalDuration)
+			if summary.MyFailed > 0 && summary.MyFirstErr != nil {
+				log.Printf("First failure reason: %v", summary.MyFirstErr)
+			}
 
 			// 結果を Master へ Stats で報告する。
 			// Worker から Master へ送る 1 通は常に WorkerMsg。その「中身」が register / stats / finish のいずれか。
