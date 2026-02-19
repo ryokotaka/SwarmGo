@@ -4,3 +4,8 @@ reference/
 .cursorrules.DS_Store
 docs/
 /swarmgo
+
+.env
+.env.*
+*.pem
+*.key
