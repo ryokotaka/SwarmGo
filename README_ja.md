@@ -118,6 +118,18 @@ Worker を 5 台にしたい場合などは、次のようにします。
 docker compose up -d --build --scale worker=5
 ```
 
+TUI で **`s`** を押したときのターゲット URL やリクエスト数・並行数を変えたい場合は、環境変数で指定できます。Master が **`TARGET_URL`**・**`TOTAL_REQUESTS`**・**`CONCURRENCY`** をデフォルトとして読むので、**いちばん手軽なのはプロジェクトルートに `.env` を置くこと**です。そうすれば普段どおり `docker compose up -d --build` だけで可能です。
+
+```bash
+# .env の例（プロジェクトルートに .env を作成）
+TARGET_URL=https://your-api.example.com
+TOTAL_REQUESTS=100
+CONCURRENCY=10
+```
+
+ファイルを編集したくないときだけ、その場で上書きも可能です。:  
+`TARGET_URL=https://your-api.example.com TOTAL_REQUESTS=100 CONCURRENCY=10 docker compose up -d --build`
+
 ### Step 3: Master にアタッチして TUI を触る
 
 Master はバックグラウンドで動いているので、TUI を操作するには次のコマンドでアタッチします。
@@ -154,6 +166,7 @@ docker compose up --build
 |--------|-------------|
 | **Master + Workers（gRPC）** | 1 台の Master が複数 Worker に指示を出し、Worker を増やしてスケールできます。 |
 | **TUI ダッシュボード** | 接続 Worker 数・ライブ RPS・成功/失敗数・イベントログを表示。**`s`** でテスト開始、**`q`** で終了。 |
+| **ターゲット URL・n・c の指定** | **`-url`** **`-n`** **`-c`** または環境変数 **`TARGET_URL`** **`TOTAL_REQUESTS`** **`CONCURRENCY`** で指定可能（フラグ省略時は環境変数がデフォルト。Docker Compose で便利）。 |
 | **Worker Pool** | 各 Worker 内で固定サイズのプールを使い、並行数を抑えることでメモリを安定させています（大量 **goroutine** による OOM を避けるため）。 |
 | **ヘッドレス Master** | `-no-tui` で **gRPC** だけの Master にでき、CI やスクリプト・リモートサーバーから叩く用途向けです。 |
 
@@ -170,8 +183,8 @@ go build -o swarmgo ./cmd/swarmgo/
 
 1. **ターミナル 1 — Master**  
    `./swarmgo master -p 50051`  
-   （TUI なしで動かす場合は `-no-tui` を付けてください。）
-
+   任意で `-url`・`-n`・`-c` を指定すると、TUI で **`s`** を押したときの負荷テストに使われます。省略時は環境変数 **`TARGET_URL`**・**`TOTAL_REQUESTS`**・**`CONCURRENCY`** がデフォルト（未設定時は `https://example.com`、`5`、`1`）です。  
+ 
 2. **ターミナル 2 以降 — Worker**  
    `./swarmgo worker`  
    デフォルトでは `localhost:50051` に接続します。別ホストのときは `-addr host:port` や環境変数 `MASTER_ADDR` で指定できます。
@@ -182,7 +195,7 @@ go build -o swarmgo ./cmd/swarmgo/
 
 ## 🧠 設計で悩んだところと解決の方向性
 
-作っていく中で、並行処理・**gRPC**・デプロイまわりでいくつか「こうすると危ない / こうするとうまくいく」を学んだので、要点だけまとめます。
+作っていく中で、並行処理・**gRPC**・デプロイまわりで学んだことの要点だけまとめます。
 
 ### 1. Goroutine とメモリ（OOM）
 
@@ -212,7 +225,7 @@ go build -o swarmgo ./cmd/swarmgo/
 
 **困ったこと:** **Go** を入れていない環境でも、1 コマンドで TUI 付き Master と複数 Worker を動かしたかったです。
 
-**やったこと:** `docker-compose` で **master** サービス（対話用に `stdin_open` と `tty`）と **worker** サービス（`deploy.replicas: 3`）を定義しました。Worker は `MASTER_ADDR=master:50051` でサービス名で Master に届くようにしています。TUI を触るときは `docker compose up -d` のあと、master コンテナに `docker attach` して **`s`** / **`q`** を打つ流れにしました。
+**やったこと:** `docker-compose` で **master** サービス（対話用に `stdin_open` と `tty`）と **worker** サービス（`deploy.replicas: 3`）を定義しました。master は `command: ["master", "-p", "50051"]` のみで起動し、ターゲット URL・リクエスト数・並行数はサービス側の **`environment`** で **`TARGET_URL`**・**`TOTAL_REQUESTS`**・**`CONCURRENCY`** を渡し、Go 側でフラグのデフォルトとして読む設計にしました（compose をシンプルに保ちつつ、アプリで環境変数を扱う形）。Worker は `MASTER_ADDR=master:50051` でサービス名で Master に届くようにしています。TUI を触るときは `docker compose up -d` のあと、master コンテナに `docker attach` して **`s`** / **`q`** を打つ流れにしました。
 
 ### 6. コンテナOSの選定とTLS証明書の壁
 
@@ -224,7 +237,7 @@ go build -o swarmgo ./cmd/swarmgo/
 
 ## 🗺 ロードマップ
 
-- [ ] TUI から対象 URL・リクエスト数・並行数を変更できるようにする
+- [x] 対象 URL・リクエスト数・並行数を `master -url -n -c` および環境変数 `TARGET_URL`・`TOTAL_REQUESTS`・`CONCURRENCY`（Docker Compose 等）で指定可能に
 - [ ] TUI でリアルタイムに進捗が出るようにする
 - [ ] POST など他の HTTP メソッドに対応する
 - [ ] レイテンシの分布（P50, P99 など）を出せるようにする

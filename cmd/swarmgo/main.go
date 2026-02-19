@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/ryokotaka/SwarmGo/internal/master"
@@ -39,7 +40,7 @@ func main() {
 
 func printHelp() {
 	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker> [options]")
-	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server. Options: -p port (default 50051), -no-tui (headless, no dashboard)")
+	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server. Options: -p port, -url target URL, -n total requests, -c concurrency, -no-tui (headless)")
 	fmt.Fprintln(os.Stderr, "  worker  - connect to Master and run load test tasks. Option: -addr (or MASTER_ADDR, default localhost:50051)")
 }
 
@@ -53,6 +54,26 @@ func printHelp() {
 func runMaster() {
 	masterCmd := flag.NewFlagSet("master", flag.ExitOnError)
 	port := masterCmd.String("p", "50051", "Port to listen on")
+	// -url / -n / -c のデフォルトは環境変数 TARGET_URL / TOTAL_REQUESTS / CONCURRENCY を参照（Docker 等で上書きしやすい）
+	urlDefault := os.Getenv("TARGET_URL")
+	if urlDefault == "" {
+		urlDefault = "https://example.com"
+	}
+	nDefault := 5
+	if s := os.Getenv("TOTAL_REQUESTS"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			nDefault = v
+		}
+	}
+	cDefault := 1
+	if s := os.Getenv("CONCURRENCY"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			cDefault = v
+		}
+	}
+	url := masterCmd.String("url", urlDefault, "Target URL for load test (default: TARGET_URL or https://example.com)")
+	n := masterCmd.Int("n", nDefault, "Total requests per run per Worker (default: TOTAL_REQUESTS or 5)")
+	c := masterCmd.Int("c", cDefault, "Concurrency per Worker (default: CONCURRENCY or 1)")
 	noTUI := masterCmd.Bool("no-tui", false, "Run without TUI (headless); gRPC only, log to stdout")
 	masterCmd.Parse(os.Args[2:])
 
@@ -75,7 +96,7 @@ func runMaster() {
 	uiChan := make(chan interface{}, 300)
 	srv.SetUIChan(uiChan)
 
-	p := tea.NewProgram(newModel(srv, uiChan), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(srv, uiChan, *url, *n, *c), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "TUI: %v\n", err)
 		os.Exit(1)

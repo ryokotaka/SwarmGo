@@ -111,6 +111,18 @@ To change the number of Workers (e.g. 5):
 docker compose up -d --build --scale worker=5
 ```
 
+To use a different target URL (and/or request count, concurrency) when you press **`s`** in the TUI, set environment variables. The Master reads **`TARGET_URL`**, **`TOTAL_REQUESTS`**, and **`CONCURRENCY`** as defaults. Easiest: put them in a **`.env`** file in the project root — then you only run `docker compose up -d --build` as usual (no long command line).
+
+```bash
+# Example .env in the project root:
+TARGET_URL=https://your-api.example.com
+TOTAL_REQUESTS=100
+CONCURRENCY=10
+```
+
+Or override once without editing a file:  
+`TARGET_URL=https://your-api.example.com TOTAL_REQUESTS=100 CONCURRENCY=10 docker compose up -d --build`
+
 ### Step 3: Attach to the Master to use the TUI
 
 The Master is running in the background. To see and control its TUI:
@@ -148,6 +160,7 @@ You won't get the interactive TUI in this mode; use the attach method above for 
 |--------|-------------|
 | **Master + Workers over gRPC** | One Master commands many Workers; scale by adding more Workers. |
 | **TUI dashboard** | See connected Workers, live RPS, success/fail counts, and event log. **`s`** = start test, **`q`** = quit. |
+| **Configurable target / n / c** | Target URL, total requests, and concurrency via **`-url`** **`-n`** **`-c`** or env vars **`TARGET_URL`** **`TOTAL_REQUESTS`** **`CONCURRENCY`** (used as defaults when flags are omitted; ideal for Docker Compose). |
 | **Worker pool** | Fixed-size pool per Worker so memory stays stable under high concurrency (no OOM from millions of **goroutine**s). |
 | **Headless Master** | Use `-no-tui` for a **gRPC**-only Master (CI, scripts, remote servers). |
 
@@ -164,7 +177,7 @@ go build -o swarmgo ./cmd/swarmgo/
 
 1. **Terminal 1 — Master:**  
    `./swarmgo master -p 50051`  
-   (Use `-no-tui` for headless.)
+   Optional: `-url`, `-n`, `-c` set the load test params used when you press **`s`** in the TUI. If omitted, they default to the **`TARGET_URL`**, **`TOTAL_REQUESTS`**, and **`CONCURRENCY`** environment variables (or `https://example.com`, `5`, `1`).  
 
 2. **Terminal 2 (and more) — Workers:**  
    `./swarmgo worker`  
@@ -206,7 +219,7 @@ Building SwarmGo taught me a lot about concurrency, **gRPC**, and keeping the sy
 
 **Problem:** I wanted to run the Master with a TUI and multiple Workers with a single command, without installing **Go**.
 
-**Solution:** `docker-compose` with a **master** service (with `stdin_open` and `tty` for interactive TUI) and a **worker** service with `deploy.replicas: 3`. Workers use `MASTER_ADDR=master:50051` so they reach the Master by service name. To use the TUI, you run `docker compose up -d` and then `docker attach` to the master container; that gives you the interactive terminal for **`s`** / **`q`**.
+**Solution:** `docker-compose` with a **master** service (with `stdin_open` and `tty` for interactive TUI) and a **worker** service with `deploy.replicas: 3`. The master runs a simple `command: ["master", "-p", "50051"]`; target URL, request count, and concurrency are set via **`TARGET_URL`**, **`TOTAL_REQUESTS`**, and **`CONCURRENCY`** in the service `environment`, and the Go binary reads them as flag defaults so the compose file stays simple. Workers use `MASTER_ADDR=master:50051` so they reach the Master by service name. To use the TUI, you run `docker compose up -d` and then `docker attach` to the master container; that gives you the interactive terminal for **`s`** / **`q`**.
 
 ### 6. Container base image and TLS certificates
 
@@ -218,7 +231,7 @@ Building SwarmGo taught me a lot about concurrency, **gRPC**, and keeping the sy
 
 ## 🗺 Roadmap
 
-- [ ] Configurable target URL, request count, and concurrency from the TUI
+- [x] Configurable target URL, request count, and concurrency via `master -url -n -c` and env vars `TARGET_URL`, `TOTAL_REQUESTS`, `CONCURRENCY` (e.g. in Docker Compose)
 - [ ] Real-time progress in the TUI
 - [ ] Support for POST and other HTTP methods
 - [ ] Latency distribution (e.g. P50, P99)

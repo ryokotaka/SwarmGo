@@ -63,14 +63,17 @@ type workerStats struct {
 // tea.Model インターフェースを満たすため、Init / Update / View のレシーバになる。
 // フィールドは「View で表示するために必要なもの」と「Update でキー入力時に Master を呼ぶための参照」だけ持つ。
 type model struct {
-	server      *master.Server   // Master 本体。ListWorkers() と BroadcastCommand(cmd) に使う
-	uiChan      chan interface{} // Master から TUI へイベントを送る管（main で SetUIChan に渡したチャネル）
-	workerStats map[string]workerStats // Worker ID → その Worker の統計（StatsUpdate で更新）
-	rpsHistory  []float64        // 直近の合計 RPS の履歴。renderRPSGraph で棒グラフにする
-	logs        []string         // ログ枠に表示する行のリスト（LogLine で追加、古い行は捨てる）
-	startTime   time.Time        // TUI 起動時刻。View で Uptime 表示に使う
-	width       int              // ターミナル幅（WindowSizeMsg でセット。将来レイアウトに使う）
-	height      int              // ターミナル高さ（同上）
+	server               *master.Server   // Master 本体。ListWorkers() と BroadcastCommand(cmd) に使う
+	uiChan               chan interface{} // Master から TUI へイベントを送る管（main で SetUIChan に渡したチャネル）
+	workerStats          map[string]workerStats // Worker ID → その Worker の統計（StatsUpdate で更新）
+	rpsHistory           []float64        // 直近の合計 RPS の履歴。renderRPSGraph で棒グラフにする
+	logs                 []string         // ログ枠に表示する行のリスト（LogLine で追加、古い行は捨てる）
+	startTime            time.Time        // TUI 起動時刻。View で Uptime 表示に使う
+	width                int              // ターミナル幅（WindowSizeMsg でセット。将来レイアウトに使う）
+	height               int              // ターミナル高さ（同上）
+	defaultTargetURL     string           // 's' 押下時に送る負荷テスト先 URL（起動時 -url で指定）
+	defaultTotalRequests int              // 同上、総リクエスト数（-n）
+	defaultConcurrency   int              // 同上、並行数（-c）
 }
 
 // --- Bubble Tea の Cmd（「あとで 1 回メッセージを送る」依頼）---
@@ -97,15 +100,18 @@ func tickCmd() tea.Cmd {
 }
 
 // --- 初期状態の作成 ---
-// newModel は TUI の初期 model を作る。main で tea.NewProgram(newModel(srv, uiChan), tea.WithAltScreen()) に渡す。
-func newModel(srv *master.Server, ch chan interface{}) model {
+// newModel は TUI の初期 model を作る。main で tea.NewProgram(newModel(srv, uiChan, url, n, c), ...) に渡す。
+func newModel(srv *master.Server, ch chan interface{}, targetURL string, totalRequests, concurrency int) model {
 	return model{
-		server:      srv,
-		uiChan:      ch,
-		workerStats: make(map[string]workerStats),
-		rpsHistory:  make([]float64, 0, maxRPSHistory),
-		logs:        make([]string, 0, maxLogLines),
-		startTime:   time.Now(),
+		server:               srv,
+		uiChan:               ch,
+		workerStats:          make(map[string]workerStats),
+		rpsHistory:           make([]float64, 0, maxRPSHistory),
+		logs:                 make([]string, 0, maxLogLines),
+		startTime:             time.Now(),
+		defaultTargetURL:     targetURL,
+		defaultTotalRequests: totalRequests,
+		defaultConcurrency:   concurrency,
 	}
 }
 
@@ -164,12 +170,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "s":
 			// 負荷テスト開始: 全 Worker に Start 命令をブロードキャスト（proto の MasterCmd / StartCmd）
+			// URL・リクエスト数・並行数は起動時の -url / -n / -c で指定した値を使用
 			cmd := &proto.MasterCmd{
 				Cmd: &proto.MasterCmd_Start{
 					Start: &proto.StartCmd{
-						TargetUrl:     "https://example.com",
-						TotalRequests: 5,
-						Concurrency:   1,
+						TargetUrl:     m.defaultTargetURL,
+						TotalRequests: int32(m.defaultTotalRequests),
+						Concurrency:   int32(m.defaultConcurrency),
 					},
 				},
 			}
@@ -249,7 +256,8 @@ func (m model) View() string {
 	}
 	logBox := boxStyle.Render(logContent)
 
-	footer := footerStyle.Render("Press 's' to start attack, 'q' to quit")
+	footer := footerStyle.Render(fmt.Sprintf("Target: %s (n=%d, c=%d) | Press 's' to start, 'q' to quit",
+		m.defaultTargetURL, m.defaultTotalRequests, m.defaultConcurrency))
 
 	// 全体を 1 つの文字列にして返す。Bubble Tea がこれをそのままターミナルに出力する
 	return header + "\n" + mainBox + "\n" + logBox + "\n" + footer

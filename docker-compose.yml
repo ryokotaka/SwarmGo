@@ -2,12 +2,21 @@
 # 起動: docker compose up -d --build  （-d でバックグラウンド、ターミナルが空く）
 # 停止: docker compose down
 # TUI 操作: docker attach $(docker compose ps -q master)  → s 開始 / q 終了 / Ctrl+P,Ctrl+Q でデタッチ
+#
+# 別 URL で負荷テストする: 環境変数で上書き可能
+#   TARGET_URL=https://your-api.example.com TOTAL_REQUESTS=100 CONCURRENCY=10 docker compose up -d --build
+#  または .env に TARGET_URL=... を書く
 
 services:
   # 司令塔サーバー（TUI 付き。attach で s=開始, q=終了）
+  # 負荷テストの URL/回数/並行数は環境変数 TARGET_URL, TOTAL_REQUESTS, CONCURRENCY で指定可能（未設定時はアプリ側デフォルト）
   master:
     build: .
     command: ["master", "-p", "50051"]
+    environment:
+      - TARGET_URL=${TARGET_URL:-https://example.com}
+      - TOTAL_REQUESTS=${TOTAL_REQUESTS:-5}
+      - CONCURRENCY=${CONCURRENCY:-1}
     ports:
       - "50051:50051"
     stdin_open: true  # TUI のために標準入力を開ける
