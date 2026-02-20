@@ -98,14 +98,64 @@ func (c *GRPCClient) Start() error {
 				cmd.Start.TargetUrl, cmd.Start.TotalRequests, cmd.Start.Concurrency)
 
 			r := NewMyRunner()
-			summary, err := r.MyRun(
-				context.Background(),
-				cmd.Start.TargetUrl,
-				int(cmd.Start.TotalRequests),
-				int(cmd.Start.Concurrency),
-			)
-			if err != nil {
-				log.Printf("Run failed: %v", err)
+			progressCh := make(chan struct {
+				success int
+				failed  int
+				rps     float64
+			}, 20)
+			runDone := make(chan struct{})
+
+			var summary *MySummary
+			var runErr error
+			go func() {
+				defer close(runDone)
+				defer close(progressCh)
+				summary, runErr = r.MyRun(
+					context.Background(),
+					cmd.Start.TargetUrl,
+					int(cmd.Start.TotalRequests),
+					int(cmd.Start.Concurrency),
+					func(completed, success, failed int, elapsed time.Duration) {
+						rps := 0.0
+						if elapsed.Seconds() > 0 {
+							rps = float64(completed) / elapsed.Seconds()
+						}
+						select {
+						case progressCh <- struct {
+							success int
+							failed  int
+							rps     float64
+						}{success: success, failed: failed, rps: rps}:
+						default:
+						}
+					},
+				)
+			}()
+
+			go func() {
+				for s := range progressCh {
+					report := &proto.WorkerMsg{
+						Msg: &proto.WorkerMsg_Stats{
+							Stats: &proto.StatsMsg{
+								SuccessCount:  int32(s.success),
+								FailCount:     int32(s.failed),
+								CurrentRps:    s.rps,
+								LatencyP50Ms:  0,
+								LatencyP90Ms:  0,
+								LatencyP99Ms:  0,
+							},
+						},
+					}
+					if err := stream.Send(report); err != nil {
+						log.Printf("Failed to send progress stats: %v", err)
+						return
+					}
+				}
+			}()
+
+			<-runDone
+			if runErr != nil {
+				log.Printf("Run failed: %v", runErr)
 				continue
 			}
 
@@ -115,19 +165,25 @@ func (c *GRPCClient) Start() error {
 				log.Printf("First failure reason: %v", summary.MyFirstErr)
 			}
 
-			// 結果を Master へ Stats で報告する。
-			// Worker から Master へ送る 1 通は常に WorkerMsg。その「中身」が register / stats / finish のいずれか。
-			// StatsMsg は proto の StatsMsg（success_count, fail_count, current_rps）を詰めた WorkerMsg として送る。
+			// 最終結果を Master へ Stats で報告する（パーセンタイル・エラー要因含む）。
 			rps := 0.0
 			if summary.MyTotalDuration.Seconds() > 0 {
 				rps = float64(summary.MyTotal) / summary.MyTotalDuration.Seconds()
 			}
+			errorReasons := make([]*proto.ErrorReason, 0, len(summary.MyErrorReasons))
+			for msg, cnt := range summary.MyErrorReasons {
+				errorReasons = append(errorReasons, &proto.ErrorReason{Message: msg, Count: int32(cnt)})
+			}
 			report := &proto.WorkerMsg{
 				Msg: &proto.WorkerMsg_Stats{
 					Stats: &proto.StatsMsg{
-						SuccessCount: int32(summary.MySuccess),
-						FailCount:    int32(summary.MyFailed),
-						CurrentRps:   rps,
+						SuccessCount:   int32(summary.MySuccess),
+						FailCount:      int32(summary.MyFailed),
+						CurrentRps:     rps,
+						LatencyP50Ms:  int32(summary.LatencyP50.Milliseconds()),
+						LatencyP90Ms:  int32(summary.LatencyP90.Milliseconds()),
+						LatencyP99Ms:  int32(summary.LatencyP99.Milliseconds()),
+						ErrorReasons:   errorReasons,
 					},
 				},
 			}

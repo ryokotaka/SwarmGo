@@ -413,6 +413,59 @@ func (x *RegisterMsg) GetCpuArch() string {
 	return ""
 }
 
+// ErrorReason は Fail の要因（メッセージ）とその発生回数。Worker が集計して Master へ送る。
+type ErrorReason struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"` // エラー要因の文字列（例: "HTTP 500 Internal Server Error", "connection refused"）
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`    // その要因の発生回数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorReason) Reset() {
+	*x = ErrorReason{}
+	mi := &file_proto_swarm_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorReason) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorReason) ProtoMessage() {}
+
+func (x *ErrorReason) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_swarm_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorReason.ProtoReflect.Descriptor instead.
+func (*ErrorReason) Descriptor() ([]byte, []int) {
+	return file_proto_swarm_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ErrorReason) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ErrorReason) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type StatsMsg struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SuccessCount  int32                  `protobuf:"varint,1,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`   // 途中報告：成功数
@@ -421,13 +474,14 @@ type StatsMsg struct {
 	LatencyP50Ms  int32                  `protobuf:"varint,4,opt,name=latency_p50_ms,json=latencyP50Ms,proto3" json:"latency_p50_ms,omitempty"` // レイテンシ P50（ミリ秒、成功リクエストのみ）
 	LatencyP90Ms  int32                  `protobuf:"varint,5,opt,name=latency_p90_ms,json=latencyP90Ms,proto3" json:"latency_p90_ms,omitempty"` // レイテンシ P90（ミリ秒）
 	LatencyP99Ms  int32                  `protobuf:"varint,6,opt,name=latency_p99_ms,json=latencyP99Ms,proto3" json:"latency_p99_ms,omitempty"` // レイテンシ P99（ミリ秒）
+	ErrorReasons  []*ErrorReason         `protobuf:"bytes,7,rep,name=error_reasons,json=errorReasons,proto3" json:"error_reasons,omitempty"`    // 失敗の要因ごとの集計（最終報告で送信、TUI で上位表示）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StatsMsg) Reset() {
 	*x = StatsMsg{}
-	mi := &file_proto_swarm_proto_msgTypes[6]
+	mi := &file_proto_swarm_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -439,7 +493,7 @@ func (x *StatsMsg) String() string {
 func (*StatsMsg) ProtoMessage() {}
 
 func (x *StatsMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_swarm_proto_msgTypes[6]
+	mi := &file_proto_swarm_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -452,7 +506,7 @@ func (x *StatsMsg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatsMsg.ProtoReflect.Descriptor instead.
 func (*StatsMsg) Descriptor() ([]byte, []int) {
-	return file_proto_swarm_proto_rawDescGZIP(), []int{6}
+	return file_proto_swarm_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StatsMsg) GetSuccessCount() int32 {
@@ -497,6 +551,13 @@ func (x *StatsMsg) GetLatencyP99Ms() int32 {
 	return 0
 }
 
+func (x *StatsMsg) GetErrorReasons() []*ErrorReason {
+	if x != nil {
+		return x.ErrorReasons
+	}
+	return nil
+}
+
 type FinishMsg struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	TotalDurationMs int32                  `protobuf:"varint,1,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"` // 完了報告：所要時間（ミリ秒）
@@ -506,7 +567,7 @@ type FinishMsg struct {
 
 func (x *FinishMsg) Reset() {
 	*x = FinishMsg{}
-	mi := &file_proto_swarm_proto_msgTypes[7]
+	mi := &file_proto_swarm_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -518,7 +579,7 @@ func (x *FinishMsg) String() string {
 func (*FinishMsg) ProtoMessage() {}
 
 func (x *FinishMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_swarm_proto_msgTypes[7]
+	mi := &file_proto_swarm_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -531,7 +592,7 @@ func (x *FinishMsg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinishMsg.ProtoReflect.Descriptor instead.
 func (*FinishMsg) Descriptor() ([]byte, []int) {
-	return file_proto_swarm_proto_rawDescGZIP(), []int{7}
+	return file_proto_swarm_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *FinishMsg) GetTotalDurationMs() int32 {
@@ -565,7 +626,10 @@ const file_proto_swarm_proto_rawDesc = "" +
 	"\aQuitCmd\"E\n" +
 	"\vRegisterMsg\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x19\n" +
-	"\bcpu_arch\x18\x02 \x01(\tR\acpuArch\"\xe1\x01\n" +
+	"\bcpu_arch\x18\x02 \x01(\tR\acpuArch\"=\n" +
+	"\vErrorReason\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\x9a\x02\n" +
 	"\bStatsMsg\x12#\n" +
 	"\rsuccess_count\x18\x01 \x01(\x05R\fsuccessCount\x12\x1d\n" +
 	"\n" +
@@ -574,7 +638,8 @@ const file_proto_swarm_proto_rawDesc = "" +
 	"currentRps\x12$\n" +
 	"\x0elatency_p50_ms\x18\x04 \x01(\x05R\flatencyP50Ms\x12$\n" +
 	"\x0elatency_p90_ms\x18\x05 \x01(\x05R\flatencyP90Ms\x12$\n" +
-	"\x0elatency_p99_ms\x18\x06 \x01(\x05R\flatencyP99Ms\"7\n" +
+	"\x0elatency_p99_ms\x18\x06 \x01(\x05R\flatencyP99Ms\x127\n" +
+	"\rerror_reasons\x18\a \x03(\v2\x12.proto.ErrorReasonR\ferrorReasons\"7\n" +
 	"\tFinishMsg\x12*\n" +
 	"\x11total_duration_ms\x18\x01 \x01(\x05R\x0ftotalDurationMs2A\n" +
 	"\fSwarmService\x121\n" +
@@ -592,7 +657,7 @@ func file_proto_swarm_proto_rawDescGZIP() []byte {
 	return file_proto_swarm_proto_rawDescData
 }
 
-var file_proto_swarm_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_proto_swarm_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_swarm_proto_goTypes = []any{
 	(*MasterCmd)(nil),   // 0: proto.MasterCmd
 	(*WorkerMsg)(nil),   // 1: proto.WorkerMsg
@@ -600,23 +665,25 @@ var file_proto_swarm_proto_goTypes = []any{
 	(*StopCmd)(nil),     // 3: proto.StopCmd
 	(*QuitCmd)(nil),     // 4: proto.QuitCmd
 	(*RegisterMsg)(nil), // 5: proto.RegisterMsg
-	(*StatsMsg)(nil),    // 6: proto.StatsMsg
-	(*FinishMsg)(nil),   // 7: proto.FinishMsg
+	(*ErrorReason)(nil), // 6: proto.ErrorReason
+	(*StatsMsg)(nil),    // 7: proto.StatsMsg
+	(*FinishMsg)(nil),   // 8: proto.FinishMsg
 }
 var file_proto_swarm_proto_depIdxs = []int32{
 	2, // 0: proto.MasterCmd.start:type_name -> proto.StartCmd
 	3, // 1: proto.MasterCmd.stop:type_name -> proto.StopCmd
 	4, // 2: proto.MasterCmd.quit:type_name -> proto.QuitCmd
 	5, // 3: proto.WorkerMsg.register:type_name -> proto.RegisterMsg
-	6, // 4: proto.WorkerMsg.stats:type_name -> proto.StatsMsg
-	7, // 5: proto.WorkerMsg.finish:type_name -> proto.FinishMsg
-	1, // 6: proto.SwarmService.Connect:input_type -> proto.WorkerMsg
-	0, // 7: proto.SwarmService.Connect:output_type -> proto.MasterCmd
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	7, // 4: proto.WorkerMsg.stats:type_name -> proto.StatsMsg
+	8, // 5: proto.WorkerMsg.finish:type_name -> proto.FinishMsg
+	6, // 6: proto.StatsMsg.error_reasons:type_name -> proto.ErrorReason
+	1, // 7: proto.SwarmService.Connect:input_type -> proto.WorkerMsg
+	0, // 8: proto.SwarmService.Connect:output_type -> proto.MasterCmd
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_proto_swarm_proto_init() }
@@ -640,7 +707,7 @@ func file_proto_swarm_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_swarm_proto_rawDesc), len(file_proto_swarm_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

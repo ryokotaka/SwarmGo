@@ -64,6 +64,12 @@ message RegisterMsg {
   string cpu_arch = 2;   // "arm64", "amd64" などのデバッグ用に
 }
 
+// ErrorReason は Fail の要因（メッセージ）とその発生回数。Worker が集計して Master へ送る。
+message ErrorReason {
+  string message = 1;  // エラー要因の文字列（例: "HTTP 500 Internal Server Error", "connection refused"）
+  int32 count = 2;     // その要因の発生回数
+}
+
 message StatsMsg {
   int32 success_count = 1;  // 途中報告：成功数
   int32 fail_count = 2;     // 途中報告：失敗数
@@ -71,6 +77,7 @@ message StatsMsg {
   int32 latency_p50_ms = 4; // レイテンシ P50（ミリ秒、成功リクエストのみ）
   int32 latency_p90_ms = 5; // レイテンシ P90（ミリ秒）
   int32 latency_p99_ms = 6; // レイテンシ P99（ミリ秒）
+  repeated ErrorReason error_reasons = 7; // 失敗の要因ごとの集計（最終報告で送信、TUI で上位表示）
 }
 
 message FinishMsg {
