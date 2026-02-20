@@ -14,9 +14,9 @@ services:
     build: .
     command: ["master", "-p", "50051"]
     environment:
-      - TARGET_URL=${TARGET_URL:-https://example.com}
-      - TOTAL_REQUESTS=${TOTAL_REQUESTS:-5}
-      - CONCURRENCY=${CONCURRENCY:-1}
+      - TARGET_URL=${TARGET_URL:-http://host.docker.internal:8080/api/test}
+      - TOTAL_REQUESTS=${TOTAL_REQUESTS:-1000}
+      - CONCURRENCY=${CONCURRENCY:-10}
     ports:
       - "50051:50051"
     stdin_open: true  # TUI のために標準入力を開ける

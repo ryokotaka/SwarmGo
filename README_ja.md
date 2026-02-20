@@ -24,7 +24,7 @@
 
 ![SwarmGo デモ（Docker Compose クイックスタート）](demo-docker.gif)
 
-`docker compose up -d --build` から、接続 Worker 数・ライブ RPS・成功/失敗カウント・イベントログ まで、実際の操作感が伝わるようにしています。
+`docker compose up -d --build` から、接続 Worker 数・ライブ RPS・成功/失敗カウント・エラー要因の上位表示（例: `HTTP 500 Internal Server Error: 155`）・イベントログ まで、表示させます。
 
 </div>
 
@@ -35,9 +35,9 @@
 **SwarmGo** は、**Master** 1 台と **Worker** 複数台で「分散して」HTTP 負荷テストをするツールです。
 
 - **Master**: **gRPC** サーバーと、オプションで TUI ダッシュボード。Start / Stop / Quit などのコマンドを Worker に送ります。
-- **Worker**: Master に接続し、指定された URL に HTTP GET を打ち、RPS や成功/失敗数・完了イベントをストリームで返します。
+- **Worker**: Master に接続し、指定された URL に HTTP GET を打ち、RPS や成功/失敗数・完了イベント/上位エラー状況をストリームで返します。
 
-Worker を増やせばその分スケールするので、1 プロセスで何百万もリクエストを抱え込まなくていいです。
+Worker を増やせばその分スケールするので、1 プロセスで何百万もリクエストを抱え込む必要なし。
 
 ---
 
@@ -47,7 +47,7 @@ Worker を増やせばその分スケールするので、1 プロセスで何�
 
 1. **Master** は **gRPC** サーバー（と TUI）を動かし、接続してきた Worker のリストを保持します。各 Worker とは 1 本の **双方向 gRPC ストリーム**でつながっています。
 2. **Worker** は Master に接続したあと、まず ID 付きの **Register** を送り、あとはループでコマンド（Start / Stop / Quit）を受け取り、実行中の **Stats** や完了時の **Finish** を送り返します。
-3. TUI で **Start** を押すと、Master が接続中の全 Worker に Start を送ります。各 Worker は **固定サイズの Worker Pool** で対象 URL に HTTP GET を実行し、**Stats** を定期的に Master に送り、終わったら **Finish** を送ってダッシュボードを更新します。
+3. TUI で **Start** を押すと、Master が接続中の全 Worker に Start を送ります。各 Worker は **固定サイズの Worker Pool** で対象 URL に HTTP GET を実行し、**Stats**（成功/失敗数・RPS・**エラー要因**）を定期的に Master に送り、終わったら **Finish** を送ってダッシュボードを更新します。失敗がある場合は TUI に**エラー要因の上位**（例: HTTP 5xx、connection refused）が表示されます。
 
 HTTP のトラフィックは各 Worker から **対象 URL** に直接向かうだけで、Master はリクエストの中身を見ません。
 
@@ -153,9 +153,12 @@ docker compose up --build
 | 機能 | 説明 |
 |--------|-------------|
 | **Master + Workers（gRPC）** | 1 台の Master が複数 Worker に指示を出し、Worker を増やしてスケールできます。 |
-| **TUI ダッシュボード** | 接続 Worker 数・ライブ RPS・成功/失敗数・イベントログを表示。**`s`** でテスト開始、**`q`** で終了。 |
+| **TUI ダッシュボード** | 接続 Worker 数・ライブ RPS・成功/失敗数・**エラー要因の上位表示**（例: `HTTP 500 ...: 155`）・イベントログを表示。**`s`** でテスト開始、**`q`** で終了。 |
+| **失敗 = 通信エラー + HTTP 4xx/5xx** | 往復でエラーになった場合に加え、**ステータスコード 400 以上**（4xx/5xx）も失敗としてカウントします。Go の `Client.Do()` は 5xx でも err を返さないため、明示的にステータスをチェックしています。 |
+| **エラー要因（Error Reasons）** | Worker が失敗理由（例: `HTTP 500 Internal Server Error`、`connection refused`、`timeout`）を集計して Master に送り、TUI で**件数上位 5 件**を表示。長いメッセージは切り詰め、失敗が 0 件のときは「Errors: None」と表示します。 |
 | **ターゲット URL・n・c の指定** | **`-url`** **`-n`** **`-c`** または環境変数 **`TARGET_URL`** **`TOTAL_REQUESTS`** **`CONCURRENCY`** で指定可能（フラグ省略時は環境変数がデフォルト。Docker Compose で便利）。 |
 | **Worker Pool** | 各 Worker 内で固定サイズのプールを使い、並行数を抑えることでメモリを安定させています（大量 **goroutine** による OOM を避けるため）。 |
+| **レイテンシ百分位** | 各 Worker が成功リクエストのみで P50/P90/P99 を計算して報告し、TUI で代表値を表示します。 |
 | **ヘッドレス Master** | `-no-tui` で **gRPC** だけの Master にでき、CI やスクリプト・リモートサーバーから叩く用途向けです。 |
 
 ---
@@ -221,14 +224,6 @@ go build -o swarmgo ./cmd/swarmgo/
 
 **やったこと:** 一時的に `INSECURE_SKIP_VERIFY=1` で検証スキップして回避したあと、本番稼働を見据えて証明書周りが手堅い **`debian-slim`** ベースへ移行することで根本解決しました。インフラの選定が分散システムの動作に直結することを学びました。
 
----
-
-## 🗺 ロードマップ
-
-- [x] 対象 URL・リクエスト数・並行数を `master -url -n -c` および環境変数 `TARGET_URL`・`TOTAL_REQUESTS`・`CONCURRENCY`（Docker Compose 等）で指定可能に
-- [ ] TUI でリアルタイムに進捗が出るようにする
-- [ ] POST など他の HTTP メソッドに対応する
-- [ ] レイテンシの分布（P50, P99 など）を出せるようにする
 
 ---
 

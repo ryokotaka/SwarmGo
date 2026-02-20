@@ -11,7 +11,7 @@ Set Theme "Catppuccin Mocha"
 Set WindowBar Colorful
 
 # Slow down typing speed for better readability (Default is ~50ms)
-Set TypingSpeed 150ms
+Set TypingSpeed 120ms
 
 # Start recording (assuming project root)
 Type "clear" Enter
@@ -28,7 +28,7 @@ Type "docker compose ps" Enter
 Sleep 4s
 
 
-Type "docker attach $(docker compose ps -q master)" Enter
+Type "clear && docker attach $(docker compose ps -q master)" Enter
 # Wait for TUI to start and Worker connection logs to appear
 Sleep 4s
 
@@ -46,9 +46,8 @@ Sleep 2s
 Type "q"
 Sleep 2s
 
-# 6. Cleanup (Stop containers)
-Hide
-Type "echo ''" Enter
-Show
+# 6. Cleanup (Stop containers) — clear screen so TUI output and command don't overlap
+Type "clear" Enter
+Sleep 0.5s
 Type "docker compose down" Enter
 Sleep 3s
