@@ -18,19 +18,23 @@
 
 ---
 
+</div>
+
 ### 🚀 Demo
 
 Run the following command to start, then attach to the Master node.  
-Press **`s`** to start the test and **`q`** to quit.
+Press `s` to start the test and `q` to quit.
 
 `docker compose up -d --build`
 
-**Display Items:**
-- 🔄 **Progress Status**
-- 👥 **RPS**
-- ⏱️ **Latency**
-- ✅ **Success/Failure**
-- ⚠️ **Top Errors**
+Display Items:
+- 🔄 Progress Status
+- 👥 RPS
+- ⏱️ Latency
+- ✅ Success/Failure
+- ⚠️ Top Errors
+
+<div align="center">
 
 ![SwarmGo Demo (Docker Compose Quickstart)](./demo-docker.gif)
 
@@ -44,41 +48,18 @@ Press **`s`** to start the test and **`q`** to quit.
 
 ---
 
+## 📦 Features
 
-## 🏗 Architecture Overview
-
-1. **Master** runs a **gRPC** server (and optionally a TUI). It keeps a list of connected Workers; each connection is a long-lived **bidirectional gRPC stream**.
-2. **Workers** connect to the Master and send a **Register** message with their ID, then sit in a loop **receiving** commands (Start / Stop / Quit) and **sending** back messages (Stats during a run, **Finish** when done).
-3. When you press **Start** in the TUI, the Master **broadcasts** a Start command to all connected Workers. Each Worker runs an HTTP load test (GET requests to a target URL) using a **fixed-size worker pool** and periodically sends **Stats** (success/fail counts, RPS, **error reasons**) back to the Master. When a Worker finishes, it sends **Finish**; the Master updates the dashboard and shows **top error reasons** (e.g. HTTP 5xx, connection refused) when there are failures.
-
-So: **one stream per Worker**. The Master sends commands; the Worker sends register/stats/finish. The actual HTTP traffic goes from each Worker to the **target URL** — the Master never sees the HTTP requests.
-
-```mermaid
-flowchart LR
-    subgraph User
-        TUI[TUI: press s / q]
-    end
-    subgraph Master
-        M[Master gRPC server]
-    end
-    subgraph Workers
-        W1[Worker 1]
-        W2[Worker 2]
-        WN[Worker N]
-    end
-    subgraph Target
-        URL[Target URL]
-    end
-    TUI -->|start/quit| M
-    M <-->|gRPC stream: commands & stats| W1
-    M <-->|gRPC stream| W2
-    M <-->|gRPC stream| WN
-    W1 & W2 & WN -->|HTTP GET| URL
-```
-
-- **Solid lines:** **gRPC** (Master ↔ Workers) and HTTP (Workers → Target).
-- **Master** holds one stream per Worker and broadcasts Start/Stop/Quit to all.
-- **Workers** send **Register** once, then **Stats** and **Finish** over the same stream.
+| Feature | Description |
+|--------|-------------|
+| **Master + Workers over gRPC** | One Master commands many Workers; scale by adding more Workers. |
+| **TUI dashboard** | See connected Workers, live RPS, success/fail counts, **top error reasons** (e.g. `HTTP 500 ...: 155`), and event log. **`s`** = start test, **`q`** = quit. |
+| **Fail = network error + HTTP 4xx/5xx** | Requests are counted as **Fail** when the round-trip errors *or* when the server returns status code ≥ 400 (Go’s `Client.Do()` does not return an error for 5xx, so we explicitly check status). |
+| **Error reasons** | Workers aggregate failure reasons (e.g. `HTTP 500 Internal Server Error`, `connection refused`, `timeout`) and send them to the Master. The TUI shows the **top 5** by count; long messages are truncated. Empty when there are no failures. |
+| **Configurable target / n / c** | Target URL, total requests, and concurrency via **`-url`** **`-n`** **`-c`** or env vars **`TARGET_URL`** **`TOTAL_REQUESTS`** **`CONCURRENCY`** (used as defaults when flags are omitted; ideal for Docker Compose). |
+| **Worker pool** | Fixed-size pool per Worker so memory stays stable under high concurrency (no OOM from millions of **goroutine**s). |
+| **Latency percentiles** | Each Worker reports P50/P90/P99 latency (successful requests only); the TUI shows representative values. |
+| **Headless Master** | Use `-no-tui` for a **gRPC**-only Master (CI, scripts, remote servers). |
 
 ---
 
@@ -151,21 +132,6 @@ You won't get the interactive TUI in this mode; use the attach method above for 
 
 ---
 
-## 📦 Features
-
-| Feature | Description |
-|--------|-------------|
-| **Master + Workers over gRPC** | One Master commands many Workers; scale by adding more Workers. |
-| **TUI dashboard** | See connected Workers, live RPS, success/fail counts, **top error reasons** (e.g. `HTTP 500 ...: 155`), and event log. **`s`** = start test, **`q`** = quit. |
-| **Fail = network error + HTTP 4xx/5xx** | Requests are counted as **Fail** when the round-trip errors *or* when the server returns status code ≥ 400 (Go’s `Client.Do()` does not return an error for 5xx, so we explicitly check status). |
-| **Error reasons** | Workers aggregate failure reasons (e.g. `HTTP 500 Internal Server Error`, `connection refused`, `timeout`) and send them to the Master. The TUI shows the **top 5** by count; long messages are truncated. Empty when there are no failures. |
-| **Configurable target / n / c** | Target URL, total requests, and concurrency via **`-url`** **`-n`** **`-c`** or env vars **`TARGET_URL`** **`TOTAL_REQUESTS`** **`CONCURRENCY`** (used as defaults when flags are omitted; ideal for Docker Compose). |
-| **Worker pool** | Fixed-size pool per Worker so memory stays stable under high concurrency (no OOM from millions of **goroutine**s). |
-| **Latency percentiles** | Each Worker reports P50/P90/P99 latency (successful requests only); the TUI shows representative values. |
-| **Headless Master** | Use `-no-tui` for a **gRPC**-only Master (CI, scripts, remote servers). |
-
----
-
 ## 🛠 Run without Docker (local Go)
 
 Requires **Go 1.22+**.
@@ -184,6 +150,43 @@ go build -o swarmgo ./cmd/swarmgo/
    (Defaults to `localhost:50051`. Override with `-addr host:port` or `MASTER_ADDR`.)
 
 3. In the Master TUI, press **`s`** to start a test, **`q`** to quit.
+
+---
+
+## 🏗 Architecture Overview
+
+1. **Master** runs a **gRPC** server (and optionally a TUI). It keeps a list of connected Workers; each connection is a long-lived **bidirectional gRPC stream**.
+2. **Workers** connect to the Master and send a **Register** message with their ID, then sit in a loop **receiving** commands (Start / Stop / Quit) and **sending** back messages (Stats during a run, **Finish** when done).
+3. When you press **Start** in the TUI, the Master **broadcasts** a Start command to all connected Workers. Each Worker runs an HTTP load test (GET requests to a target URL) using a **fixed-size worker pool** and periodically sends **Stats** (success/fail counts, RPS, **error reasons**) back to the Master. When a Worker finishes, it sends **Finish**; the Master updates the dashboard and shows **top error reasons** (e.g. HTTP 5xx, connection refused) when there are failures.
+
+So: **one stream per Worker**. The Master sends commands; the Worker sends register/stats/finish. The actual HTTP traffic goes from each Worker to the **target URL** — the Master never sees the HTTP requests.
+
+```mermaid
+flowchart LR
+    subgraph User
+        TUI[TUI: press s / q]
+    end
+    subgraph Master
+        M[Master gRPC server]
+    end
+    subgraph Workers
+        W1[Worker 1]
+        W2[Worker 2]
+        WN[Worker N]
+    end
+    subgraph Target
+        URL[Target URL]
+    end
+    TUI -->|start/quit| M
+    M <-->|gRPC stream: commands & stats| W1
+    M <-->|gRPC stream| W2
+    M <-->|gRPC stream| WN
+    W1 & W2 & WN -->|HTTP GET| URL
+```
+
+- **Solid lines:** **gRPC** (Master ↔ Workers) and HTTP (Workers → Target).
+- **Master** holds one stream per Worker and broadcasts Start/Stop/Quit to all.
+- **Workers** send **Register** once, then **Stats** and **Finish** over the same stream.
 
 ---
 

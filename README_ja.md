@@ -18,19 +18,23 @@
 
 ---
 
+</div>
+
 ### 🚀 デモ
 
 以下のコマンドで起動し、Masterノードにアタッチしてください。  
-**`s`** キーで試験開始、**`q`** キーで終了します。
+`s` キーで試験開始、`q` キーで終了します。
 
 `docker compose up -d --build`
 
-**表示項目:**
-- 🔄 **進捗状況**: テストの実行状態をリアルタイムに表示
-- 👥 **ワーカー数 / RPS**: 稼働中のワーカー数と秒間リクエスト数
-- ⏱️ **レイテンシ**: P50, P90, P99 レスポンス時間
-- ✅ **成功/失敗**: リクエスト結果のカウント
-- ⚠️ **主要なエラー**: 発生している主なエラー内容の要約
+表示項目:
+- 🔄 進捗状況: テストの実行状態をリアルタイムに表示
+- 👥 ワーカー数 / RPS: 稼働中のワーカー数と秒間リクエスト数
+- ⏱️ レイテンシ: P50, P90, P99 レスポンス時間
+- ✅ 成功/失敗: リクエスト結果のカウント
+- ⚠️ 主要なエラー: 発生している主なエラー内容の要約
+
+<div align="center">
 
 ![SwarmGo デモ（Docker Compose クイックスタート）](demo-docker.gif)
 
@@ -49,42 +53,19 @@ Worker を増やせばその分スケールするので、1 プロセスで何�
 
 ---
 
-## 🏗 アーキテクチャ
+## 📦 主な機能
 
-構成はこんなイメージです。
+| 機能 | 説明 |
+|--------|-------------|
+| **Master + Workers（gRPC）** | 1 台の Master が複数 Worker に指示を出し、Worker を増やしてスケールできます。 |
+| **TUI ダッシュボード** | 接続 Worker 数・ライブ RPS・成功/失敗数・**エラー要因の上位表示**（例: `HTTP 500 ...: 155`）・イベントログを表示。**`s`** でテスト開始、**`q`** で終了。 |
+| **失敗 = 通信エラー + HTTP 4xx/5xx** | 往復でエラーになった場合に加え、**ステータスコード 400 以上**（4xx/5xx）も失敗としてカウントします。Go の `Client.Do()` は 5xx でも err を返さないため、明示的にステータスをチェックしています。 |
+| **エラー要因（Error Reasons）** | Worker が失敗理由（例: `HTTP 500 Internal Server Error`、`connection refused`、`timeout`）を集計して Master に送り、TUI で**件数上位 5 件**を表示。長いメッセージは切り詰め、失敗が 0 件のときは「Errors: None」と表示します。 |
+| **ターゲット URL・n・c の指定** | **`-url`** **`-n`** **`-c`** または環境変数 **`TARGET_URL`** **`TOTAL_REQUESTS`** **`CONCURRENCY`** で指定可能（フラグ省略時は環境変数がデフォルト。Docker Compose で便利）。 |
+| **Worker Pool** | 各 Worker 内で固定サイズのプールを使い、並行数を抑えることでメモリを安定させています（大量 **goroutine** による OOM を避けるため）。 |
+| **レイテンシ百分位** | 各 Worker が成功リクエストのみで P50/P90/P99 を計算して報告し、TUI で代表値を表示します。 |
+| **ヘッドレス Master** | `-no-tui` で **gRPC** だけの Master にでき、CI やスクリプト・リモートサーバーから叩く用途向けです。 |
 
-1. **Master** は **gRPC** サーバー（と TUI）を動かし、接続してきた Worker のリストを保持します。各 Worker とは 1 本の **双方向 gRPC ストリーム**でつながっています。
-2. **Worker** は Master に接続したあと、まず ID 付きの **Register** を送り、あとはループでコマンド（Start / Stop / Quit）を受け取り、実行中の **Stats** や完了時の **Finish** を送り返します。
-3. TUI で **Start** を押すと、Master が接続中の全 Worker に Start を送ります。各 Worker は **固定サイズの Worker Pool** で対象 URL に HTTP GET を実行し、**Stats**（成功/失敗数・RPS・**エラー要因**）を定期的に Master に送り、終わったら **Finish** を送ってダッシュボードを更新します。失敗がある場合は TUI に**エラー要因の上位**（例: HTTP 5xx、connection refused）が表示されます。
-
-HTTP のトラフィックは各 Worker から **対象 URL** に直接向かうだけで、Master はリクエストの中身を見ません。
-
-```mermaid
-flowchart LR
-    subgraph User
-        TUI[TUI: s / q キー]
-    end
-    subgraph Master
-        M[Master gRPC サーバー]
-    end
-    subgraph Workers
-        W1[Worker 1]
-        W2[Worker 2]
-        WN[Worker N]
-    end
-    subgraph Target
-        URL[対象 URL]
-    end
-    TUI -->|start/quit| M
-    M <-->|gRPC ストリーム: コマンド & 統計| W1
-    M <-->|gRPC ストリーム| W2
-    M <-->|gRPC ストリーム| WN
-    W1 & W2 & WN -->|HTTP GET| URL
-```
-
-- **実線:** **gRPC**（Master ↔ Workers）と HTTP（Workers → 対象 URL）。
-- **Master** は Worker ごとに 1 本のストリームを持ち、Start/Stop/Quit を全員に送ります。
-- **Workers** は最初に **Register** を 1 回送り、以降は同じストリームで **Stats** と **Finish** を送ります。
 
 ---
 
@@ -156,21 +137,6 @@ docker compose up --build
 
 ---
 
-## 📦 主な機能
-
-| 機能 | 説明 |
-|--------|-------------|
-| **Master + Workers（gRPC）** | 1 台の Master が複数 Worker に指示を出し、Worker を増やしてスケールできます。 |
-| **TUI ダッシュボード** | 接続 Worker 数・ライブ RPS・成功/失敗数・**エラー要因の上位表示**（例: `HTTP 500 ...: 155`）・イベントログを表示。**`s`** でテスト開始、**`q`** で終了。 |
-| **失敗 = 通信エラー + HTTP 4xx/5xx** | 往復でエラーになった場合に加え、**ステータスコード 400 以上**（4xx/5xx）も失敗としてカウントします。Go の `Client.Do()` は 5xx でも err を返さないため、明示的にステータスをチェックしています。 |
-| **エラー要因（Error Reasons）** | Worker が失敗理由（例: `HTTP 500 Internal Server Error`、`connection refused`、`timeout`）を集計して Master に送り、TUI で**件数上位 5 件**を表示。長いメッセージは切り詰め、失敗が 0 件のときは「Errors: None」と表示します。 |
-| **ターゲット URL・n・c の指定** | **`-url`** **`-n`** **`-c`** または環境変数 **`TARGET_URL`** **`TOTAL_REQUESTS`** **`CONCURRENCY`** で指定可能（フラグ省略時は環境変数がデフォルト。Docker Compose で便利）。 |
-| **Worker Pool** | 各 Worker 内で固定サイズのプールを使い、並行数を抑えることでメモリを安定させています（大量 **goroutine** による OOM を避けるため）。 |
-| **レイテンシ百分位** | 各 Worker が成功リクエストのみで P50/P90/P99 を計算して報告し、TUI で代表値を表示します。 |
-| **ヘッドレス Master** | `-no-tui` で **gRPC** だけの Master にでき、CI やスクリプト・リモートサーバーから叩く用途向けです。 |
-
----
-
 ## 🛠 Docker を使わずに動かす（ローカルで Go ビルド）
 
 **Go 1.22+** が必要です。
@@ -189,6 +155,45 @@ go build -o swarmgo ./cmd/swarmgo/
    デフォルトでは `localhost:50051` に接続します。別ホストのときは `-addr host:port` や環境変数 `MASTER_ADDR` で指定できます。
 
 3. Master の TUI で **`s`** でテスト開始、**`q`** で終了です。
+
+---
+
+## 🏗 アーキテクチャ
+
+構成はこんなイメージです。
+
+1. **Master** は **gRPC** サーバー（と TUI）を動かし、接続してきた Worker のリストを保持します。各 Worker とは 1 本の **双方向 gRPC ストリーム**でつながっています。
+2. **Worker** は Master に接続したあと、まず ID 付きの **Register** を送り、あとはループでコマンド（Start / Stop / Quit）を受け取り、実行中の **Stats** や完了時の **Finish** を送り返します。
+3. TUI で **Start** を押すと、Master が接続中の全 Worker に Start を送ります。各 Worker は **固定サイズの Worker Pool** で対象 URL に HTTP GET を実行し、**Stats**（成功/失敗数・RPS・**エラー要因**）を定期的に Master に送り、終わったら **Finish** を送ってダッシュボードを更新します。失敗がある場合は TUI に**エラー要因の上位**（例: HTTP 5xx、connection refused）が表示されます。
+
+HTTP のトラフィックは各 Worker から **対象 URL** に直接向かうだけで、Master はリクエストの中身を見ません。
+
+```mermaid
+flowchart LR
+    subgraph User
+        TUI[TUI: s / q キー]
+    end
+    subgraph Master
+        M[Master gRPC サーバー]
+    end
+    subgraph Workers
+        W1[Worker 1]
+        W2[Worker 2]
+        WN[Worker N]
+    end
+    subgraph Target
+        URL[対象 URL]
+    end
+    TUI -->|start/quit| M
+    M <-->|gRPC ストリーム: コマンド & 統計| W1
+    M <-->|gRPC ストリーム| W2
+    M <-->|gRPC ストリーム| WN
+    W1 & W2 & WN -->|HTTP GET| URL
+```
+
+- **実線:** **gRPC**（Master ↔ Workers）と HTTP（Workers → 対象 URL）。
+- **Master** は Worker ごとに 1 本のストリームを持ち、Start/Stop/Quit を全員に送ります。
+- **Workers** は最初に **Register** を 1 回送り、以降は同じストリームで **Stats** と **Finish** を送ります。
 
 ---
 
