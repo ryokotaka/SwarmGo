@@ -18,20 +18,21 @@
 
 ---
 
-### 📺 Output / Demo
+### 🚀 Demo
 
-*See what the tool does at a glance:*
-- **Docker Compose** quickstart → Master TUI with connected Workers
-- Live **RPS** and **success/fail** counts
-- **Top error display** (e.g. `HTTP 500 Internal Server Error: 155`)
+Run the following command to start, then attach to the Master node.  
+Press **`s`** to start the test and **`q`** to quit.
+
+`docker compose up -d --build`
+
+**Display Items:**
+- 🔄 **Progress Status**
+- 👥 **RPS**
+- ⏱️ **Latency**
+- ✅ **Success/Failure**
+- ⚠️ **Top Errors**
 
 ![SwarmGo Demo (Docker Compose Quickstart)](./demo-docker.gif)
-
-**What you see:**
-
-- `docker compose up -d --build` → attach to Master → press **`s`** to start, **`q`** to quit  
-- Connected Worker count · live RPS graph · success/fail counters  
-- **Top error reasons** (failure breakdown) and connect/disconnect/finish event log
 
 </div>
 
