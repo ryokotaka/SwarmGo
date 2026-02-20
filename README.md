@@ -22,11 +22,6 @@
 
 ### 🚀 Demo
 
-Run the following command to start, then attach to the Master node.  
-Press `s` to start the test and `q` to quit.
-
-`docker compose up -d --build`
-
 Display Items:
 - 🔄 Progress Status
 - 👥 RPS
