@@ -58,7 +58,7 @@ func main() {
 	
 	// Create a MyRunner to run the load test and send requests via MyRun.
 	myRunner := worker.NewMyRunner()
-	mySum, myErr := myRunner.MyRun(ctx, *url, *totalRequests, *concurrency)
+	mySum, myErr := myRunner.MyRun(ctx, *url, *totalRequests, *concurrency, nil)
 
 	// Calculate the total execution time of the test.
     runElapsed := time.Since(runStart)
@@ -91,9 +91,14 @@ func main() {
     fmt.Printf("  Failed:         %d\n", mySum.MyFailed)
     fmt.Printf("  Total Duration: %s\n", runElapsed) // Total time taken for the test
     fmt.Println("--------------------------------------------------")
-    // Display RPS and Mean Latency
+    // Display RPS and Mean Latency and percentiles
     fmt.Printf("  RPS:            %.2f req/s\n", rps)
     fmt.Printf("  Mean Latency:   %s\n", avgLatency)
+    if mySum.MySuccess > 0 {
+        fmt.Printf("  Latency P50:    %s\n", mySum.LatencyP50)
+        fmt.Printf("  Latency P90:    %s\n", mySum.LatencyP90)
+        fmt.Printf("  Latency P99:    %s\n", mySum.LatencyP99)
+    }
     fmt.Println("--------------------------------------------------")
 
     if len(mySum.MyStatusCodeCnt) > 0 {

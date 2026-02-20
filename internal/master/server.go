@@ -18,10 +18,13 @@ import (
 
 // StatsUpdate は Worker から受信した StatsMsg を TUI に転送するための型
 type StatsUpdate struct {
-	WorkerID     string
-	SuccessCount int32
-	FailCount    int32
-	CurrentRps   float64
+	WorkerID      string
+	SuccessCount  int32
+	FailCount     int32
+	CurrentRps    float64
+	LatencyP50Ms  int32
+	LatencyP90Ms  int32
+	LatencyP99Ms  int32
 }
 
 // WorkerListChanged は Worker の接続/切断時に TUI へ通知するイベント（一覧の再描画を促す）
@@ -43,17 +46,20 @@ type LogLine struct {
 type Server struct {
 	proto.UnimplementedSwarmServiceServer
 
-	mu       sync.Mutex
-	workers  map[string]proto.SwarmService_ConnectServer
-	uiChan   chan interface{}
-	uiChanMu sync.Mutex
+	mu             sync.Mutex
+	workers        map[string]proto.SwarmService_ConnectServer
+	uiChan         chan interface{}
+	uiChanMu       sync.Mutex
+	errorReasons   map[string]int // エラー要因ごとの発生回数（Worker の Stats からマージ、TUI で表示）
+	errorReasonsMu sync.Mutex
 }
 
 // NewServer は Master の「実体」を 1 個作り、その「住所」（*Server）を返す。
 // 住所を渡すので、もらった人みんなが同じ 1 個を触れる。コピーではない。
 func NewServer() *Server {
 	return &Server{
-		workers: make(map[string]proto.SwarmService_ConnectServer),
+		workers:      make(map[string]proto.SwarmService_ConnectServer),
+		errorReasons: make(map[string]int),
 	}
 }
 
@@ -91,6 +97,39 @@ func (s *Server) SetUIChan(ch chan interface{}) {
 	s.uiChanMu.Lock()
 	defer s.uiChanMu.Unlock()
 	s.uiChan = ch
+}
+
+// MergeErrorReasons は Worker から受信したエラー要因をサーバー側の集計にマージする。Connect の受信ループから呼ぶ。
+func (s *Server) MergeErrorReasons(reasons []*proto.ErrorReason) {
+	if len(reasons) == 0 {
+		return
+	}
+	s.errorReasonsMu.Lock()
+	defer s.errorReasonsMu.Unlock()
+	for _, r := range reasons {
+		if r == nil || r.Message == "" {
+			continue
+		}
+		s.errorReasons[r.Message] += int(r.Count)
+	}
+}
+
+// GetErrorReasons は集計済みのエラー要因のコピーを返す。TUI の View から呼ぶ。同時書き込みを避けるためコピーを返す。
+func (s *Server) GetErrorReasons() map[string]int {
+	s.errorReasonsMu.Lock()
+	defer s.errorReasonsMu.Unlock()
+	out := make(map[string]int, len(s.errorReasons))
+	for k, v := range s.errorReasons {
+		out[k] = v
+	}
+	return out
+}
+
+// ResetErrorReasons はエラー要因集計をクリアする。負荷テスト開始（'s' 押下）時に TUI から呼ぶ。
+func (s *Server) ResetErrorReasons() {
+	s.errorReasonsMu.Lock()
+	defer s.errorReasonsMu.Unlock()
+	s.errorReasons = make(map[string]int)
 }
 
 // Connect は Worker からの双方向ストリームを処理する。
@@ -136,11 +175,15 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 		switch m := msg.Msg.(type) {
 		case *proto.WorkerMsg_Stats:
 			stats := m.Stats
+			s.MergeErrorReasons(stats.ErrorReasons)
 			s.sendToUI(StatsUpdate{
 				WorkerID:     workerID,
 				SuccessCount: stats.SuccessCount,
 				FailCount:    stats.FailCount,
 				CurrentRps:   stats.CurrentRps,
+				LatencyP50Ms: stats.LatencyP50Ms,
+				LatencyP90Ms: stats.LatencyP90Ms,
+				LatencyP99Ms: stats.LatencyP99Ms,
 			})
 		case *proto.WorkerMsg_Finish:
 			s.logOrSendToUI("Worker %s finished task.", workerID)

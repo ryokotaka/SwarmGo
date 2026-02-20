@@ -37,6 +37,8 @@ package main
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbletea"
@@ -47,16 +49,21 @@ import (
 
 // --- 定数（表示の上限・グラフの大きさ）---
 const (
-	maxRPSHistory = 40 // RPS グラフに表示する履歴の最大本数（横方向の棒の数）
-	graphHeight   = 8  // グラフの縦方向の行数（文字の高さ）
-	maxLogLines   = 10 // ログ枠に表示する最大行数（超えた分は古い行から捨てる）
+	maxRPSHistory     = 40 // RPS グラフに表示する履歴の最大本数（横方向の棒の数）
+	graphHeight       = 8  // グラフの縦方向の行数（文字の高さ）
+	maxLogLines       = 10 // ログ枠に表示する最大行数（超えた分は古い行から捨てる）
+	topErrorReasons   = 5  // エラー要因の上位表示件数
+	maxErrorReasonLen = 60 // エラー要因文字列の最大表示長（超えたら切り詰め）
 )
 
 // --- Bubble Tea の Model を構成する型 ---
-// workerStats は 1 台の Worker の集計値（成功数・失敗数・現在の RPS）
+// workerStats は 1 台の Worker の集計値（成功数・失敗数・現在の RPS・レイテンシ百分位）
 type workerStats struct {
-	success, fail int32
-	rps           float64
+	success, fail   int32
+	rps             float64
+	latencyP50Ms    int32
+	latencyP90Ms    int32
+	latencyP99Ms    int32
 }
 
 // model は Bubble Tea が要求する「画面の状態」を表す型。
@@ -135,9 +142,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case master.StatsUpdate:
 		// Worker から Master に送られた統計を TUI 用に保持。全 Worker の RPS を合計して履歴に追加
 		m.workerStats[msg.WorkerID] = workerStats{
-			success: msg.SuccessCount,
-			fail:    msg.FailCount,
-			rps:     msg.CurrentRps,
+			success:       msg.SuccessCount,
+			fail:          msg.FailCount,
+			rps:           msg.CurrentRps,
+			latencyP50Ms:  msg.LatencyP50Ms,
+			latencyP90Ms:  msg.LatencyP90Ms,
+			latencyP99Ms:  msg.LatencyP99Ms,
 		}
 		var totalRPS float64
 		for _, ws := range m.workerStats {
@@ -169,8 +179,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// ユーザーが押したキー。Bubble Tea がキー入力を tea.KeyMsg として渡してくれる
 		switch msg.String() {
 		case "s":
-			// 負荷テスト開始: 全 Worker に Start 命令をブロードキャスト（proto の MasterCmd / StartCmd）
-			// URL・リクエスト数・並行数は起動時の -url / -n / -c で指定した値を使用
+			// 負荷テスト開始: 進捗を 0 から表示するため workerStats・RPS 履歴・エラー要因をリセットしてからブロードキャスト
+			m.workerStats = make(map[string]workerStats)
+			m.rpsHistory = m.rpsHistory[:0]
+			m.server.ResetErrorReasons()
 			cmd := &proto.MasterCmd{
 				Cmd: &proto.MasterCmd_Start{
 					Start: &proto.StartCmd{
@@ -231,15 +243,38 @@ func (m model) View() string {
 	workerCount := len(workers)
 
 	var totalSuccess, totalFail int32
+	var maxP99, repP50, repP90 int32 // 表示用: P99 最大の Worker の値を使う
 	for _, ws := range m.workerStats {
 		totalSuccess += ws.success
 		totalFail += ws.fail
+		if ws.latencyP99Ms > maxP99 {
+			maxP99 = ws.latencyP99Ms
+			repP50 = ws.latencyP50Ms
+			repP90 = ws.latencyP90Ms
+		}
+	}
+
+	completed := totalSuccess + totalFail
+	totalExpected := m.defaultTotalRequests * workerCount
+	progressStr := "Progress: -"
+	if workerCount > 0 && totalExpected > 0 {
+		pct := 0.0
+		if totalExpected > 0 {
+			pct = 100 * float64(completed) / float64(totalExpected)
+		}
+		progressStr = fmt.Sprintf("Progress: %d / %d (%.0f%%)", completed, totalExpected, pct)
+	}
+
+	latencyStr := "  |  Latency P50: -  P90: -  P99: -"
+	if maxP99 > 0 || repP50 > 0 || repP90 > 0 {
+		latencyStr = fmt.Sprintf("  |  Latency P50: %d ms  P90: %d ms  P99: %d ms", repP50, repP90, maxP99)
 	}
 
 	mainContent := fmt.Sprintf("Workers: %d\n\n", workerCount)
 	mainContent += "Total RPS (realtime)\n"
 	mainContent += m.renderRPSGraph() + "\n\n"
-	mainContent += fmt.Sprintf("Success: %d   Fail: %d", totalSuccess, totalFail)
+	mainContent += fmt.Sprintf("Success: %d   Fail: %d   %s%s", totalSuccess, totalFail, progressStr, latencyStr)
+	mainContent += m.renderErrorReasons()
 
 	mainBox := boxStyle.Render(mainContent) // 枠線・パディングを付けて 1 つのブロックに
 
@@ -261,6 +296,37 @@ func (m model) View() string {
 
 	// 全体を 1 つの文字列にして返す。Bubble Tea がこれをそのままターミナルに出力する
 	return header + "\n" + mainBox + "\n" + logBox + "\n" + footer
+}
+
+// renderErrorReasons は Master が集計したエラー要因を件数上位 topErrorReasons 件だけ表示する。0 件のときは "Errors: None"。
+func (m model) renderErrorReasons() string {
+	reasons := m.server.GetErrorReasons()
+	if len(reasons) == 0 {
+		return "\nErrors: None"
+	}
+	type pair struct {
+		msg   string
+		count int
+	}
+	var list []pair
+	for msg, count := range reasons {
+		list = append(list, pair{msg, count})
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].count > list[j].count })
+	n := topErrorReasons
+	if n > len(list) {
+		n = len(list)
+	}
+	var b strings.Builder
+	b.WriteString("\nErrors:\n")
+	for i := 0; i < n; i++ {
+		msg := list[i].msg
+		if len(msg) > maxErrorReasonLen {
+			msg = msg[:maxErrorReasonLen] + "..."
+		}
+		b.WriteString(fmt.Sprintf("  - %s: %d\n", msg, list[i].count))
+	}
+	return b.String()
 }
 
 // renderRPSGraph は rpsHistory（直近の合計 RPS の時系列）を ASCII の棒グラフにして返す。
