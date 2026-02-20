@@ -8,20 +8,30 @@
 #  または .env に TARGET_URL=... を書く
 
 services:
+  # テスト用のダミーサーバー
+  target-server:
+    image: ealen/echo-server
+    
+    networks:
+      - swarm-net
+
   # 司令塔サーバー（TUI 付き。attach で s=開始, q=終了）
-  # 負荷テストの URL/回数/並行数は環境変数 TARGET_URL, TOTAL_REQUESTS, CONCURRENCY で指定可能（未設定時はアプリ側デフォルト）
   master:
     build: .
     command: ["master", "-p", "50051"]
     environment:
-      # 未設定時は安全な公開テスト用URL（攻撃にならないデモ用）。自前APIで試す場合は TARGET_URL を上書き
-      - TARGET_URL=${TARGET_URL:-https://httpbin.org/get}
-      - TOTAL_REQUESTS=${TOTAL_REQUESTS:-15}
-      - CONCURRENCY=${CONCURRENCY:-3}
+      # デフォルトのターゲットを、上のダミーサーバー (http://target-server) に向ける
+      - TARGET_URL=${TARGET_URL:-http://target-server}
+      
+      - TOTAL_REQUESTS=${TOTAL_REQUESTS:-3000}
+      
+      - CONCURRENCY=${CONCURRENCY:-10}
     ports:
       - "50051:50051"
     stdin_open: true  # TUI のために標準入力を開ける
     tty: true         # TUI のために擬似端末を割り当てる
+    depends_on:
+      - target-server # ダミーサーバーが起動してからMasterを起動する
     networks:
       - swarm-net
 
