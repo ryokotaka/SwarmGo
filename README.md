@@ -10,7 +10,7 @@
 
 <br>
 
-**A distributed HTTP load testing tool** — one **Master** coordinates many **Workers** over **gRPC**. Each Worker uses a **worker pool** so memory stays stable even under heavy concurrency.
+**A distributed HTTP load testing tool** — one **Master** coordinates many **Workers** over **gRPC**. 
 
 *I built this to learn distributed systems, **Go**, and **gRPC** hands-on.*
 
@@ -20,11 +20,18 @@
 
 ### 📺 Output / Demo
 
-*See what the tool does at a glance: **Docker Compose** quickstart → Master TUI with connected Workers, live RPS, and success/fail counts.*
+*See what the tool does at a glance:*
+- **Docker Compose** quickstart → Master TUI with connected Workers
+- Live **RPS** and **success/fail** counts
+- **Top error display** (e.g. `HTTP 500 Internal Server Error: 155`)
 
 ![SwarmGo Demo (Docker Compose Quickstart)](./demo-docker.gif)
 
-**What you see:** `docker compose up -d --build` → attach to Master → press **`s`** to start a load test, **`q`** to quit. Connected Worker count, live RPS graph, success/fail counters, top error reasons (e.g. `HTTP 500 Internal Server Error: 155`), and a log of connect/disconnect/finish events.
+**What you see:**
+
+- `docker compose up -d --build` → attach to Master → press **`s`** to start, **`q`** to quit  
+- Connected Worker count · live RPS graph · success/fail counters  
+- **Top error reasons** (failure breakdown) and connect/disconnect/finish event log
 
 </div>
 

@@ -14,9 +14,10 @@ services:
     build: .
     command: ["master", "-p", "50051"]
     environment:
-      - TARGET_URL=${TARGET_URL:-http://host.docker.internal:8080/api/test}
-      - TOTAL_REQUESTS=${TOTAL_REQUESTS:-1000}
-      - CONCURRENCY=${CONCURRENCY:-10}
+      # 未設定時は安全な公開テスト用URL（攻撃にならないデモ用）。自前APIで試す場合は TARGET_URL を上書き
+      - TARGET_URL=${TARGET_URL:-https://httpbin.org/get}
+      - TOTAL_REQUESTS=${TOTAL_REQUESTS:-15}
+      - CONCURRENCY=${CONCURRENCY:-3}
     ports:
       - "50051:50051"
     stdin_open: true  # TUI のために標準入力を開ける
