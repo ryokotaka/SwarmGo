@@ -36,17 +36,6 @@
 
 ---
 
-## 💡 Motivation
-
-I built this project to **learn by doing**:
-
-- **Concurrent workers in Go** — How to coordinate many **goroutine**s, use **channel**s for job queues, and avoid pitfalls like spawning one goroutine per request and running out of memory.
-- **gRPC** — How to define a service in **Protobuf**, use **bidirectional streaming** so the Master can push commands and Workers can push back stats in real time, and handle connection lifecycle (connect, disconnect, reconnection).
-- **Containerization with Docker** — How to run the Master and multiple Workers in containers, wire them with **Docker** networking, and use `docker-compose` for a one-command quickstart.
-
-The goal was not to build the most feature-rich load tester, but to understand how a small **distributed system** is designed and implemented — from protocol design to **goroutine** safety to deployment.
-
----
 
 ## 🏗 Architecture Overview
 

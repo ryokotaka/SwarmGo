@@ -68,6 +68,9 @@ message StatsMsg {
   int32 success_count = 1;  // 途中報告：成功数
   int32 fail_count = 2;     // 途中報告：失敗数
   double current_rps = 3;   // リアルタイムRPS
+  int32 latency_p50_ms = 4; // レイテンシ P50（ミリ秒、成功リクエストのみ）
+  int32 latency_p90_ms = 5; // レイテンシ P90（ミリ秒）
+  int32 latency_p99_ms = 6; // レイテンシ P99（ミリ秒）
 }
 
 message FinishMsg {
