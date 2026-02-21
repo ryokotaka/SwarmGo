@@ -13,10 +13,10 @@ import (
 	"github.com/ryokotaka/SwarmGo/proto"
 )
 
-// TUI 用型（窓口から表示板へ送る伝言の種類）
-// SetUIChan でチャネルが渡されていれば sendToUI / logOrSendToUI で送信、未設定なら log.Printf のみ。
+// Types for TUI: messages sent from the server to the display.
+// If a channel is set via SetUIChan, messages are sent via sendToUI / logOrSendToUI; otherwise only log.Printf is used.
 
-// StatsUpdate は Worker から受信した StatsMsg を TUI に転送するための型
+// StatsUpdate carries Worker stats (StatsMsg) received from Workers to the TUI.
 type StatsUpdate struct {
 	WorkerID      string
 	SuccessCount  int32
@@ -27,22 +27,22 @@ type StatsUpdate struct {
 	LatencyP99Ms  int32
 }
 
-// WorkerListChanged は Worker の接続/切断時に TUI へ通知するイベント（一覧の再描画を促す）
+// WorkerListChanged notifies the TUI when a Worker connects or disconnects (triggers list redraw).
 type WorkerListChanged struct{}
 
-// LogLine は TUI のログウィンドウに表示する 1 行メッセージ
+// LogLine is a single-line message displayed in the TUI log window.
 type LogLine struct {
 	Message string
 }
 
-// Server = このプログラムの「Master」の正体。1 プロセスに 1 つだけ。
-// Worker を束ねて命令を送る側。gRPC の窓口でもある。
+// Server is the Master entity for this process (one per process).
+// It coordinates Workers, sends commands, and exposes the gRPC endpoint.
 //
-// 中身（この構造体が持っているもの）:
-//   - workers … 今つながっている Worker の名簿（ID → その子との通信路）
-//   - mu … 名簿を触るときの鍵（同時に触らないようにする）
-//   - uiChan … 画面（TUI）にログを送るための管。SetUIChan で渡す。
-//   - uiChanMu … その管の設定を守る鍵
+// Fields:
+//   - workers: roster of connected Workers (ID -> stream to each Worker)
+//   - mu: mutex protecting the roster (prevents concurrent access)
+//   - uiChan: channel to send log messages to the TUI; set via SetUIChan
+//   - uiChanMu: mutex protecting uiChan
 type Server struct {
 	proto.UnimplementedSwarmServiceServer
 
@@ -50,12 +50,12 @@ type Server struct {
 	workers        map[string]proto.SwarmService_ConnectServer
 	uiChan         chan interface{}
 	uiChanMu       sync.Mutex
-	errorReasons   map[string]int // エラー要因ごとの発生回数（Worker の Stats からマージ、TUI で表示）
+	errorReasons   map[string]int // occurrence count per error reason (merged from Worker Stats, shown in TUI)
 	errorReasonsMu sync.Mutex
 }
 
-// NewServer は Master の「実体」を 1 個作り、その「住所」（*Server）を返す。
-// 住所を渡すので、もらった人みんなが同じ 1 個を触れる。コピーではない。
+// NewServer creates a single Master instance and returns its pointer.
+// Callers share the same instance by reference, not by copy.
 func NewServer() *Server {
 	return &Server{
 		workers:      make(map[string]proto.SwarmService_ConnectServer),
@@ -63,7 +63,7 @@ func NewServer() *Server {
 	}
 }
 
-// sendToUI は TUI 用チャネルに伝言 v を送る。チャネル未設定またはバッファ満杯時は何もしない（ブロックしない）。
+// sendToUI sends message v to the TUI channel. No-op (non-blocking) if the channel is unset or buffer is full.
 func (s *Server) sendToUI(v interface{}) {
 	s.uiChanMu.Lock()
 	ch := s.uiChan
@@ -76,7 +76,7 @@ func (s *Server) sendToUI(v interface{}) {
 	}
 }
 
-// logOrSendToUI は TUI 用チャネルが設定されていれば LogLine で送信、なければ log.Printf。
+// logOrSendToUI sends a LogLine to the TUI channel if set; otherwise logs via log.Printf.
 func (s *Server) logOrSendToUI(format string, args ...interface{}) {
 	s.uiChanMu.Lock()
 	ch := s.uiChan
@@ -92,14 +92,14 @@ func (s *Server) logOrSendToUI(format string, args ...interface{}) {
 	}
 }
 
-// SetUIChan は TUI 用チャネルを渡す。main で TUI 起動時に呼ぶ。未呼び出しの場合は log.Printf のみ使用。
+// SetUIChan sets the channel used for TUI. Call from main when starting the TUI. If never called, only log.Printf is used.
 func (s *Server) SetUIChan(ch chan interface{}) {
 	s.uiChanMu.Lock()
 	defer s.uiChanMu.Unlock()
 	s.uiChan = ch
 }
 
-// MergeErrorReasons は Worker から受信したエラー要因をサーバー側の集計にマージする。Connect の受信ループから呼ぶ。
+// MergeErrorReasons merges error reasons received from Workers into the server-side aggregate. Called from Connect's receive loop.
 func (s *Server) MergeErrorReasons(reasons []*proto.ErrorReason) {
 	if len(reasons) == 0 {
 		return
@@ -114,7 +114,7 @@ func (s *Server) MergeErrorReasons(reasons []*proto.ErrorReason) {
 	}
 }
 
-// GetErrorReasons は集計済みのエラー要因のコピーを返す。TUI の View から呼ぶ。同時書き込みを避けるためコピーを返す。
+// GetErrorReasons returns a copy of the aggregated error reasons. Called from the TUI View. Returns a copy to avoid concurrent write issues.
 func (s *Server) GetErrorReasons() map[string]int {
 	s.errorReasonsMu.Lock()
 	defer s.errorReasonsMu.Unlock()
@@ -125,17 +125,17 @@ func (s *Server) GetErrorReasons() map[string]int {
 	return out
 }
 
-// ResetErrorReasons はエラー要因集計をクリアする。負荷テスト開始（'s' 押下）時に TUI から呼ぶ。
+// ResetErrorReasons clears the error reason aggregate. Called from the TUI when starting a load test (e.g. on 's' key).
 func (s *Server) ResetErrorReasons() {
 	s.errorReasonsMu.Lock()
 	defer s.errorReasonsMu.Unlock()
 	s.errorReasons = make(map[string]int)
 }
 
-// Connect は Worker からの双方向ストリームを処理する。
+// Connect handles the bidirectional stream from a Worker.
 func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
-	// 1. 最初のメッセージを受信 (Register)
-	// Recv() の内部で、ワイヤ上の「タグ番号＋値」が .proto の定義に従って WorkerMsg に復元される
+	// 1. Receive the first message (Register)
+	// Recv() decodes the wire format (tag + value) into WorkerMsg according to the .proto definition
 	msg, err := stream.Recv()
 	if err != nil {
 		return err
@@ -147,13 +147,13 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 	workerID := reg.WorkerId
 	s.logOrSendToUI("Worker connected: %s (Arch: %s)", workerID, reg.CpuArch)
 
-	// 2. workers に登録
+	// 2. Register in workers
 	s.mu.Lock()
 	s.workers[workerID] = stream
 	s.mu.Unlock()
 	s.sendToUI(WorkerListChanged{})
 
-	// 3. 接続切れの時の後始末
+	// 3. Cleanup when the connection is closed
 	defer func() {
 		s.mu.Lock()
 		delete(s.workers, workerID)
@@ -162,9 +162,9 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 		s.sendToUI(WorkerListChanged{})
 	}()
 
-	// 4. 受信ループ（Stats / Finish を処理）
+	// 4. Receive loop (handle Stats / Finish)
 	for {
-		// 受信: バイト列がタグ番号（1=Register, 2=Stats, 3=Finish）で解釈され、msg に復元されている
+		// Receive: bytes are interpreted by tag (1=Register, 2=Stats, 3=Finish) and decoded into msg
 		msg, err := stream.Recv()
 		if err == io.EOF {
 			return nil
@@ -193,29 +193,27 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 	}
 }
 
-// WorkerInfo は list コマンド用の接続中 Worker の情報（ID とアドレス）
+// WorkerInfo holds connection info (ID and address) for a Worker, used by the list command.
 type WorkerInfo struct {
 	ID   string
 	Addr string
 }
 
-// BroadcastCommand は接続中の全 Worker に同じ命令を送信する。
+// BroadcastCommand sends the same command to all connected Workers.
 //
-// 
-//   - 目的: 分散負荷テストで、Master が複数 Worker に同じ指示を一斉に出してまとめて制御する。
-//   - この関数の役割: 「今つながっている全 Worker に、同じ 1 個の命令（開始/停止/終了）を一斉に送る」API。
-//   - 実装の工夫: 送信先リストは共有の s.workers。ロックを長く持ちたくないので、
-//     ロック中は「写し（snapshot）」を取るだけにして、ロックを外してからその写しに対して Send する。
+//   - Purpose: in distributed load testing, the Master issues the same instruction to all Workers at once.
+//   - Role: API to send one command (start/stop/exit) to every connected Worker.
+//   - Implementation: take a snapshot of s.workers under the lock, then Send to each stream outside the lock to avoid holding the lock during I/O.
 func (s *Server) BroadcastCommand(cmd *proto.MasterCmd) {
-	// 共有データ s.workers（map）を触る前に Mutex をロック。他 goroutine はここで待たされる。
+	// Lock the mutex before touching shared s.workers; other goroutines block here.
 	s.mu.Lock()
-	// 新しい map を作成。キー=WorkerID(string)、値=ストリーム。第2引数は容量ヒントで、len(s.workers) ぶん確保し追加時の再確保を減らす。
+	// Create a new map: key=WorkerID (string), value=stream. Second arg is capacity hint to reduce reallocation.
 	snapshot := make(map[string]proto.SwarmService_ConnectServer, len(s.workers))
 	for id, stream := range s.workers {
 		snapshot[id] = stream
 	}
 	s.mu.Unlock()
-	// ロックはここまで。以降は snapshot だけを触るので、stream.Send() のように時間がかかる処理をロック外で実行できる。
+	// Lock released here. We only use snapshot below, so slow operations like stream.Send() run outside the lock.
 
 	for id, stream := range snapshot {
 		if err := stream.Send(cmd); err != nil {
@@ -224,76 +222,70 @@ func (s *Server) BroadcastCommand(cmd *proto.MasterCmd) {
 	}
 }
 
-// ListWorkers は現在接続中の Worker 一覧（ID, アドレス）を返す。
+// ListWorkers returns the list of currently connected Workers (ID and address).
 //
-// 
-//   - 目的: TUI/CLI で「今どの Worker がつながっているか」を表示するために一覧を取得する。
-//   - この関数の役割: 名簿（s.workers）を安全に読んで、呼び出し元が使いやすい形（[]WorkerInfo）で返す API。
-//   - 実装の工夫: 読むだけなのでロック中に list を組み立てて返す（Send のような重い処理はないため写しは取らない）。
+//   - Purpose: obtain a list for TUI/CLI to show which Workers are connected.
+//   - Role: safely read the roster (s.workers) and return it as []WorkerInfo.
+//   - Implementation: read-only, so the list is built under the lock (no snapshot needed since there is no heavy I/O like Send).
 func (s *Server) ListWorkers() []WorkerInfo {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	list := make([]WorkerInfo, 0, len(s.workers)) // 返却用スライス。長さ0、容量は Worker 数で事前確保。
+	list := make([]WorkerInfo, 0, len(s.workers)) // Slice for return: length 0, capacity pre-allocated for Worker count.
 	for id, stream := range s.workers {
-		addr := "" // この Worker の接続元アドレス。取れなければ空文字列のまま。
+		addr := "" // This Worker's remote address; empty string if unavailable.
 		if p, ok := peer.FromContext(stream.Context()); ok && p.Addr != nil {
-			addr = p.Addr.String() // peer=接続の相手（Worker）、Addr=そのネットワーク上の住所（IP:ポート）
+			addr = p.Addr.String() // peer = connection peer (Worker), Addr = its network address (IP:port)
 		}
 		list = append(list, WorkerInfo{ID: id, Addr: addr})
 	}
 	return list
 }
 
-// StartGRPCServer は 1 つの Server インスタンスで全 Connect が同じ workers を共有する。ブロッキング。
+// StartGRPCServer runs a single Server instance so all Connect streams share the same workers. Blocking.
 //
-// 起動の流れ:
-//  1. リッスン … net.Listen でポートを開き、窓口で接続を待ち受ける準備をする。
-//  2. サーバーを用意 … grpc.NewServer で窓口での処理（gRPC の受け方）を決め、Register で RPC を登録する。
-//  3. サーブ … grpcServer.Serve(lis) でその窓口で接続を受け付け続ける（戻ってこない）。
+// Startup flow:
+//  1. Listen: open the port with net.Listen and accept incoming connections.
+//  2. Create server: grpc.NewServer sets up gRPC handling; Register registers the RPC.
+//  3. Serve: grpcServer.Serve(lis) accepts connections on that listener (does not return).
 func StartGRPCServer(port string) error {
-	// 1. リッスン: このポートで TCP 接続を待ち受ける（標準ライブラリ net）
+	// 1. Listen: wait for TCP connections on this port (stdlib net)
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
-	// 2. サーバーを用意: gRPC 用のサーバーを作り、SwarmService の処理を登録する（公式 grpc ライブラリ）
+	// 2. Create server: build gRPC server and register SwarmService handler (official grpc library)
 	grpcServer := grpc.NewServer()
 	srv := NewServer()
 	proto.RegisterSwarmServiceServer(grpcServer, srv)
 	log.Printf("Master server listening on port %s...", port)
-	// 3. サーブ: 窓口で接続を受け付け続ける（ブロック）
+	// 3. Serve: accept connections on the listener (blocks)
 	return grpcServer.Serve(lis)
 }
 
-// RunGRPCServer は「gRPC を裏で動かしつつ、すぐに Master の住所（*Server）を返す」関数。
+// RunGRPCServer runs gRPC in the background and returns the Master's *Server immediately.
 //
-// なぜ返すか:
-//  画面TUIが一覧表示、全員に開始をやりたいとき、
-//  「その Master の住所」を渡す。
+// Why return *Server: the TUI needs it to show the worker list and to broadcast commands (e.g. start to all).
+// Callers receive the pointer, not a copy, so srv.ListWorkers() and srv.BroadcastCommand() operate on the same Master instance.
 //
-// 返すのは「コピー」じゃなく「住所」。もらった人は srv.ListWorkers() や
-// srv.BroadcastCommand() で、裏で動いているあの 1 個の Master を触れる。
-//
-// やっていることは StartGRPCServer と同じ 3 段階。違うのは「待ち受け（Serve）」を
-// 別 goroutine でやるだけ。だからこっちはすぐ return して、*Server を渡せる。
+// Same three steps as StartGRPCServer; the only difference is that Serve runs in a separate goroutine, so this function can return *Server right away.
 func RunGRPCServer(port string) (*Server, error) {
-	// 1. ポートを開いて、接続を待つ準備
+	// 1. Open the port and prepare to accept connections
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %v", err)
 	}
-	// 2. gRPC のサーバーを作り、この srv を「SwarmService の実装」として登録
+	// 2. Create gRPC server and register this srv as the SwarmService implementation
 	grpcServer := grpc.NewServer()
 	srv := NewServer()
 	proto.RegisterSwarmServiceServer(grpcServer, srv)
 	log.Printf("Master server listening on port %s...", port)
 
-	// 3. 接続の待ち受けは「ずっとブロックする」ので、別 goroutine で実行。ここでは return する。
+	// 3. Serve blocks forever accepting connections, so run it in a separate goroutine and return here
 	go func() {
 		_ = grpcServer.Serve(lis)
 	}()
 
-	// この 1 個の Master の住所を返す。TUI はこれで同じ Master を操作する。
+	// Return the pointer to this single Master instance; the TUI uses it to operate the same Master
 	return srv, nil
 }
