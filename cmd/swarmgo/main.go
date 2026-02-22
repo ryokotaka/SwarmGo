@@ -12,13 +12,13 @@ import (
 )
 
 func main() {
-    // 「os.Args」はCLI引数を取得し、0番目が実行ファイル名、1番目が引数
+    // os.Args holds CLI arguments: index 0 is the executable name, index 1 is the first argument
     if len(os.Args) < 2 {
         printHelp()
         os.Exit(1)
     }
 
-    // コマンドを決定する（サブコマンド "master"/"worker" または -mode=master / -mode=worker）
+    // Determine command (subcommand "master"/"worker" or -mode=master / -mode=worker)
     cmd := os.Args[1]
     if cmd == "-mode=master" || cmd == "--mode=master" {
         cmd = "master"
@@ -44,17 +44,17 @@ func printHelp() {
 	fmt.Fprintln(os.Stderr, "  worker  - connect to Master and run load test tasks. Option: -addr (or MASTER_ADDR, default localhost:50051)")
 }
 
-// runMaster は「親」の Master を、画面付きで起動する。
+// runMaster starts the Master with the TUI.
 //
-// やることの順番:
-//  1. オプション -p でポート番号を決める（例: -p 50051）
-//  2. Worker がつながってくる gRPC の窓口を、裏で開いておく（ここでは待たずに次へ進む）
-//  3. 「Master から画面へ伝言を届ける管」を用意して、Master に渡す
-//  4. ターミナルにダッシュボードを表示する（s でテスト開始、q で終了）
+// Order of operations:
+//  1. Set port via -p (e.g. -p 50051)
+//  2. Start the gRPC endpoint in the background (do not block here)
+//  3. Create a channel for Master -> TUI messages and pass it to the Master
+//  4. Show the dashboard in the terminal (s to start test, q to quit)
 func runMaster() {
 	masterCmd := flag.NewFlagSet("master", flag.ExitOnError)
 	port := masterCmd.String("p", "50051", "Port to listen on")
-	// -url / -n / -c のデフォルトは環境変数 TARGET_URL / TOTAL_REQUESTS / CONCURRENCY を参照（Docker 等で上書きしやすい）
+	// Defaults for -url / -n / -c come from TARGET_URL / TOTAL_REQUESTS / CONCURRENCY (easy to override in Docker etc.)
 	urlDefault := os.Getenv("TARGET_URL")
 	if urlDefault == "" {
 		urlDefault = "https://example.com"
@@ -78,7 +78,7 @@ func runMaster() {
 	masterCmd.Parse(os.Args[2:])
 
 	if *noTUI {
-		// ヘッドレス: gRPC サーバーだけ起動し、ログは log.Printf で標準出力へ
+		// Headless: start only the gRPC server; logs go to stdout via log.Printf
 		if err := master.StartGRPCServer(*port); err != nil {
 			fmt.Fprintf(os.Stderr, "master: %v\n", err)
 			os.Exit(1)
@@ -86,7 +86,7 @@ func runMaster() {
 		return
 	}
 
-	// TUI 付き: gRPC を別 goroutine で起動し、ダッシュボードを表示
+	// With TUI: start gRPC in a separate goroutine and show the dashboard
 	srv, err := master.RunGRPCServer(*port)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "master: %v\n", err)
