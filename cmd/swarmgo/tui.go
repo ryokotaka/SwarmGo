@@ -203,7 +203,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		// ターミナルリサイズ時に Bubble Tea が送る。幅・高さを model に保存（将来レイアウトに使う）
+		// Sent by Bubble Tea on terminal resize; store width/height in model for future layout use
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nextCmd()
@@ -212,37 +212,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nextCmd()
 }
 
-// --- tea.Model インターフェース: View ---
-// View は「今の model から、画面に出す文字列を 1 つに組み立てて返す」関数。Bubble Tea がこの戻り値をターミナルに描画する。
-// 毎回呼ばれるので、スタイルは View 内で都度 NewStyle() している（キャッシュしてもよいが、ここではシンプルに）。
+// --- tea.Model interface: View ---
+// View builds a single string from the current model for display. Bubble Tea draws this to the terminal.
+// Called every time; styles are created with NewStyle() inside View (could cache, but kept simple here).
 func (m model) View() string {
-	// Lipgloss: NewStyle() でスタイルを作り、Bold / Foreground / Border などをメソッドチェーンで指定。
-	// Render(s) で文字列 s にそのスタイル（ANSI エスケープ）を適用した結果を返す。
+	// Lipgloss: NewStyle() creates a style; chain Bold, Foreground, Border, etc. Render(s) applies it (ANSI escapes).
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("86")). // 256 色の水色系
+		Foreground(lipgloss.Color("86")). // 256-color cyan-ish
 		MarginBottom(1)
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("241")). // グレー
+		BorderForeground(lipgloss.Color("241")). // gray
 		Padding(0, 1).
 		MarginBottom(1)
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		MarginTop(1)
 
-	// ヘッダー: タイトル + 起動からの経過時間（startTime は newModel で time.Now()）
+	// Header: title + elapsed time since start (startTime set to time.Now() in newModel)
 	uptime := time.Since(m.startTime).Round(time.Second)
 	uptimeStr := fmt.Sprintf("Uptime: %02d:%02d:%02d",
 		int(uptime.Hours()), int(uptime.Minutes())%60, int(uptime.Seconds())%60)
 	header := headerStyle.Render("SwarmGo  Master") + "  " + uptimeStr
 
-	// メイン枠: Worker 数（Master に接続中の一覧）・RPS グラフ・成功/失敗の合計
+	// Main panel: Worker count (list of those connected to Master), RPS graph, total success/fail
 	workers := m.server.ListWorkers()
 	workerCount := len(workers)
 
 	var totalSuccess, totalFail int32
-	var maxP99, repP50, repP90 int32 // 表示用: P99 最大の Worker の値を使う
+	var maxP99, repP50, repP90 int32 // for display: use values from the Worker with max P99
 	for _, ws := range m.workerStats {
 		totalSuccess += ws.success
 		totalFail += ws.fail
@@ -275,9 +274,9 @@ func (m model) View() string {
 	mainContent += fmt.Sprintf("Success: %d   Fail: %d   %s%s", totalSuccess, totalFail, progressStr, latencyStr)
 	mainContent += m.renderErrorReasons()
 
-	mainBox := boxStyle.Render(mainContent) // 枠線・パディングを付けて 1 つのブロックに
+	mainBox := boxStyle.Render(mainContent) // one block with border and padding
 
-	// ログ枠: Master が uiChan 経由で送った LogLine を時系列で表示（最大 maxLogLines 行）
+	// Log panel: show LogLines sent by Master via uiChan in order (up to maxLogLines)
 	logContent := "Log:\n"
 	for _, line := range m.logs {
 		logContent += "  " + line + "\n"
@@ -293,11 +292,11 @@ func (m model) View() string {
 	footer := footerStyle.Render(fmt.Sprintf("Target: %s (n=%d, c=%d) | Press 's' to start, 'q' to quit",
 		m.defaultTargetURL, m.defaultTotalRequests, m.defaultConcurrency))
 
-	// 全体を 1 つの文字列にして返す。Bubble Tea がこれをそのままターミナルに出力する
+	// Return the full screen as one string; Bubble Tea outputs it to the terminal
 	return header + "\n" + mainBox + "\n" + logBox + "\n" + footer
 }
 
-// renderErrorReasons は Master が集計したエラー要因を件数上位 topErrorReasons 件だけ表示する。0 件のときは "Errors: None"。
+// renderErrorReasons shows the top topErrorReasons error reasons by count from the Master aggregate; "Errors: None" when zero.
 func (m model) renderErrorReasons() string {
 	reasons := m.server.GetErrorReasons()
 	if len(reasons) == 0 {
@@ -328,8 +327,8 @@ func (m model) renderErrorReasons() string {
 	return b.String()
 }
 
-// renderRPSGraph は rpsHistory（直近の合計 RPS の時系列）を ASCII の棒グラフにして返す。
-// 縦軸 = RPS の高さ、横軸 = 時間（左が古い、右が新しい）。最大値で正規化し、█ で棒・░ で空白を表現する。
+// renderRPSGraph turns rpsHistory (recent total RPS over time) into an ASCII bar graph.
+// Y-axis = RPS magnitude, X-axis = time (oldest left, newest right). Normalized to max; █ = bar, ░ = empty.
 func (m model) renderRPSGraph() string {
 	if len(m.rpsHistory) == 0 {
 		return "  (no data yet)"
@@ -344,7 +343,7 @@ func (m model) renderRPSGraph() string {
 		maxVal = 1
 	}
 
-	// 上から下へ graphHeight 行を生成。行 i は「各時点の RPS が、その高さ i を超えていれば █、そうでなければ ░」
+	// Build graphHeight rows top to bottom; row i: █ if RPS at that time exceeds height i, else ░
 	lines := make([]string, graphHeight)
 	for i := graphHeight - 1; i >= 0; i-- {
 		row := ""
