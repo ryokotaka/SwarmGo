@@ -28,7 +28,7 @@ type MySummary struct {
 	MyFailed        int               // Number of failed requests
 	MyFirstErr      error             // First error encountered (for logging when MyFailed > 0)
 	MyStatusCodeCnt map[int]int       // Number of requests for each status code (pair of [status code] and [number of requests])
-	MyErrorReasons  map[string]int    // 失敗要因ごとの発生回数（TUI で上位表示するため Master へ送る）
+	MyErrorReasons  map[string]int    // occurrence count per failure reason (sent to Master for TUI top-N display)
 	MyTotalDuration time.Duration     // Total duration of all requests (used for average calculation)
 	LatencyP50      time.Duration     // 50th percentile latency (successful requests only)
 	LatencyP90      time.Duration     // 90th percentile latency (successful requests only)
@@ -170,11 +170,11 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 			if mySum.MyFirstErr == nil {
 				mySum.MyFirstErr = res.MyErr
 			}
-			// 4xx/5xx など HTTP エラーで失敗した場合もステータスコードの内訳を集計する（TUI で 500 が何回か等が分かる）。
+			// Aggregate status code breakdown even for HTTP errors (4xx/5xx) so the TUI can show e.g. how many 500s
 			if res.MyStatusCode != 0 {
 				mySum.MyStatusCodeCnt[res.MyStatusCode]++
 			}
-			// エラー要因を集計（Master の TUI で上位表示するため。通信エラーは汎用名に丸める）。
+			// Aggregate error reasons for Master's TUI top-N display; network errors are normalized to a generic name
 			reason := errorReasonString(res)
 			if reason != "" {
 				mySum.MyErrorReasons[reason]++
@@ -222,8 +222,8 @@ func percentile(sorted []time.Duration, p float64) time.Duration {
 	return sorted[int(idx)]
 }
 
-// errorReasonString は MyResult から TUI 用のエラー要因文字列を返す。失敗時のみ意味がある。
-// HTTP 4xx/5xx の場合は "HTTP 500 Internal Server Error" 形式、通信エラーは sanitizeError で汎用名に丸める。
+// errorReasonString returns a TUI-friendly error reason string from MyResult. Only meaningful when the request failed.
+// For HTTP 4xx/5xx we use "HTTP 500 Internal Server Error" style; network errors are normalized via sanitizeError.
 func errorReasonString(res MyResult) string {
 	if res.MyErr == nil {
 		return ""
@@ -231,9 +231,9 @@ func errorReasonString(res MyResult) string {
 	return sanitizeError(res.MyErr.Error())
 }
 
-// sanitizeError は長いエラー文字列（URL 含む）を TUI 表示用に汎用的な短い名前に丸める。
+// sanitizeError normalizes long error strings (e.g. with URLs) to short, generic names for TUI display.
 func sanitizeError(s string) string {
-	// すでに "HTTP 500 ..." 形式ならそのまま返す
+	// Already in "HTTP 500 ..." form; return as-is
 	if strings.HasPrefix(s, "HTTP ") {
 		return s
 	}
@@ -252,7 +252,7 @@ func sanitizeError(s string) string {
 	case strings.Contains(lower, "context canceled"), strings.Contains(lower, "context deadline"):
 		return "context canceled"
 	}
-	// それ以外は長すぎる場合は先頭のみ（例: "Get \"https://...\": ..." → 末尾の理由部分を優先したいが、簡易的に 80 文字で切る）
+	// Otherwise truncate if too long (e.g. "Get \"https://...\": ..."; we take first 80 chars for simplicity)
 	const maxLen = 80
 	if len(s) <= maxLen {
 		return s
@@ -289,8 +289,8 @@ func (r *MyRunner) executeRequest(ctx context.Context, url string) MyResult {
 	// and buffers, so it must be closed when done.
 	defer myResp.Body.Close()
 
-	// Go の Client.Do() は 5xx が返っても「通信は成功した」とみなし err を返さない。
-	// 負荷テストでは 4xx/5xx を Fail として数えるため、err != nil に加えて StatusCode >= 400 も失敗とする。
+	// Go's Client.Do() does not return an error for 5xx; it considers the round-trip successful.
+	// For load testing we count 4xx/5xx as failures, so treat StatusCode >= 400 as failure in addition to err != nil.
 	if myResp.StatusCode >= 400 {
 		return MyResult{
 			MyStatusCode: myResp.StatusCode,
