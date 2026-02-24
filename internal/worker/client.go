@@ -15,25 +15,25 @@ import (
 	"github.com/ryokotaka/SwarmGo/proto"
 )
 
-// GRPCClient は Master との gRPC 接続を管理する構造体。
+// GRPCClient manages the gRPC connection to the Master.
 //
-// クライアントとは「要求する側」のこと。Master がサーバー（待ち受け・指示を出す側）、
-// Worker がクライアント（接続して指示を受け取り結果を返す側）となる。
-// この構造体は「Master と gRPC で話すための窓口」を表す。
+// The client is the "requester" side: Master is the server (listens and issues commands),
+// Worker is the client (connects, receives commands, and returns results).
+// This struct represents the interface for talking to the Master over gRPC.
 type GRPCClient struct {
-	masterAddr string // 接続先アドレス（例: "localhost:50051"）
+	masterAddr string // address to connect to (e.g. "localhost:50051")
 	conn       *grpc.ClientConn
-	client     proto.SwarmServiceClient // Connect() を呼びストリームを張るためのクライアント
+	client     proto.SwarmServiceClient // client used to call Connect() and establish the stream
 }
 
-// NewGRPCClient は指定アドレスの Master へ接続する gRPC クライアントを生成する。
+// NewGRPCClient creates a gRPC client that connects to the Master at the given address.
 //
-// やっていること:
-//   - addr に対して TLS なし（insecure）で gRPC 接続を張る。
-//     TLS は通信の暗号化。開発・同一マシン内では insecure で十分なことが多い。
-//   - この時点で作られるのは「接続（conn）」だけ。
-//     ストリーム（WorkerMsg を送り MasterCmd を受け取る路）はまだ張られていない。
-//     ストリームは Start() 内で Connect() を呼んだときに 1 本張られる。
+// What it does:
+//   - Establishes a gRPC connection to addr without TLS (insecure).
+//     TLS encrypts the connection; for dev or same-machine use, insecure is often enough.
+//   - Only the connection (conn) is created here.
+//     The stream (path for sending WorkerMsg and receiving MasterCmd) is not opened yet;
+//     it is opened in Start() when Connect() is called.
 func NewGRPCClient(addr string) (*GRPCClient, error) {
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -46,25 +46,25 @@ func NewGRPCClient(addr string) (*GRPCClient, error) {
 	}, nil
 }
 
-// Start は Master との双方向ストリームを開始し、Register 送信後に受信ループで Start/Stop/Quit を処理する。
+// Start opens the bidirectional stream to the Master, sends Register, then runs a receive loop handling Start/Stop/Quit.
 //
-// 流れ: 接続 → ストリーム取得 → Register 送信 → ループで MasterCmd 受信・処理
+// Flow: connect → get stream → send Register → loop receiving and handling MasterCmd
 func (c *GRPCClient) Start() error {
 	defer c.conn.Close()
 
 	log.Printf("Connecting to Master at %s...", c.masterAddr)
 
-	// context.Background() は「何も設定していない・いちばんシンプルな context」。
-	// キャンセルやタイムアウトを指定しないときに使う。Connect() は context を引数に取るため渡している。
+	// context.Background() is the simplest context with no cancellation or timeout.
+	// Connect() takes a context, so we pass it here.
 	stream, err := c.client.Connect(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to open stream: %w", err)
 	}
-	// ここで「ストリーム」が 1 本張られた。以降 stream.Send() / stream.Recv() で WorkerMsg / MasterCmd を送受信する。
+	// The stream is now open; use stream.Send() / stream.Recv() to send WorkerMsg and receive MasterCmd.
 
-	// 1. 最初のメッセージ: RegisterMsg（Master に「このワーカーがつながった」と登録する）
-	// workerID: 他ワーカーと被りにくくするため、ナノ秒 + 0..999 の乱数で一意にする（例: "worker-1739123456789012345-42"）
-	// CpuArch: runtime.GOARCH（"arm64", "amd64" など）をそのまま送り、Master がどのアーキテクチャのワーカーか把握できるようにする
+	// 1. First message: RegisterMsg (tell the Master this worker has connected)
+	// workerID: unique per worker using nanosecond timestamp + 0..999 random (e.g. "worker-1739123456789012345-42")
+	// CpuArch: send runtime.GOARCH ("arm64", "amd64", etc.) so the Master knows the worker's architecture
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	workerID := fmt.Sprintf("worker-%d-%d", time.Now().UnixNano(), rng.Intn(1000))
 	req := &proto.WorkerMsg{
@@ -80,7 +80,7 @@ func (c *GRPCClient) Start() error {
 	}
 	log.Printf("Successfully registered as %s", workerID)
 
-	// 2. 受信ループ（Master からの MasterCmd: Start / Stop / Quit を待って処理）
+	// 2. Receive loop: wait for MasterCmd (Start / Stop / Quit) from Master and handle each
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {
@@ -93,7 +93,7 @@ func (c *GRPCClient) Start() error {
 
 		switch cmd := msg.Cmd.(type) {
 		case *proto.MasterCmd_Start:
-			// 負荷テスト実行指示。TargetUrl に TotalRequests 回 GET を、Concurrency 並列で実行する。
+			// Load test: run TotalRequests GETs to TargetUrl with Concurrency parallelism
 			log.Printf("START: target=%s requests=%d concurrency=%d",
 				cmd.Start.TargetUrl, cmd.Start.TotalRequests, cmd.Start.Concurrency)
 
@@ -165,7 +165,7 @@ func (c *GRPCClient) Start() error {
 				log.Printf("First failure reason: %v", summary.MyFirstErr)
 			}
 
-			// 最終結果を Master へ Stats で報告する（パーセンタイル・エラー要因含む）。
+			// Report final result to Master via Stats (including percentiles and error reasons)
 			rps := 0.0
 			if summary.MyTotalDuration.Seconds() > 0 {
 				rps = float64(summary.MyTotal) / summary.MyTotalDuration.Seconds()
@@ -191,7 +191,7 @@ func (c *GRPCClient) Start() error {
 				log.Printf("Failed to send stats: %v", err)
 			}
 
-			// 完了報告（FinishMsg）。Master の「Worker %s finished task.」などと対応させるため、所要時間を送る。
+			// Completion report (FinishMsg); send total duration so Master can log "Worker %s finished task." etc.
 			finish := &proto.WorkerMsg{
 				Msg: &proto.WorkerMsg_Finish{
 					Finish: &proto.FinishMsg{
@@ -208,7 +208,7 @@ func (c *GRPCClient) Start() error {
 
 		case *proto.MasterCmd_Quit:
 			log.Println("QUIT command received")
-			return nil // ループを抜け、defer で conn.Close() される
+			return nil // exit loop; defer runs conn.Close()
 
 		default:
 			log.Printf("Unknown command: %T", cmd)
