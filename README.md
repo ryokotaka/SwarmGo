@@ -10,9 +10,9 @@
 
 <br>
 
-**A compact distributed HTTP load testing project in Go: small enough to read, real enough to run.**
+**Run a small load test from your terminal and watch live traffic stats.**
 
-SwarmGo implements the core pieces behind distributed load generation: a gRPC **Master**, multiple **Workers**, fixed-size worker pools, and a terminal dashboard for live stats. The Docker Compose demo includes a local target server, so you can run the whole setup without preparing an external API.
+SwarmGo is a compact Go project that starts a dashboard, several request-sending workers, and a local test server with Docker Compose. You can try it without knowing distributed systems first, then inspect how the pieces work behind the scenes.
 
 <br>
 
@@ -22,7 +22,7 @@ SwarmGo implements the core pieces behind distributed load generation: a gRPC **
 
 ## Demo
 
-The Docker Compose demo starts one Master, three Workers, and a local `target-server`, so you can try SwarmGo without preparing an external API.
+The Docker Compose demo starts one controller, three request-sending Workers, and a local `target-server`, so you can try SwarmGo without preparing an external API.
 
 <div align="center">
 
@@ -30,7 +30,18 @@ The Docker Compose demo starts one Master, three Workers, and a local `target-se
 
 </div>
 
-The TUI shows connected Workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and common error reasons while the test is running.
+The terminal dashboard shows connected Workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and common error reasons while the test is running.
+
+---
+
+## What it does
+
+Load testing means sending many requests to a website or API to see how it responds. SwarmGo keeps that idea small and visible:
+
+- press **`s`** to start a test
+- watch RPS (requests per second), latency (how long responses take), success/failure counts, and errors
+- run everything locally with a built-in test server
+- open the code later if you want to see how the controller and workers coordinate
 
 ---
 
@@ -47,21 +58,21 @@ docker compose up -d --build
 docker attach $(docker compose ps -q master)
 ```
 
-Then press **`s`** in the TUI to start a load test against the built-in `target-server`.
+Then press **`s`** in the terminal dashboard to start a load test against the built-in `target-server`.
 
 ### What you should see
 
-After the Workers connect and the run starts, the TUI should show:
+After the Workers connect and the run starts, the terminal dashboard should show:
 
 - `Workers: 3` by default.
-- `Total RPS (realtime)` changing from `(no data yet)` to an ASCII graph and total RPS value.
+- `Total RPS (realtime)` changing from `(no data yet)` to an ASCII graph and total requests-per-second value.
 - `Success`, `Fail`, `Progress: current / total (%)`, and latency values updating during the run.
 - `Errors: None` for the healthy local target, or grouped error reasons when requests fail.
 
 To stop the demo:
 
-- Press **`q`** to quit the Master and stop the run.
-- Detach without stopping the Master with `Ctrl+P`, then `Ctrl+Q`.
+- Press **`q`** to quit the controller and stop the run.
+- Detach without stopping the controller with `Ctrl+P`, then `Ctrl+Q`.
 - Clean up with:
 
 ```bash
@@ -74,10 +85,10 @@ docker compose down
 
 ## Good fit if you want to
 
-- run a small multi-process Go/gRPC system locally
-- see how Master/Worker coordination works over bidirectional streams
-- inspect a worker-pool based load generator without a large codebase
-- experiment with Docker Compose networking across multiple services
+- try a load testing tool without preparing your own server
+- see what RPS, latency, and failures look like during a run
+- understand the basic idea of "one controller, many workers"
+- inspect a small Go/gRPC system after seeing it work
 - use a readable base for adding headers, report export, ramp-up, or richer scenarios
 
 ---
@@ -86,10 +97,10 @@ docker compose down
 
 | Area | Status |
 |------|--------|
-| **Working demo** | Docker Compose starts one Master, three Workers, and a local target server. |
+| **Working demo** | Docker Compose starts one controller, three Workers, and a local target server. |
 | **Load test scope** | HTTP GET requests with configurable target URL, total requests, and concurrency. |
-| **Live visibility** | TUI shows Workers, RPS, progress, latency percentiles, success/failure counts, and top errors. |
-| **Best for** | Reading and trying a small Go/gRPC distributed systems project. |
+| **Live visibility** | Terminal dashboard shows Workers, RPS, progress, latency percentiles, success/failure counts, and top errors. |
+| **Best for** | Trying load testing basics, then reading a small Go/gRPC distributed systems project. |
 | **Not meant for** | Production-grade benchmarking or replacing mature tools like k6, wrk, or Vegeta. |
 
 ---
