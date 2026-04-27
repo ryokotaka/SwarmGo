@@ -10,9 +10,9 @@
 
 <br>
 
-**A distributed HTTP load testing tool** — one **Master** coordinates many **Workers** over **gRPC**. 
+**A small distributed HTTP load tester written in Go.**
 
-*I built this to learn distributed systems, **Go**, and **gRPC** hands-on.*
+Run a **Master**, multiple **Workers**, and a local dummy target with Docker Compose. Start a test from the TUI and watch live RPS, latency percentiles, success/failure counts, and top error reasons.
 
 <br>
 
@@ -20,14 +20,9 @@
 
 </div>
 
-### 🚀 Demo
+## Demo
 
-Display Items:
-- 🔄 Progress Status
-- 👥 RPS
-- ⏱️ Latency
-- ✅ Success/Failure
-- ⚠️ Top Errors
+The Docker Compose demo starts one Master, three Workers, and a local `target-server`, so you can try SwarmGo without preparing an external API.
 
 <div align="center">
 
@@ -35,99 +30,109 @@ Display Items:
 
 </div>
 
----
-
-## 📖 What is SwarmGo?
-
-**SwarmGo** is a distributed HTTP load testing tool. You run a single **Master** (with an optional TUI dashboard) and one or more **Workers**. The Master sends commands (Start / Stop / Quit) over **gRPC**; Workers connect to the Master, run HTTP GET requests against a target URL, and stream back stats (RPS, success/fail counts), top error reasons and finish events. Scale by adding more Worker processes or machines — no single process has to handle millions of requests alone.
+The TUI shows connected Workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and the most common error reasons while the test is running.
 
 ---
 
-## 📦 Features
+## What is SwarmGo?
+
+**SwarmGo** is a compact distributed load testing project built around a Master/Worker architecture.
+
+- **Master:** runs a gRPC server and optional TUI. It broadcasts Start / Stop / Quit commands to connected Workers.
+- **Workers:** connect to the Master, execute HTTP GET requests with a fixed-size worker pool, and stream stats back over gRPC.
+- **Target:** receives HTTP traffic directly from Workers. The Master coordinates the run but does not proxy requests.
+
+It is not trying to replace mature tools like k6 or wrk. The goal is to make distributed load generation easy to inspect, run locally, and extend.
+
+---
+
+## Features
 
 | Feature | Description |
 |--------|-------------|
-| **Master + Workers over gRPC** | One Master commands many Workers; scale by adding more Workers. |
-| **TUI dashboard** | See connected Workers, live RPS, success/fail counts, **top error reasons** (e.g. `HTTP 500 ...: 155`), and event log. **`s`** = start test, **`q`** = quit. |
-| **Fail = network error + HTTP 4xx/5xx** | Requests are counted as **Fail** when the round-trip errors *or* when the server returns status code ≥ 400 (Go’s `Client.Do()` does not return an error for 5xx, so we explicitly check status). |
-| **Error reasons** | Workers aggregate failure reasons (e.g. `HTTP 500 Internal Server Error`, `connection refused`, `timeout`) and send them to the Master. The TUI shows the **top 5** by count; long messages are truncated. Empty when there are no failures. |
-| **Configurable target / n / c** | Target URL, total requests, and concurrency via **`-url`** **`-n`** **`-c`** or env vars **`TARGET_URL`** **`TOTAL_REQUESTS`** **`CONCURRENCY`** (used as defaults when flags are omitted; ideal for Docker Compose). |
-| **Worker pool** | Fixed-size pool per Worker so memory stays stable under high concurrency (no OOM from millions of **goroutine**s). |
-| **Latency percentiles** | Each Worker reports P50/P90/P99 latency (successful requests only); the TUI shows representative values. |
-| **Headless Master** | Use `-no-tui` for a **gRPC**-only Master (CI, scripts, remote servers). |
+| **Distributed Master/Worker model** | One Master coordinates many Workers over long-lived gRPC streams. |
+| **One-command local demo** | Docker Compose starts the Master, Workers, and a dummy target server. |
+| **Interactive TUI** | Press **`s`** to start a run and **`q`** to quit. Watch Workers, RPS, latency, success/failure counts, and errors. |
+| **Configurable target and load** | Set the target URL, total requests, and concurrency with `-url`, `-n`, `-c`, or environment variables. |
+| **Stable concurrency model** | Each Worker uses a fixed-size worker pool instead of spawning one goroutine per request. |
+| **Latency percentiles** | Workers report P50/P90/P99 latency for successful requests. |
+| **Top error reasons** | Network errors and HTTP 4xx/5xx responses are counted as failures and grouped for the TUI. |
+| **Headless Master** | Use `-no-tui` when you only need the gRPC Master for scripts, CI, or remote runs. |
 
 ---
 
-## 🚀 How to Run (Quickstart)
+## Quickstart
 
-The easiest way is **Docker Compose**: one command brings up the Master and several Workers. No need to install **Go** locally.
-
-### Step 1: Clone and go to the project
+### 30-second local demo
 
 ```bash
 git clone https://github.com/ryokotaka/SwarmGo.git
 cd SwarmGo
-```
-
-### Step 2: Start Master and Workers in the background
-
-```bash
 docker compose up -d --build
-```
-
-- **Master:** runs with TUI, exposes **gRPC** on port `50051`.
-- **Workers:** by default 3 Workers start; they connect to `master:50051` via **Docker** network.
-
-To change the number of Workers (e.g. 5):
-
-```bash
-docker compose up -d --build --scale worker=5
-```
-
-To use a different target URL (and/or request count, concurrency) when you press **`s`** in the TUI, set environment variables. The Master reads **`TARGET_URL`**, **`TOTAL_REQUESTS`**, and **`CONCURRENCY`** as defaults. Easiest: put them in a **`.env`** file in the project root — then you only run `docker compose up -d --build` as usual (no long command line).
-
-```bash
-# Example .env in the project root:
-TARGET_URL=https://your-api.example.com
-TOTAL_REQUESTS=100
-CONCURRENCY=10
-```
-
-Or override once without editing a file:  
-`TARGET_URL=https://your-api.example.com TOTAL_REQUESTS=100 CONCURRENCY=10 docker compose up -d --build`
-
-### Step 3: Attach to the Master to use the TUI
-
-The Master is running in the background. To see and control its TUI:
-
-```bash
 docker attach $(docker compose ps -q master)
 ```
 
-- Press **`s`** to start a load test (Workers will run and report stats).
-- Press **`q`** to quit the Master (it will send Quit to Workers and exit).
-- To **detach** without stopping the Master: `Ctrl+P` then `Ctrl+Q`. The container keeps running; you can `docker attach` again later.
+Then press **`s`** in the TUI to start a load test against the built-in `target-server`.
 
-### Step 4: Stop everything
+- Press **`q`** to quit the Master and stop the run.
+- Detach without stopping the Master with `Ctrl+P`, then `Ctrl+Q`.
+- Clean up with:
 
 ```bash
 docker compose down
 ```
 
+### Scale Workers
 
-### Optional: Run in the foreground (logs in one terminal)
+The compose file starts 3 Workers by default. To run more Workers:
 
-If you prefer to see all logs in one place and stop with Ctrl+C:
+```bash
+docker compose up -d --build --scale worker=5
+```
+
+### Change target, requests, or concurrency
+
+By default, Docker Compose points SwarmGo at the included `target-server`:
+
+```env
+TARGET_URL=http://target-server
+TOTAL_REQUESTS=3000
+CONCURRENCY=10
+```
+
+To test another target, create a `.env` file in the project root:
+
+```bash
+TARGET_URL=https://your-api.example.com
+TOTAL_REQUESTS=100
+CONCURRENCY=10
+```
+
+Then run:
+
+```bash
+docker compose up -d --build
+```
+
+You can also override values for a single run:
+
+```bash
+TARGET_URL=https://your-api.example.com TOTAL_REQUESTS=100 CONCURRENCY=10 docker compose up -d --build
+```
+
+### Foreground mode
+
+If you only want logs in one terminal:
 
 ```bash
 docker compose up --build
 ```
 
-You won't get the interactive TUI in this mode; use the attach method above for TUI interaction.
+Interactive TUI input works best with the background + `docker attach` flow above.
 
 ---
 
-## 🛠 Run without Docker (local Go)
+## Run without Docker
 
 Requires **Go 1.22+**.
 
@@ -136,25 +141,34 @@ go mod tidy
 go build -o swarmgo ./cmd/swarmgo/
 ```
 
-1. **Terminal 1 — Master:**  
-   `./swarmgo master -p 50051`  
-   Optional: `-url`, `-n`, `-c` set the load test params used when you press **`s`** in the TUI. If omitted, they default to the **`TARGET_URL`**, **`TOTAL_REQUESTS`**, and **`CONCURRENCY`** environment variables (or `https://example.com`, `5`, `1`).  
+Terminal 1: start the Master.
 
-2. **Terminal 2 (and more) — Workers:**  
-   `./swarmgo worker`  
-   (Defaults to `localhost:50051`. Override with `-addr host:port` or `MASTER_ADDR`.)
+```bash
+./swarmgo master -p 50051
+```
 
-3. In the Master TUI, press **`s`** to start a test, **`q`** to quit.
+Optional Master flags:
+
+```bash
+./swarmgo master -p 50051 -url https://example.com -n 100 -c 10
+```
+
+Terminal 2 and more: start Workers.
+
+```bash
+./swarmgo worker
+```
+
+Workers connect to `localhost:50051` by default. Use `-addr host:port` or `MASTER_ADDR` for a remote Master.
 
 ---
 
-## 🏗 Architecture Overview
+## Architecture
 
-1. **Master** runs a **gRPC** server (and optionally a TUI). It keeps a list of connected Workers; each connection is a long-lived **bidirectional gRPC stream**.
-2. **Workers** connect to the Master and send a **Register** message with their ID, then sit in a loop **receiving** commands (Start / Stop / Quit) and **sending** back messages (Stats during a run, **Finish** when done).
-3. When you press **Start** in the TUI, the Master **broadcasts** a Start command to all connected Workers. Each Worker runs an HTTP load test (GET requests to a target URL) using a **fixed-size worker pool** and periodically sends **Stats** (success/fail counts, RPS, **error reasons**) back to the Master. When a Worker finishes, it sends **Finish**; the Master updates the dashboard and shows **top error reasons** (e.g. HTTP 5xx, connection refused) when there are failures.
-
-So: **one stream per Worker**. The Master sends commands; the Worker sends register/stats/finish. The actual HTTP traffic goes from each Worker to the **target URL** — the Master never sees the HTTP requests.
+1. The **Master** starts a gRPC server and keeps track of connected Workers.
+2. Each **Worker** opens one long-lived bidirectional gRPC stream to the Master.
+3. The Master sends commands over that stream. Workers send register, stats, and finish messages back over the same stream.
+4. During a run, Workers send HTTP GET requests directly to the target URL and periodically report progress.
 
 ```mermaid
 flowchart LR
@@ -179,55 +193,54 @@ flowchart LR
     W1 & W2 & WN -->|HTTP GET| URL
 ```
 
-- **Solid lines:** **gRPC** (Master ↔ Workers) and HTTP (Workers → Target).
-- **Master** holds one stream per Worker and broadcasts Start/Stop/Quit to all.
-- **Workers** send **Register** once, then **Stats** and **Finish** over the same stream.
+---
+
+## Design Notes
+
+I built SwarmGo to learn distributed systems, Go concurrency, gRPC streaming, and Docker-based local environments by implementing a working tool end to end.
+
+### Worker pool instead of one goroutine per request
+
+The first version used one goroutine per HTTP request. That works for small runs, but very large totals can create too many goroutines and allocations. SwarmGo now uses a fixed-size worker pool per Worker, so memory usage scales with concurrency instead of total request count.
+
+### Bidirectional gRPC streams
+
+Each Worker keeps one bidirectional stream open to the Master. The Master can send Start / Stop / Quit commands while the Worker sends register, stats, and finish messages back without switching protocols or polling.
+
+### Safe Worker registry
+
+The Master stores connected Workers in a shared map protected by a mutex. Broadcasts copy the current Worker streams under the lock, release the lock, then send commands, avoiding long lock holds around network operations.
+
+### TUI and gRPC in one process
+
+The Master runs the gRPC server and TUI together. gRPC handlers push updates into a channel, and the TUI consumes those updates to stay responsive while Workers connect and report stats.
+
+### HTTP failure handling
+
+SwarmGo treats both network errors and HTTP status codes >= 400 as failures. Go's HTTP client does not return an error for 4xx/5xx responses, so Workers check the status code explicitly and aggregate top error reasons for the TUI.
 
 ---
 
-## 🧠 What I Learned / Challenges
+## Limitations
 
-Building SwarmGo taught me a lot about concurrency, **gRPC**, and keeping the system simple. Here are the main challenges and how I addressed them.
-
-### 1. Goroutines and memory (OOM)
-
-**Problem:** My first approach was "one **goroutine** per HTTP request." For small loads it was fine, but for large runs (e.g. 1 million requests) the process ran out of memory because of the huge number of goroutines and associated allocations.
-
-**Solution:** I switched to a **worker pool** pattern. Instead of spawning N goroutines for N requests, each Worker has a **fixed number** of worker goroutines (the concurrency level). A **buffered channel** acts as a job queue: one goroutine produces "jobs" (one per request), and the fixed workers consume from the channel and execute HTTP requests. Memory stays **O(concurrency)** instead of O(total requests), so it stays stable even for very large totals.
-
-### 2. gRPC connection and streaming
-
-**Problem:** I needed the Master to send commands (Start/Stop/Quit) and Workers to send back events (Register, Stats, Finish) without blocking each other. Simple request-response wasn't enough.
-
-**Solution:** I used a single **bidirectional streaming** RPC (`Connect`): one long-lived stream per Worker. The Worker sends `WorkerMsg` (register, stats, finish) and receives `MasterCmd` (start, stop, quit). Both sides can send at any time. Connection lifecycle is clear: first message from Worker must be **Register**; when the stream closes, the Master removes that Worker from the list.
-
-### 3. Safe concurrent access to the Worker list
-
-**Problem:** The Master holds a `map[workerID]stream` that is read and written from multiple **goroutine**s (each `Connect` handler is its own goroutine, and the TUI or Start action may broadcast at the same time). Unsynchronized access would cause races and panics.
-
-**Solution:** A **mutex** guards the map. When broadcasting, I don't hold the lock while calling `stream.Send()` (which can block). Instead, I take a **snapshot** of the map (copy of keys and streams) under the lock, release the lock, then iterate over the snapshot and send. That way the critical section is short and we avoid deadlocks or long blocks on the mutex.
-
-### 4. TUI and gRPC on the same process
-
-**Problem:** The Master runs both a **gRPC** server and a TUI that must stay responsive (key presses, periodic redraws). Blocking the main loop on gRPC would freeze the UI.
-
-**Solution:** The gRPC server runs in the same process; each `Connect` runs in its own **goroutine**. The TUI runs in the main goroutine (or its own loop) and receives updates via a **channel**: the gRPC handlers send events (e.g. "worker connected", "stats update") to this channel with non-blocking sends (using `select` with `default`), and the TUI reads from the channel and redraws. So the UI stays responsive and the gRPC handlers don't block each other.
-
-### 5. Docker: TUI and multiple Workers
-
-**Problem:** I wanted to run the Master with a TUI and multiple Workers with a single command, without installing **Go**.
-
-**Solution:** `docker-compose` with a **master** service (with `stdin_open` and `tty` for interactive TUI) and a **worker** service with `deploy.replicas: 3`. The master runs a simple `command: ["master", "-p", "50051"]`; target URL, request count, and concurrency are set via **`TARGET_URL`**, **`TOTAL_REQUESTS`**, and **`CONCURRENCY`** in the service `environment`, and the Go binary reads them as flag defaults so the compose file stays simple. Workers use `MASTER_ADDR=master:50051` so they reach the Master by service name. To use the TUI, you run `docker compose up -d` and then `docker attach` to the master container; that gives you the interactive terminal for **`s`** / **`q`**.
-
-### 6. Container base image and TLS certificates
-
-**Problem:** With the Worker run image based on minimal **`alpine`**, root certificates were missing, so HTTPS load tests hit **`x509`** verification errors and every request failed.
-
-**Solution:** I used **`INSECURE_SKIP_VERIFY=1`** as a temporary workaround for dev/demo, then moved the run stage to a **`debian-slim`** base and installed `ca-certificates` for a proper fix. Learned that base image and certificate setup directly affect whether a distributed setup works or fails — an infra detail that's easy to miss until you hit it.
+- HTTP requests are currently **GET only**.
+- Custom headers, request bodies, and POST/PUT-style scenarios are not supported yet.
+- Results are shown in the TUI/logs; report export is not implemented yet.
+- There is no ramp-up schedule or advanced scenario scripting yet.
+- SwarmGo is a small distributed load testing project, not a production benchmark suite.
 
 ---
 
+## Roadmap
 
-## 📜 License
+- Custom headers.
+- POST/body support.
+- JSON or CSV report export.
+- Ramp-up and duration-based runs.
+- Per-worker summary view after each run.
+
+---
+
+## License
 
 **MIT**
