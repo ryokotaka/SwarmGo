@@ -10,9 +10,9 @@
 
 <br>
 
-**A small distributed HTTP load tester written in Go.**
+**A compact distributed HTTP load testing project in Go.**
 
-Run a **Master**, multiple **Workers**, and a local dummy target with Docker Compose. Start a test from the TUI and watch live RPS, latency percentiles, success/failure counts, and top error reasons.
+SwarmGo is a learning-oriented project that implements the core pieces behind distributed load generation: a gRPC **Master**, multiple **Workers**, fixed-size worker pools, and a terminal dashboard for live stats. The Docker Compose demo includes a local target server, so you can run the whole setup without preparing an external API.
 
 <br>
 
@@ -30,19 +30,83 @@ The Docker Compose demo starts one Master, three Workers, and a local `target-se
 
 </div>
 
-The TUI shows connected Workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and the most common error reasons while the test is running.
+The TUI shows connected Workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and common error reasons while the test is running.
+
+---
+
+## Quickstart
+
+### Local Docker demo
+
+Requires Docker and Docker Compose. You do not need to install Go for this path.
+
+```bash
+git clone https://github.com/ryokotaka/SwarmGo.git
+cd SwarmGo
+docker compose up -d --build
+docker attach $(docker compose ps -q master)
+```
+
+Then press **`s`** in the TUI to start a load test against the built-in `target-server`.
+
+### What you should see
+
+After the Workers connect and the run starts, the TUI should show:
+
+- `Workers: 3` by default.
+- `Total RPS (realtime)` changing from `(no data yet)` to an ASCII graph and total RPS value.
+- `Success`, `Fail`, `Progress: current / total (%)`, and latency values updating during the run.
+- `Errors: None` for the healthy local target, or grouped error reasons when requests fail.
+
+To stop the demo:
+
+- Press **`q`** to quit the Master and stop the run.
+- Detach without stopping the Master with `Ctrl+P`, then `Ctrl+Q`.
+- Clean up with:
+
+```bash
+docker compose down
+```
+
+> Safety: only run load tests against systems you own or have explicit permission to test. The default quickstart targets the local `target-server` container.
+
+---
+
+## Project Status
+
+| Area | Status |
+|------|--------|
+| **Working demo** | Docker Compose starts one Master, three Workers, and a local target server. |
+| **Load test scope** | HTTP GET requests with configurable target URL, total requests, and concurrency. |
+| **Live visibility** | TUI shows Workers, RPS, progress, latency percentiles, success/failure counts, and top errors. |
+| **Best for** | Reading and trying a small Go/gRPC distributed systems project. |
+| **Not meant for** | Production-grade benchmarking or replacing mature tools like k6, wrk, or Vegeta. |
 
 ---
 
 ## What is SwarmGo?
 
-**SwarmGo** is a compact distributed load testing project built around a Master/Worker architecture.
+**SwarmGo** is built around a simple Master/Worker architecture.
 
 - **Master:** runs a gRPC server and optional TUI. It broadcasts Start / Stop / Quit commands to connected Workers.
 - **Workers:** connect to the Master, execute HTTP GET requests with a fixed-size worker pool, and stream stats back over gRPC.
 - **Target:** receives HTTP traffic directly from Workers. The Master coordinates the run but does not proxy requests.
 
-It is not trying to replace mature tools like k6 or wrk. The goal is to make distributed load generation easy to inspect, run locally, and extend.
+The goal is not to be the biggest load testing tool. The goal is to make the mechanics of distributed load generation easy to run, inspect, and extend.
+
+---
+
+## Why this project?
+
+I built SwarmGo to understand the moving parts of a distributed system by implementing them directly:
+
+- long-lived bidirectional gRPC streams
+- Master-to-Worker command broadcast
+- Worker-side concurrency control
+- live progress reporting from multiple processes
+- Docker Compose networking for a local multi-service setup
+
+It is intentionally small enough to read, but complete enough to run as a real multi-process demo.
 
 ---
 
@@ -61,26 +125,7 @@ It is not trying to replace mature tools like k6 or wrk. The goal is to make dis
 
 ---
 
-## Quickstart
-
-### 30-second local demo
-
-```bash
-git clone https://github.com/ryokotaka/SwarmGo.git
-cd SwarmGo
-docker compose up -d --build
-docker attach $(docker compose ps -q master)
-```
-
-Then press **`s`** in the TUI to start a load test against the built-in `target-server`.
-
-- Press **`q`** to quit the Master and stop the run.
-- Detach without stopping the Master with `Ctrl+P`, then `Ctrl+Q`.
-- Clean up with:
-
-```bash
-docker compose down
-```
+## Docker Options
 
 ### Scale Workers
 
