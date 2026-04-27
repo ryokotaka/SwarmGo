@@ -10,9 +10,9 @@
 
 <br>
 
-**A compact distributed HTTP load testing project in Go.**
+**A compact distributed HTTP load testing project in Go: small enough to read, real enough to run.**
 
-SwarmGo is a learning-oriented project that implements the core pieces behind distributed load generation: a gRPC **Master**, multiple **Workers**, fixed-size worker pools, and a terminal dashboard for live stats. The Docker Compose demo includes a local target server, so you can run the whole setup without preparing an external API.
+SwarmGo implements the core pieces behind distributed load generation: a gRPC **Master**, multiple **Workers**, fixed-size worker pools, and a terminal dashboard for live stats. The Docker Compose demo includes a local target server, so you can run the whole setup without preparing an external API.
 
 <br>
 
@@ -72,7 +72,17 @@ docker compose down
 
 ---
 
-## Project Status
+## Good fit if you want to
+
+- run a small multi-process Go/gRPC system locally
+- see how Master/Worker coordination works over bidirectional streams
+- inspect a worker-pool based load generator without a large codebase
+- experiment with Docker Compose networking across multiple services
+- use a readable base for adding headers, report export, ramp-up, or richer scenarios
+
+---
+
+## At a glance
 
 | Area | Status |
 |------|--------|
