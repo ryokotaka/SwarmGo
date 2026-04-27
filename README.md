@@ -10,9 +10,9 @@
 
 <br>
 
-**Run a small load test from your terminal and watch live traffic stats.**
+**Send test traffic to a website or API and watch how it responds in real time.**
 
-SwarmGo is a compact Go project that starts a dashboard, several request-sending workers, and a local test server with Docker Compose. You can try it without knowing distributed systems first, then inspect how the pieces work behind the scenes.
+SwarmGo starts a terminal dashboard, several request-sending workers, and a local test server with Docker Compose. You can run the demo first, then open the code to see how the controller and workers coordinate behind the scenes.
 
 <br>
 
@@ -22,7 +22,7 @@ SwarmGo is a compact Go project that starts a dashboard, several request-sending
 
 ## Demo
 
-The Docker Compose demo starts one controller, three request-sending Workers, and a local `target-server`, so you can try SwarmGo without preparing an external API.
+The Docker Compose demo starts one controller, three request-sending workers, and a local `target-server`, so you can try SwarmGo without preparing an external API.
 
 <div align="center">
 
@@ -30,18 +30,18 @@ The Docker Compose demo starts one controller, three request-sending Workers, an
 
 </div>
 
-The terminal dashboard shows connected Workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and common error reasons while the test is running.
+The terminal dashboard shows connected workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and common error reasons while the test is running.
 
 ---
 
 ## What it does
 
-Load testing means sending many requests to a website or API to see how it responds. SwarmGo keeps that idea small and visible:
+Load testing means sending repeated requests to a website or API to see how steadily it responds. SwarmGo keeps that idea small and visible:
 
 - press **`s`** to start a test
 - watch RPS (requests per second), latency (how long responses take), success/failure counts, and errors
-- run everything locally with a built-in test server
-- open the code later if you want to see how the controller and workers coordinate
+- run the demo locally against a built-in test server
+- inspect the code later if you want to see how the controller and workers coordinate
 
 ---
 
@@ -49,7 +49,7 @@ Load testing means sending many requests to a website or API to see how it respo
 
 ### Local Docker demo
 
-Requires Docker and Docker Compose. You do not need to install Go for this path.
+Requires Docker and Docker Compose. You do not need to install Go for this demo.
 
 ```bash
 git clone https://github.com/ryokotaka/SwarmGo.git
@@ -58,11 +58,11 @@ docker compose up -d --build
 docker attach $(docker compose ps -q master)
 ```
 
-Then press **`s`** in the terminal dashboard to start a load test against the built-in `target-server`.
+When the terminal dashboard opens, press **`s`** to send test traffic to the built-in `target-server`.
 
 ### What you should see
 
-After the Workers connect and the run starts, the terminal dashboard should show:
+After the workers connect and the run starts, the terminal dashboard should show:
 
 - `Workers: 3` by default.
 - `Total RPS (realtime)` changing from `(no data yet)` to an ASCII graph and total requests-per-second value.
@@ -87,9 +87,9 @@ docker compose down
 
 | Area | Status |
 |------|--------|
-| **Working demo** | Docker Compose starts one controller, three Workers, and a local target server. |
+| **Working demo** | Docker Compose starts one controller, three workers, and a local target server. |
 | **Load test scope** | HTTP GET requests with configurable target URL, total requests, and concurrency. |
-| **Live visibility** | Terminal dashboard shows Workers, RPS, progress, latency percentiles, success/failure counts, and top errors. |
+| **Live visibility** | Terminal dashboard shows workers, RPS, progress, latency percentiles, success/failure counts, and top errors. |
 | **Best for** | Trying load testing basics, then reading a small Go/gRPC distributed systems project. |
 | **Not meant for** | Production-grade benchmarking or replacing mature tools like k6, wrk, or Vegeta. |
 
