@@ -83,16 +83,6 @@ docker compose down
 
 ---
 
-## Good fit if you want to
-
-- try a load testing tool without preparing your own server
-- see what RPS, latency, and failures look like during a run
-- understand the basic idea of "one controller, many workers"
-- inspect a small Go/gRPC system after seeing it work
-- use a readable base for adding headers, report export, ramp-up, or richer scenarios
-
----
-
 ## At a glance
 
 | Area | Status |
