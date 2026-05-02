@@ -103,6 +103,29 @@ docker attach $(docker compose ps -q master)
 | 結果 | 成功 25,000、失敗 0 |
 | 実行中の RPS | おおむね 6.6k-6.8k RPS |
 
+### さらに大きめのローカル実験
+
+README 用に、同じ Docker Compose の `target-server` に対して 100,000 件のローカル実験も行いました。demo GIF に入れると長くなり、PC の状態にも左右されやすいので、結果だけ本文に残しています。
+
+```bash
+TOTAL_REQUESTS=10000 CONCURRENCY=20 docker compose up -d --build --scale worker=10
+docker attach $(docker compose ps -q master)
+```
+
+手元で実行した例:
+
+| 項目 | 値 |
+|------|------|
+| 対象 | Docker Compose 内の `http://target-server` |
+| Workers | 10 |
+| リクエスト数 | 合計 100,000（各 Worker 10,000） |
+| 並行数 | 合計 200（各 Worker 20） |
+| 結果 | 成功 100,000、失敗 0 |
+| TUI のエラー表示 | `Errors: None` |
+| 実行中のリアルタイム RPS | おおむね 6.3k-7.1k RPS（多くの Worker が動いている間） |
+
+この実行では、10 個の Worker すべてのログが `total=10000 success=10000 failed=0` で終了しました。
+
 これはローカルでの動作確認・軽い stress test であり、公開インターネット上の性能を示すものではありません。結果は PC、Docker、ターゲットサーバーの状態で変わります。課金や規約違反を避けるため、許可を得ていないサイトや API には向けず、基本は `http://target-server` のまま試してください。
 
 終わったら片付けます。

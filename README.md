@@ -105,6 +105,29 @@ Example result from one local run:
 | Result | 25,000 success, 0 fail |
 | Observed RPS | roughly 6.6k-6.8k RPS while the run was active |
 
+### Heavier local run
+
+I also ran a larger local-only test for the README. It uses the same Docker Compose `target-server`; it is not included in the demo GIF because the run is longer and more dependent on the local machine.
+
+```bash
+TOTAL_REQUESTS=10000 CONCURRENCY=20 docker compose up -d --build --scale worker=10
+docker attach $(docker compose ps -q master)
+```
+
+Example result from one local run:
+
+| Item | Value |
+|------|-------|
+| Target | `http://target-server` inside Docker Compose |
+| Workers | 10 |
+| Requests | 100,000 total (`10,000` per Worker) |
+| Concurrency | 200 total (`20` per Worker) |
+| Result | 100,000 success, 0 fail |
+| TUI errors | `Errors: None` |
+| Realtime RPS | roughly 6.3k-7.1k RPS while most workers were active |
+
+The worker logs for that run also ended with `total=10000 success=10000 failed=0` for each of the 10 workers.
+
 This is a local sanity/stress test, not a claim about public-internet performance. Results depend on the machine, Docker runtime, and target server. To avoid accidental abuse or unexpected cost, keep the target as `http://target-server` unless you own the system and have permission to test it.
 
 Clean up after the run:
