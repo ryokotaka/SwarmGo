@@ -83,6 +83,58 @@ docker compose down
 
 ---
 
+## Local-only stress test
+
+SwarmGo can be tested at a higher load without using a cloud server or sending traffic to a public website. The run below keeps all test traffic inside the local Docker Compose network:
+
+```bash
+TOTAL_REQUESTS=5000 CONCURRENCY=20 docker compose up -d --build --scale worker=5
+docker attach $(docker compose ps -q master)
+```
+
+Press **`s`** in the TUI to start the run. The default target remains the local `target-server` container.
+
+Example result from one local run:
+
+| Item | Value |
+|------|-------|
+| Target | `http://target-server` inside Docker Compose |
+| Workers | 5 |
+| Requests | 25,000 total (`5,000` per Worker) |
+| Concurrency | 100 total (`20` per Worker) |
+| Result | 25,000 success, 0 fail |
+| Observed RPS | roughly 6.6k-6.8k RPS while the run was active |
+
+This is a local sanity/stress test, not a claim about public-internet performance. Results depend on the machine, Docker runtime, and target server. To avoid accidental abuse or unexpected cost, keep the target as `http://target-server` unless you own the system and have permission to test it.
+
+Clean up after the run:
+
+```bash
+docker compose down
+```
+
+### Local mixed-failure example
+
+The TUI can also show grouped failure reasons without testing a real external service. The local `target-server` can return a mix of `200`, `404`, and `500` responses:
+
+```bash
+TARGET_URL='http://target-server/?echo_code=200-200-404-500' TOTAL_REQUESTS=300 CONCURRENCY=10 docker compose up -d --build --scale worker=3
+docker attach $(docker compose ps -q master)
+```
+
+Press **`s`** to start. Some requests succeed, while HTTP `404` and `500` responses are counted as failures and grouped by reason:
+
+```text
+Success: 468   Fail: 432
+Errors:
+  - HTTP 500 500 Internal Server Error: 226
+  - HTTP 404 404 Not Found: 206
+```
+
+The exact counts can vary because the local echo server chooses from the configured response codes, but the run stays inside Docker Compose.
+
+---
+
 ## At a glance
 
 | Area | Status |
@@ -156,7 +208,7 @@ TOTAL_REQUESTS=3000
 CONCURRENCY=10
 ```
 
-To test another target, create a `.env` file in the project root:
+For the safest local demo, leave `TARGET_URL` unchanged. To test another target that you own or have explicit permission to test, create a `.env` file in the project root:
 
 ```bash
 TARGET_URL=https://your-api.example.com
