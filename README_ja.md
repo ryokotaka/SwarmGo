@@ -81,6 +81,58 @@ docker compose down
 
 ---
 
+## ローカルだけで少し高負荷をかける
+
+クラウドサーバーや公開サイトを使わなくても、ローカルの Docker Compose 内だけで少し高めの負荷を試せます。次の実行では、リクエストは外部サービスではなく、同じ Docker ネットワーク内の `target-server` にだけ送られます。
+
+```bash
+TOTAL_REQUESTS=5000 CONCURRENCY=20 docker compose up -d --build --scale worker=5
+docker attach $(docker compose ps -q master)
+```
+
+ターミナル画面が開いたら、**`s`** を押して開始します。ターゲットはデフォルトの `http://target-server` のままです。
+
+手元で実行した例:
+
+| 項目 | 値 |
+|------|------|
+| 対象 | Docker Compose 内の `http://target-server` |
+| Workers | 5 |
+| リクエスト数 | 合計 25,000（各 Worker 5,000） |
+| 並行数 | 合計 100（各 Worker 20） |
+| 結果 | 成功 25,000、失敗 0 |
+| 実行中の RPS | おおむね 6.6k-6.8k RPS |
+
+これはローカルでの動作確認・軽い stress test であり、公開インターネット上の性能を示すものではありません。結果は PC、Docker、ターゲットサーバーの状態で変わります。課金や規約違反を避けるため、許可を得ていないサイトや API には向けず、基本は `http://target-server` のまま試してください。
+
+終わったら片付けます。
+
+```bash
+docker compose down
+```
+
+### 一部成功・一部失敗の表示もローカルだけで確認する
+
+実在する外部サービスを壊したり、他人の API に向けたりしなくても、エラー理由の集計表示を確認できます。ローカルの `target-server` に `200`、`404`、`500` を混ぜて返させます。
+
+```bash
+TARGET_URL='http://target-server/?echo_code=200-200-404-500' TOTAL_REQUESTS=300 CONCURRENCY=10 docker compose up -d --build --scale worker=3
+docker attach $(docker compose ps -q master)
+```
+
+ターミナル画面で **`s`** を押すと、一部は成功し、一部は HTTP `404` / `500` として失敗します。TUI では失敗理由ごとにまとまって表示されます。
+
+```text
+Success: 468   Fail: 432
+Errors:
+  - HTTP 500 500 Internal Server Error: 226
+  - HTTP 404 404 Not Found: 206
+```
+
+件数は `target-server` が返すステータスの選ばれ方で多少変わりますが、外部サービスに負荷をかけずに、成功・失敗・複数のエラー理由まで確認できます。
+
+---
+
 ## こんな人に向いています
 
 - RPS、レイテンシ、失敗数が実行中にどう見えるのか確認したい
@@ -149,7 +201,7 @@ TOTAL_REQUESTS=3000
 CONCURRENCY=10
 ```
 
-別の対象に向けたい場合は、プロジェクトルートに `.env` を置きます。
+安全にローカルだけで試す場合は、`TARGET_URL` はこのままにします。自分が所有している、または明確に許可を得ている対象に変える場合だけ、プロジェクトルートに `.env` を置きます。
 
 ```bash
 TARGET_URL=https://your-api.example.com
