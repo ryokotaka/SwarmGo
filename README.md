@@ -10,9 +10,9 @@
 
 <br>
 
-**Send test traffic to a website or API and watch how it responds in real time.**
+**A small Go/gRPC load-testing playground with a live terminal dashboard.**
 
-SwarmGo starts a terminal dashboard, several request-sending workers, and a local test server with Docker Compose. You can run the demo first, then open the code to see how the controller and workers coordinate behind the scenes.
+SwarmGo runs one controller, multiple request-sending Workers, and a local target server with Docker Compose. The demo needs no cloud server, external API, or Go install: start it, press **`s`**, and watch worker coordination, RPS, latency, success/failure counts, and grouped errors update in real time.
 
 <br>
 
@@ -30,22 +30,36 @@ The Docker Compose demo starts one controller, three request-sending workers, an
 
 </div>
 
-The terminal dashboard shows connected workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and common error reasons while the test is running.
+The terminal dashboard shows connected workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and common error reasons while the test is running. The default demo stays inside Docker Compose, so you can try the project without sending traffic to a real external service.
 
 ---
 
-## What it does
+## Why it is worth a look
 
-Load testing means sending repeated requests to a website or API to see how steadily it responds. SwarmGo keeps that idea small and visible:
+SwarmGo is not trying to replace mature tools like k6, wrk, or Vegeta. It is a compact project that makes the moving parts of distributed load generation easy to run and inspect:
 
-- press **`s`** to start a test
-- watch RPS (requests per second), latency (how long responses take), success/failure counts, and errors
-- run the demo locally against a built-in test server
-- inspect the code later if you want to see how the controller and workers coordinate
+- one Master broadcasts commands to many Workers over long-lived gRPC streams
+- Workers generate HTTP traffic concurrently and stream stats back to the Master
+- the TUI makes normally hidden behavior visible: RPS, latency percentiles, progress, successes, failures, and grouped errors
+- the built-in `target-server` makes success, higher-load, and mixed-failure demos safe to run locally
+- the codebase is small enough to read after the demo
 
 ---
 
-## Quickstart
+## At a glance
+
+| Area | Status |
+|------|--------|
+| **Working demo** | Docker Compose starts one controller, three workers, and a local target server. |
+| **Load test scope** | HTTP GET requests with configurable target URL, total requests, and concurrency. |
+| **Live visibility** | Terminal dashboard shows workers, RPS, progress, latency percentiles, success/failure counts, and top errors. |
+| **Local checks** | Includes a 25,000-request run, a 100,000-request run, and a mixed 404/500 failure demo against `target-server`. |
+| **Best for** | Trying load testing basics, then reading a small Go/gRPC distributed systems project. |
+| **Not meant for** | Production-grade benchmarking or replacing mature tools like k6, wrk, or Vegeta. |
+
+---
+
+## Quickstart: local only
 
 ### Local Docker demo
 
@@ -83,7 +97,10 @@ docker compose down
 
 ---
 
-## Local-only stress test
+## Local-only checks
+
+<details>
+<summary>Show the local stress and mixed-failure runs</summary>
 
 SwarmGo can be tested at a higher load without using a cloud server or sending traffic to a public website. The run below keeps all test traffic inside the local Docker Compose network:
 
@@ -156,43 +173,7 @@ Errors:
 
 The exact counts can vary because the local echo server chooses from the configured response codes, but the run stays inside Docker Compose.
 
----
-
-## At a glance
-
-| Area | Status |
-|------|--------|
-| **Working demo** | Docker Compose starts one controller, three workers, and a local target server. |
-| **Load test scope** | HTTP GET requests with configurable target URL, total requests, and concurrency. |
-| **Live visibility** | Terminal dashboard shows workers, RPS, progress, latency percentiles, success/failure counts, and top errors. |
-| **Best for** | Trying load testing basics, then reading a small Go/gRPC distributed systems project. |
-| **Not meant for** | Production-grade benchmarking or replacing mature tools like k6, wrk, or Vegeta. |
-
----
-
-## What is SwarmGo?
-
-**SwarmGo** is built around a simple Master/Worker architecture.
-
-- **Master:** runs a gRPC server and optional TUI. It broadcasts Start / Stop / Quit commands to connected Workers.
-- **Workers:** connect to the Master, execute HTTP GET requests with a fixed-size worker pool, and stream stats back over gRPC.
-- **Target:** receives HTTP traffic directly from Workers. The Master coordinates the run but does not proxy requests.
-
-The goal is not to be the biggest load testing tool. The goal is to make the mechanics of distributed load generation easy to run, inspect, and extend.
-
----
-
-## Why this project?
-
-I built SwarmGo to understand the moving parts of a distributed system by implementing them directly:
-
-- long-lived bidirectional gRPC streams
-- Master-to-Worker command broadcast
-- Worker-side concurrency control
-- live progress reporting from multiple processes
-- Docker Compose networking for a local multi-service setup
-
-It is intentionally small enough to read, but complete enough to run as a real multi-process demo.
+</details>
 
 ---
 
@@ -201,9 +182,6 @@ It is intentionally small enough to read, but complete enough to run as a real m
 | Feature | Description |
 |--------|-------------|
 | **Distributed Master/Worker model** | One Master coordinates many Workers over long-lived gRPC streams. |
-| **One-command local demo** | Docker Compose starts the Master, Workers, and a dummy target server. |
-| **Interactive TUI** | Press **`s`** to start a run and **`q`** to quit. Watch Workers, RPS, latency, success/failure counts, and errors. |
-| **Configurable target and load** | Set the target URL, total requests, and concurrency with `-url`, `-n`, `-c`, or environment variables. |
 | **Stable concurrency model** | Each Worker uses a fixed-size worker pool instead of spawning one goroutine per request. |
 | **Latency percentiles** | Workers report P50/P90/P99 latency for successful requests. |
 | **Top error reasons** | Network errors and HTTP 4xx/5xx responses are counted as failures and grouped for the TUI. |
