@@ -22,7 +22,7 @@ SwarmGo は、1 つの controller、リクエストを送る複数の Workers、
 
 ## デモ
 
-Docker Compose のデモでは、1 つの controller、リクエストを送る Workers 3 つ、ローカルの `target-server` を起動します。(外部 API を用意しなくても、その場で SwarmGo を試せる用にしてあります)
+Docker Compose のデモでは、1 つの controller、リクエストを送る Workers 3 つ、ローカルの `target-server` を起動します。(外部 API を用意しなくても、その場で SwarmGo を試せるようにしてあります)
 
 <div align="center">
 
@@ -100,7 +100,7 @@ docker compose down
 ## ローカルだけで確認した実験
 
 <details>
-<summary>ローカルの高負荷実験と失敗表示の例を見る</summary>
+<summary>25,000件 / 100,000件 / 失敗表示のローカル実験を見る</summary>
 
 クラウドサーバーや公開サイトを使わなくても、ローカルの Docker Compose 内だけで少し高めの負荷を試せます。次の実行では、リクエストは外部サービスではなく、同じ Docker ネットワーク内の `target-server` にだけ送られます。
 
@@ -278,6 +278,15 @@ Workers はデフォルトで `localhost:50051` に接続します。別ホス�
 2. 各 **Worker** は Master に対して、長く生きる双方向 gRPC stream を 1 本開きます。
 3. Master はその stream でコマンドを送り、Workers は register / stats / finish を同じ stream で返します。
 4. テスト中の HTTP GET は Workers から target URL へ直接送られ、Master は進捗だけを受け取ります。
+
+Master は HTTP リクエストを中継しません。Workers に指示を出し、返ってきた統計を集約する役割です。実際の負荷は Workers が直接 target に送ります。
+
+| 流れ | 何が起きるか |
+|------|--------------|
+| 開始 | TUI で開始すると、Master が接続中の Workers 全員に start command を送る |
+| 負荷生成 | 各 Worker が固定サイズの worker pool で HTTP GET を target URL に送る |
+| 報告 | Workers が進捗、レイテンシ、成功/失敗数、エラー理由を Master に返す |
+| 表示 | Master が受け取った情報を TUI に渡し、Workers、RPS、進捗、レイテンシ、上位エラーを表示する |
 
 ```mermaid
 flowchart LR

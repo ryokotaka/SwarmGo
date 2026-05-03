@@ -10,7 +10,7 @@
 
 <br>
 
-**A small Go/gRPC load-testing playground with a live terminal dashboard.**
+**A small Go/gRPC load-testing demo with a live terminal dashboard.**
 
 SwarmGo runs one controller, multiple request-sending Workers, and a local target server with Docker Compose. The demo needs no cloud server, external API, or Go install: start it, press **`s`**, and watch worker coordination, RPS, latency, success/failure counts, and grouped errors update in real time.
 
@@ -22,7 +22,7 @@ SwarmGo runs one controller, multiple request-sending Workers, and a local targe
 
 ## Demo
 
-The Docker Compose demo starts one controller, three request-sending workers, and a local `target-server`, so you can try SwarmGo without preparing an external API.
+The Docker Compose demo starts one controller, three request-sending workers, and a local `target-server`.
 
 <div align="center">
 
@@ -40,8 +40,8 @@ SwarmGo is not trying to replace mature tools like k6, wrk, or Vegeta. It is a c
 
 - one Master broadcasts commands to many Workers over long-lived gRPC streams
 - Workers generate HTTP traffic concurrently and stream stats back to the Master
-- the TUI makes normally hidden behavior visible: RPS, latency percentiles, progress, successes, failures, and grouped errors
-- the built-in `target-server` makes success, higher-load, and mixed-failure demos safe to run locally
+- the TUI makes normally hidden behavior visible: RPS, latency percentiles, progress, success/failure counts, and grouped errors
+- the built-in `target-server` makes success, higher-load runs, and mixed-failure demos safe to run locally
 - the codebase is small enough to read after the demo
 
 ---
@@ -100,7 +100,7 @@ docker compose down
 ## Local-only checks
 
 <details>
-<summary>Show the local stress and mixed-failure runs</summary>
+<summary>Show the local 25,000 / 100,000 request runs and mixed-failure demo</summary>
 
 SwarmGo can be tested at a higher load without using a cloud server or sending traffic to a public website. The run below keeps all test traffic inside the local Docker Compose network:
 
@@ -278,6 +278,15 @@ Workers connect to `localhost:50051` by default. Use `-addr host:port` or `MASTE
 2. Each **Worker** opens one long-lived bidirectional gRPC stream to the Master.
 3. The Master sends commands over that stream. Workers send register, stats, and finish messages back over the same stream.
 4. During a run, Workers send HTTP GET requests directly to the target URL and periodically report progress.
+
+The Master does not proxy HTTP traffic. It coordinates Workers and aggregates their reports; the Workers generate the load directly.
+
+| Flow | What happens |
+|------|--------------|
+| Start | The TUI sends a start command to the Master, and the Master broadcasts it to every connected Worker. |
+| Load | Each Worker runs a fixed-size worker pool and sends HTTP GET requests to the configured target URL. |
+| Report | Workers stream progress, latency, success/failure counts, and final error reasons back to the Master. |
+| Display | The Master passes those updates to the TUI, which renders worker count, RPS, progress, latency, and top errors. |
 
 ```mermaid
 flowchart LR
