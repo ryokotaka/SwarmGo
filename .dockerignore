@@ -1,4 +1,4 @@
-# Git / IDE（ビルドに不要）
+# Git / IDE files
 .git
 .gitignore
 .cursor
@@ -8,12 +8,12 @@
 demo.gif
 terminals
 
-# ビルド成果物・キャッシュ
+# Build outputs and caches
 *.exe
 *.test
 vendor/
 
-# Docker 用（コンテキストに含めなくてよい）
+# Docker metadata
 Dockerfile
 docker-compose*.yml
 .dockerignore

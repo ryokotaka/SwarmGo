@@ -1,26 +1,23 @@
-# Master は TUI 付き、Worker は replicas で台数指定
-# 起動: docker compose up -d --build  （-d でバックグラウンド、ターミナルが空く）
-# 停止: docker compose down
-# TUI 操作: docker attach $(docker compose ps -q master)  → s 開始 / q 終了 / Ctrl+P,Ctrl+Q でデタッチ
+# Start: docker compose up -d --build
+# Stop: docker compose down
+# TUI: docker attach $(docker compose ps -q master)
+# Press s to start, q to quit, or Ctrl+P then Ctrl+Q to detach.
 #
-# 別 URL で負荷テストする: 環境変数で上書き可能
+# Override the target only when you own it or have permission to test it.
 #   TARGET_URL=https://your-api.example.com TOTAL_REQUESTS=100 CONCURRENCY=10 docker compose up -d --build
-#  または .env に TARGET_URL=... を書く
+# Or put TARGET_URL=... in a local .env file.
 
 services:
-  # テスト用のダミーサーバー
   target-server:
     image: ealen/echo-server
     
     networks:
       - swarm-net
 
-  # 司令塔サーバー（TUI 付き。attach で s=開始, q=終了）
   master:
     build: .
     command: ["master", "-p", "50051"]
     environment:
-      # デフォルトのターゲットを、上のダミーサーバー (http://target-server) に向ける
       - TARGET_URL=${TARGET_URL:-http://target-server}
       
       - TOTAL_REQUESTS=${TOTAL_REQUESTS:-3000}
@@ -28,14 +25,13 @@ services:
       - CONCURRENCY=${CONCURRENCY:-10}
     ports:
       - "50051:50051"
-    stdin_open: true  # TUI のために標準入力を開ける
-    tty: true         # TUI のために擬似端末を割り当てる
+    stdin_open: true
+    tty: true
     depends_on:
-      - target-server # ダミーサーバーが起動してからMasterを起動する
+      - target-server
     networks:
       - swarm-net
 
-  # Worker（replicas を変えれば台数を変更可能）
   worker:
     build: .
     command: ["worker"]
