@@ -195,10 +195,12 @@ sequenceDiagram
     loop until total requests complete
         W->>T: HTTP GET
         T-->>W: 2xx / 4xx / 5xx
-        W-->>M: stats: RPS, latency, success/fail (same stream)
-        M-->>U: render RPS, P50/P90/P99, progress, top errors
+        W-->>M: progress stats: RPS, success/fail (same stream)
+        M-->>U: render RPS and progress
     end
-    W-->>M: finish: totals + grouped errors
+    W-->>M: final stats: totals, latency, grouped errors
+    M-->>U: render P50/P90/P99 and top errors
+    W-->>M: finish: completion marker
     U->>M: press q: quit
     M->>W: broadcast Quit
 ```
