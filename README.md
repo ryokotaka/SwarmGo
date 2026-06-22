@@ -184,26 +184,23 @@ Workers connect to `localhost:50051` by default. Use `-addr host:port` or `MASTE
 The Master does not proxy HTTP traffic: it coordinates Workers and aggregates their reports, while the Workers generate the load directly.
 
 ```mermaid
-flowchart LR
-    subgraph User
-        TUI[TUI: press s / q]
+sequenceDiagram
+    actor U as TUI (operator)
+    participant M as Master (gRPC)
+    participant W as Workers
+    participant T as Target URL
+    U->>M: press s: start (url, total, concurrency)
+    M->>W: broadcast Start (one bidirectional gRPC stream)
+    Note over W: N Workers, each a fixed-size pool (not goroutine-per-request)
+    loop until total requests complete
+        W->>T: HTTP GET
+        T-->>W: 2xx / 4xx / 5xx
+        W-->>M: stats: RPS, latency, success/fail (same stream)
+        M-->>U: render RPS, P50/P90/P99, progress, top errors
     end
-    subgraph Master
-        M[Master gRPC server]
-    end
-    subgraph Workers
-        W1[Worker 1]
-        W2[Worker 2]
-        WN[Worker N]
-    end
-    subgraph Target
-        URL[Target URL]
-    end
-    TUI -->|start/quit| M
-    M <-->|gRPC stream: commands & stats| W1
-    M <-->|gRPC stream| W2
-    M <-->|gRPC stream| WN
-    W1 & W2 & WN -->|HTTP GET| URL
+    W-->>M: finish: totals + grouped errors
+    U->>M: press q: quit
+    M->>W: broadcast Quit
 ```
 
 ---
