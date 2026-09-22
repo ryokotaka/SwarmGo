@@ -1,363 +1,139 @@
-<div align="center">
+# SwarmGo
 
-# **SwarmGo**
+[English](./README.md) · [MIT ライセンス](./LICENSE)
 
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
-[![gRPC](https://img.shields.io/badge/gRPC-1.0+-244C5A?style=for-the-badge&logo=grpc&logoColor=white)](https://grpc.io/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
-[![README English](https://img.shields.io/badge/README-English-00ADD8?style=for-the-badge)](./README.md)
+Go で作った分散型の HTTP 負荷テストツールです。1 つのターミナルから複数のワーカーを動かし、処理量、進捗、失敗したリクエストを同じ画面で確認できます。
 
-<br>
+Docker Compose でコントローラー、ワーカー 3 台、テスト対象のサーバーが起動します。**s** を押すと合計 9,000 件のリクエストを送信します。ワーカー数を増やして負荷を変えたり、対象サーバーにエラーを返させて失敗時の動きを見たりできます。
 
-**Go / gRPC で作った、手元で動かせる分散型の負荷テスト実験プロジェクトです。**
+![Docker Compose でのローカル実行](./demo-docker.gif)
 
-SwarmGo は、1 つの controller、リクエストを送る複数の Workers、ローカルの `target-server` を Docker Compose で起動します。クラウドサーバー、外部 API、Go のインストールなしで試せます。起動して **`s`** を押すと、Workers、RPS、レイテンシ、成功/失敗数、エラー理由がリアルタイムに更新されます。
+## まず動かす
 
-<br>
-
----
-
-</div>
-
-## デモ
-
-Docker Compose のデモでは、1 つの controller、リクエストを送る Workers 3 つ、ローカルの `target-server` を起動します。(外部 API を用意しなくても、その場で SwarmGo を試せるようにしてあります)
-
-<div align="center">
-
-![SwarmGo デモ（Docker Compose クイックスタート）](./demo-docker.gif)
-
-</div>
-
-ターミナル画面では、接続中の Workers、進捗、RPS、P50/P90/P99 レイテンシ、成功/失敗数、主なエラー理由を見られます。デフォルトのデモは Docker Compose 内だけで完結するので、実在する外部サービスにリクエストを送らずに試せます。
-
----
-
-## 見どころ
-
-SwarmGo は k6、wrk、Vegeta のような本格的なツールの代替を目指したものではありません。分散してリクエストを送る仕組みを、手元で動かしながら読めるサイズにしたプロジェクトです。
-
-- 1 つの Master が、張りっぱなしの gRPC stream で複数 Workers に指示を送る
-- Workers が並行して HTTP リクエストを送り、統計を Master に返す
-- TUI で RPS、レイテンシ百分位、進捗、成功/失敗数、エラー理由が見える
-- 組み込みの `target-server` で、成功・少し高めの負荷・一部失敗のデモまでローカルだけで試せる
-- デモ後にコードを読んでも追いやすいサイズにしている
-
----
-
-## ひと目でわかる現状
-
-| 項目 | 現状 |
-|------|------|
-| **動くデモ** | Docker Compose で controller 1 つ、Workers 3 つ、ローカル target を起動 |
-| **負荷テストの範囲** | HTTP GET のみ。ターゲット URL、総リクエスト数、並行数は指定可能 |
-| **ライブ表示** | ターミナル画面で Workers、RPS、進捗、レイテンシ、成功/失敗数、上位エラーを表示 |
-| **ローカル実験** | `target-server` に対して 25,000 件、100,000 件、一部 404/500 の失敗表示を確認 |
-| **向いている用途** | 負荷テストの基本を試しつつ、小さな Go/gRPC 分散システムとして読む |
-| **向いていない用途** | k6、wrk、Vegeta などの本格的なベンチマークツールの代替 |
-
----
-
-## クイックスタート（ローカルだけ）
-
-### Docker でローカルデモ
-
-Docker と Docker Compose があれば、Go をインストールしなくても試せます。
+Docker と Docker Compose を用意して、次を実行します。
 
 ```bash
 git clone https://github.com/ryokotaka/SwarmGo.git
 cd SwarmGo
 docker compose up -d --build
-docker attach $(docker compose ps -q master)
+docker attach "$(docker compose ps -q master)"
 ```
 
-ターミナル画面が開いたら、**`s`** を押して組み込みの `target-server` に対して負荷テストを実行します。
+`Workers: 3` になったら **s** を押します。各ワーカーが、同梱の `target-server` に 3,000 回の GET リクエストを送ります。並行数は各ワーカーで最大 10、全体では **合計 9,000 リクエスト、最大 30 並行**です。
 
-### 起動後に見るもの
+完了後も結果は画面に残ります。もう一度実行する場合は **s**、実行中のリクエストを中止してコントローラーを終了する場合は **q** を押します。終了せずに画面から離れる場合は **Ctrl+P**、続けて **Ctrl+Q** です。
 
-Workers が接続され、テストが始まると、ターミナル画面に次のような値が出ます。
-
-- `Workers: 3` がデフォルト
-- `Total RPS (realtime)` が `(no data yet)` から ASCII グラフと RPS 値に変わる
-- `Success`, `Fail`, `Progress: current / total (%)`, レイテンシが更新される
-- 正常なローカル target なら `Errors: None`、失敗があればエラー理由がまとまって出る
-
-止めるときは:
-
-- **`q`** で controller を終了
-- controller を止めずに抜けたい場合は `Ctrl+P` のあと `Ctrl+Q`
-- すべて片付ける場合:
+使い終わったらコンテナを片付けます。
 
 ```bash
 docker compose down
 ```
 
-> 注意: 負荷テストは、自分が所有している、または明確に許可を得ている対象にだけ実行してください。デフォルトのクイックスタートは、ローカルの `target-server` コンテナだけにリクエストを送ります。
+負荷テストは、自分が所有しているか、許可を得ている対象にだけ実行してください。この手順ではローカルの Compose ネットワーク内にだけリクエストを送ります。
 
----
+## 負荷を変える
 
-## ローカルだけで確認した実験
-
-<details>
-<summary>25,000件 / 100,000件 / 失敗表示のローカル実験を見る</summary>
-
-クラウドサーバーや公開サイトを使わなくても、ローカルの Docker Compose 内だけで少し高めの負荷を試せます。次の実行では、リクエストは外部サービスではなく、同じ Docker ネットワーク内の `target-server` にだけ送られます。
+リクエスト数と並行数は、どちらも **ワーカー 1 台あたり**の値です。次の例では 5 台のワーカーが各 1,000 回、合計 5,000 回のリクエストを送ります。
 
 ```bash
-TOTAL_REQUESTS=5000 CONCURRENCY=20 docker compose up -d --build --scale worker=5
-docker attach $(docker compose ps -q master)
+TOTAL_REQUESTS=1000 CONCURRENCY=5 docker compose up -d --build --scale worker=5
+docker attach "$(docker compose ps -q master)"
 ```
 
-ターミナル画面が開いたら、**`s`** を押して開始します。ターゲットはデフォルトの `http://target-server` のままです。
+| 設定 | Compose の初期値 | 意味 |
+| --- | --- | --- |
+| `TARGET_URL` | `http://target-server` | 各ワーカーがリクエストを送る URL |
+| `TOTAL_REQUESTS` | `3000` | 1 回の実行で各ワーカーが送るリクエスト数 |
+| `CONCURRENCY` | `10` | 各ワーカーで同時に処理するリクエスト数の上限 |
+| `--scale worker=N` | `3` | ワーカーのコンテナ数 |
 
-手元で実行した例:
-
-| 項目 | 値 |
-|------|------|
-| 対象 | Docker Compose 内の `http://target-server` |
-| Workers | 5 |
-| リクエスト数 | 合計 25,000（各 Worker 5,000） |
-| 並行数 | 合計 100（各 Worker 20） |
-| 結果 | 成功 25,000、失敗 0 |
-| 実行中の RPS | おおむね 6.6k-6.8k RPS |
-
-### さらに大きめのローカル実験
-
-README 用に、同じ Docker Compose の `target-server` に対して 100,000 件のローカル実験も行いました。demo GIF に入れると長くなり、PC の状態にも左右されやすいので、結果だけ本文に残しています。
+失敗時の表示を見るには、同梱の echo server にエラーを返させます。
 
 ```bash
-TOTAL_REQUESTS=10000 CONCURRENCY=20 docker compose up -d --build --scale worker=10
-docker attach $(docker compose ps -q master)
+TARGET_URL='http://target-server/?echo_code=500' TOTAL_REQUESTS=100 docker compose up -d --build
+docker attach "$(docker compose ps -q master)"
 ```
 
-手元で実行した例:
+**s** を押して完了を待つと、失敗したリクエストが `HTTP 500 Internal Server Error` として集計されます。
 
-| 項目 | 値 |
-|------|------|
-| 対象 | Docker Compose 内の `http://target-server` |
-| Workers | 10 |
-| リクエスト数 | 合計 100,000（各 Worker 10,000） |
-| 並行数 | 合計 200（各 Worker 20） |
-| 結果 | 成功 100,000、失敗 0 |
-| TUI のエラー表示 | `Errors: None` |
-| 実行中のリアルタイム RPS | おおむね 6.3k-7.1k RPS（多くの Worker が動いている間） |
+## ソースから動かす
 
-この実行では、10 個の Worker すべてのログが `total=10000 success=10000 failed=0` で終了しました。
-
-これはローカルでの動作確認・軽い stress test であり、公開インターネット上の性能を示すものではありません。結果は PC、Docker、ターゲットサーバーの状態で変わります。課金や規約違反を避けるため、許可を得ていないサイトや API には向けず、基本は `http://target-server` のまま試してください。
-
-終わったら片付けます。
+[go.mod](./go.mod) に合わせて **Go 1.25.7 以降**を使います。
 
 ```bash
-docker compose down
+go build -o swarmgo ./cmd/swarmgo
 ```
 
-### 一部成功・一部失敗の表示もローカルだけで確認する
-
-実在する外部サービスを壊したり、他人の API に向けたりしなくても、エラー理由の集計表示を確認できます。ローカルの `target-server` に `200`、`404`、`500` を混ぜて返させます。
+テスト対象には、手元で起動した HTTP サーバーを使います。Python 3 があれば、1 つ目のターミナルで空の一時ディレクトリを配信できます。
 
 ```bash
-TARGET_URL='http://target-server/?echo_code=200-200-404-500' TOTAL_REQUESTS=300 CONCURRENCY=10 docker compose up -d --build --scale worker=3
-docker attach $(docker compose ps -q master)
+python3 -m http.server 8080 --bind 127.0.0.1 --directory "$(mktemp -d)"
 ```
 
-ターミナル画面で **`s`** を押すと、一部は成功し、一部は HTTP `404` / `500` として失敗します。TUI では失敗理由ごとにまとまって表示されます。
-
-```text
-Success: 468   Fail: 432
-Errors:
-  - HTTP 500 500 Internal Server Error: 226
-  - HTTP 404 404 Not Found: 206
-```
-
-件数は `target-server` が返すステータスの選ばれ方で多少変わりますが、外部サービスに負荷をかけずに、成功・失敗・複数のエラー理由まで確認できます。
-
-</details>
-
----
-
-## 主な機能
-
-| 機能 | 説明 |
-|------|------|
-| **Master / Worker モデル** | 1 つの Master が複数 Workers を gRPC stream で制御 |
-| **固定サイズの worker pool** | リクエストごとに goroutine を増やさず、並行数に応じて処理 |
-| **レイテンシ百分位** | 成功リクエストの P50/P90/P99 を Workers が報告 |
-| **上位エラー理由** | 通信エラーと HTTP 4xx/5xx を失敗として扱い、主な理由を集計 |
-| **ヘッドレス Master** | `-no-tui` でターミナル画面なしの gRPC Master として起動 |
-
----
-
-## Docker の設定
-
-### Worker 数を増やす
-
-デフォルトでは 3 つの Workers が起動する設定ですが、増やしたい場合は次のようにします。
+2 つ目のターミナルでコントローラーを起動します。
 
 ```bash
-docker compose up -d --build --scale worker=5
+./swarmgo master -url http://127.0.0.1:8080 -n 100 -c 5
 ```
 
-### ターゲット、リクエスト数、並行数を変える
-
-Docker Compose のデフォルトでは、組み込みの `target-server` に向けて実行します。
-
-```env
-TARGET_URL=http://target-server
-TOTAL_REQUESTS=3000
-CONCURRENCY=10
-```
-
-安全にローカルだけで試す場合は、`TARGET_URL` はこのままにします。自分が所有している、または明確に許可を得ている対象に変える場合だけ、プロジェクトルートに `.env` を置きます。
-
-```bash
-TARGET_URL=https://your-api.example.com
-TOTAL_REQUESTS=100
-CONCURRENCY=10
-```
-
-その後は通常どおり起動します。
-
-```bash
-docker compose up -d --build
-```
-
-1 回だけ上書きしたい場合は、次のように実行します。
-
-```bash
-TARGET_URL=https://your-api.example.com TOTAL_REQUESTS=100 CONCURRENCY=10 docker compose up -d --build
-```
-
-### フォアグラウンドで起動する
-
-ログを 1 つのターミナルにまとめて見たい場合:
-
-```bash
-docker compose up --build
-```
-
-対話的に **`s`** / **`q`** を押して使う場合は、バックグラウンド起動後に `docker attach` する方法が扱いやすいです。
-
----
-
-## Docker なしで動かす
-
-**Go 1.22+** が必要です。
-
-```bash
-go mod tidy
-go build -o swarmgo ./cmd/swarmgo/
-```
-
-ターミナル 1: Master を起動します。
-
-```bash
-./swarmgo master -p 50051
-```
-
-ターゲットや負荷を指定する場合:
-
-```bash
-./swarmgo master -p 50051 -url https://example.com -n 100 -c 10
-```
-
-ターミナル 2 以降: Workers を起動します。
+3 つ目のターミナルでワーカーを起動します。
 
 ```bash
 ./swarmgo worker
 ```
 
-Workers はデフォルトで `localhost:50051` に接続します。別ホストの Master に接続する場合は `-addr host:port` または `MASTER_ADDR` を使います。
+コントローラーの画面で **s** を押すと開始します。ワーカーを増やす場合は、実行前に別のターミナルでも起動してください。
 
----
+ソースから起動した場合の初期値は、対象が `http://127.0.0.1:8080`、リクエスト数が 5、並行数が 1 です。Compose と同じ環境変数を使うか、`-url`、`-n`、`-c` で指定できます。ワーカーの接続先は初期値が `localhost:50051` で、`-addr host:port` または `MASTER_ADDR` で変更します。コントローラーのポートは `-p` で指定します。
 
-## アーキテクチャ
+`master -no-tui` は gRPC の待ち受けだけを起動します。負荷テストの自動開始や、コマンドラインから開始する機能はありません。
 
-1. **Master** が gRPC サーバーを起動し、接続中の Workers を管理します。
-2. 各 **Worker** は Master に対して、長く生きる双方向 gRPC stream を 1 本開きます。
-3. Master はその stream でコマンドを送り、Workers は register / stats / finish を同じ stream で返します。
-4. テスト中の HTTP GET は Workers から target URL へ直接送られ、Master は進捗だけを受け取ります。
+## 仕組み
 
-Master は HTTP リクエストを中継しません。Workers に指示を出し、返ってきた統計を集約する役割です。実際の負荷は Workers が直接 target に送ります。
-
-| 流れ | 何が起きるか |
-|------|--------------|
-| 開始 | TUI で開始すると、Master が接続中の Workers 全員に start command を送る |
-| 負荷生成 | 各 Worker が固定サイズの worker pool で HTTP GET を target URL に送る |
-| 報告 | Workers が進捗、レイテンシ、成功/失敗数、エラー理由を Master に返す |
-| 表示 | Master が受け取った情報を TUI に渡し、Workers、RPS、進捗、レイテンシ、上位エラーを表示する |
+Go の並行処理と gRPC ストリーミングを理解するために作りました。複数のワーカーへの指示と結果の集約が、実際に動かしながら見える構成にしています。
 
 ```mermaid
 flowchart LR
-    subgraph User
-        TUI[TUI: press s / q]
-    end
-    subgraph Master
-        M[Master gRPC server]
-    end
-    subgraph Workers
-        W1[Worker 1]
-        W2[Worker 2]
-        WN[Worker N]
-    end
-    subgraph Target
-        URL[Target URL]
-    end
-    TUI -->|start/quit| M
-    M <-->|gRPC stream: commands & stats| W1
-    M <-->|gRPC stream| W2
-    M <-->|gRPC stream| WN
-    W1 & W2 & WN -->|HTTP GET| URL
+    C[コントローラー / ターミナル画面] <-->|gRPC stream| W[ワーカー]
+    W -->|HTTP GET| T[対象サーバー]
 ```
 
----
+コントローラーは、開始時点で接続しているワーカーに指示を送ります。各ワーカーは固定数の goroutine で対象サーバーに直接リクエストを送り、同じ gRPC ストリームで進捗を返します。途中から接続したワーカーは次の実行から参加します。
 
-## 設計メモ
+ワーカーは負荷テスト中も指示を受け付けます。Quit、Stop、コントローラーとの切断で、処理中の HTTP リクエストをキャンセルします。実行中にもう一度 **s** を押しても、重複して開始しません。
 
-SwarmGo は、分散システム、Go の並行処理、gRPC streaming、Docker Compose による複数サービス構成を、自分で実装して理解するために作りました。
+コードを読む場合は、次のファイルから追えます。
 
-### リクエストごとに goroutine を作らない
+- [runner.go](./internal/worker/runner.go)：HTTP リクエスト、並行処理、レイテンシの記録。
+- [client.go](./internal/worker/client.go)：ワーカーの指示受信と、順序を保った進捗報告。
+- [server.go](./internal/master/server.go)：接続中のワーカーと実行状態の管理。
+- [tui.go](./cmd/swarmgo/tui.go)：画面表示とキー入力。
+- [swarm.proto](./proto/swarm.proto)：コントローラーとワーカーがやり取りするメッセージ。
 
-最初は 1 リクエストごとに goroutine を作る形でも動きます。ただし、リクエスト数が大きくなると goroutine とメモリ使用量が増えすぎます。そこで、各 Worker は固定サイズの worker pool を使い、メモリ使用量が総リクエスト数ではなく並行数に近い形で増えるようにしています。
+## 指標の定義
 
-### 双方向 gRPC stream
+<details>
+<summary>リクエスト数・RPS・レイテンシ・エラーの数え方</summary>
 
-Worker ごとに 1 本の bidirectional stream を開きます。Master は Start / Stop / Quit を送り、Worker は register / stats / finish を返します。ポーリングや別プロトコルを増やさず、同じ接続でコマンドと統計を流せるようにしました。
+- **成功・失敗：** レスポンス本文を最後まで読めて、最終的な HTTP ステータスが 400 未満なら成功です。4xx/5xx、通信エラー、タイムアウト、処理中にキャンセルしたリクエストは失敗として数えます。リダイレクトは Go 標準の HTTP クライアントに従います。
+- **RPS：** 各ワーカーの「完了リクエスト数 ÷ 開始からの経過時間」を画面上で合計します。実行開始からの平均値であり、瞬間的な処理量や、全ワーカーの時刻を厳密にそろえた値ではありません。完了後も最後の値が残ります。
+- **レイテンシ：** 成功したリクエストについて、本文を受信し終わるまでの時間を測ります。各ワーカーが終了時に nearest-rank 法で P50/P90/P99 を計算し、画面には P99 が最も大きいワーカーの 3 つの値を表示します。**全ワーカーのリクエストをまとめて計算した百分位ではありません。** 通信時に整数のミリ秒に変換するため、1 ms 未満の値は `-` と表示される場合があります。
+- **エラー理由：** 各ワーカーの最終報告で反映します。ワーカーが切断した場合は途中までの結果になることがあり、残りの処理は他のワーカーに割り当て直しません。
 
-### Worker 一覧の安全な管理
+リクエストの待ち行列は並行数に応じた大きさです。一方、成功したリクエストのレイテンシは終了まで保存するため、その分のメモリ使用量は成功件数に応じて増えます。
 
-Master は接続中の Workers を map で持ちます。複数 goroutine から読まれるため mutex で守り、broadcast では map のスナップショットだけ取ってから lock を外し、その後に `stream.Send()` しています。ネットワーク送信中に lock を持ち続けないようにするためです。
+</details>
 
-### gRPC とターミナル画面を同じプロセスで動かす
+## 現在の範囲
 
-Master は gRPC サーバーとターミナル画面を同時に動かします。gRPC 側のイベントは channel で UI に渡し、ターミナル画面はそれを読んで再描画します。Worker の接続や stats 更新があっても、画面操作が止まらないようにしています。
+HTTP GET、固定リクエスト数、固定並行数に対応しています。独自ヘッダーやリクエスト本文、送信レートのスケジュール、結果のファイル出力、ワーカーの再接続、制御用 gRPC 接続の TLS・認証は未対応です。コントローラーとワーカーは信頼できるネットワーク内で使ってください。Compose のコントローラーポートは localhost にだけ公開しています。ソースから起動したコントローラーは全インターフェースで待ち受けます。
 
-### HTTP 4xx/5xx も失敗として扱う
+## 開発時の確認
 
-Go の HTTP client は、4xx/5xx のレスポンスだけでは error を返しません。SwarmGo ではステータスコード 400 以上も失敗として扱い、通信エラーとあわせて上位エラー理由に集計します。
+```bash
+go test -race ./...
+go vet ./...
+go build ./...
+```
 
----
-
-## 制限
-
-- HTTP リクエストは現在 **GET のみ**です。
-- カスタムヘッダー、リクエストボディ、POST/PUT などのシナリオは未対応です。
-- 結果はターミナル画面とログで確認します。JSON/CSV などのレポート出力はまだありません。
-- ramp-up や duration 指定の実行は未対応です。
-
----
-
-## 今後やりたいこと
-
-- カスタムヘッダー指定
-- POST / request body 対応
-- JSON または CSV でのレポート出力
-- ramp-up や時間指定の実行
-- 実行後の worker 別サマリー
-
----
-
-## ライセンス
-
-**MIT**
+テストにはローカルの HTTP / gRPC サーバーを使います。レスポンス本文の処理、キャンセル、報告順序、経過時間の計算、画面への通知が落ちた場合の状態復元を確認しています。同じチェックを GitHub Actions でも実行します。

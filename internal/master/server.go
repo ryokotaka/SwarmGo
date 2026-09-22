@@ -18,17 +18,20 @@ import (
 
 // StatsUpdate carries Worker stats (StatsMsg) received from Workers to the TUI.
 type StatsUpdate struct {
-	WorkerID      string
-	SuccessCount  int32
-	FailCount     int32
-	CurrentRps    float64
-	LatencyP50Ms  int32
-	LatencyP90Ms  int32
-	LatencyP99Ms  int32
+	WorkerID     string
+	SuccessCount int32
+	FailCount    int32
+	CurrentRps   float64
+	LatencyP50Ms int32
+	LatencyP90Ms int32
+	LatencyP99Ms int32
 }
 
 // WorkerListChanged notifies the TUI when a Worker connects or disconnects (triggers list redraw).
 type WorkerListChanged struct{}
+
+// WorkerFinished marks the end of a run without discarding its final stats.
+type WorkerFinished struct{ WorkerID string }
 
 // LogLine is a single-line message displayed in the TUI log window.
 type LogLine struct {
@@ -46,20 +49,26 @@ type LogLine struct {
 type Server struct {
 	proto.UnimplementedSwarmServiceServer
 
-	mu             sync.Mutex
-	workers        map[string]proto.SwarmService_ConnectServer
-	uiChan         chan interface{}
-	uiChanMu       sync.Mutex
-	errorReasons   map[string]int // occurrence count per error reason (merged from Worker Stats, shown in TUI)
-	errorReasonsMu sync.Mutex
+	mu               sync.Mutex
+	workers          map[string]proto.SwarmService_ConnectServer
+	stats            map[string]StatsUpdate
+	activeWorkers    map[string]bool
+	expectedRequests int
+	broadcastMu      sync.Mutex
+	uiChan           chan interface{}
+	uiChanMu         sync.Mutex
+	errorReasons     map[string]int // occurrence count per error reason (merged from Worker Stats, shown in TUI)
+	errorReasonsMu   sync.Mutex
 }
 
 // NewServer creates a single Master instance and returns its pointer.
 // Callers share the same instance by reference, not by copy.
 func NewServer() *Server {
 	return &Server{
-		workers:      make(map[string]proto.SwarmService_ConnectServer),
-		errorReasons: make(map[string]int),
+		workers:       make(map[string]proto.SwarmService_ConnectServer),
+		stats:         make(map[string]StatsUpdate),
+		activeWorkers: make(map[string]bool),
+		errorReasons:  make(map[string]int),
 	}
 }
 
@@ -157,6 +166,7 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 	defer func() {
 		s.mu.Lock()
 		delete(s.workers, workerID)
+		delete(s.activeWorkers, workerID)
 		s.mu.Unlock()
 		s.logOrSendToUI("Worker disconnected: %s", workerID)
 		s.sendToUI(WorkerListChanged{})
@@ -176,7 +186,7 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 		case *proto.WorkerMsg_Stats:
 			stats := m.Stats
 			s.MergeErrorReasons(stats.ErrorReasons)
-			s.sendToUI(StatsUpdate{
+			update := StatsUpdate{
 				WorkerID:     workerID,
 				SuccessCount: stats.SuccessCount,
 				FailCount:    stats.FailCount,
@@ -184,9 +194,17 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 				LatencyP50Ms: stats.LatencyP50Ms,
 				LatencyP90Ms: stats.LatencyP90Ms,
 				LatencyP99Ms: stats.LatencyP99Ms,
-			})
+			}
+			s.mu.Lock()
+			s.stats[workerID] = update
+			s.mu.Unlock()
+			s.sendToUI(update)
 		case *proto.WorkerMsg_Finish:
+			s.mu.Lock()
+			delete(s.activeWorkers, workerID)
+			s.mu.Unlock()
 			s.logOrSendToUI("Worker %s finished task.", workerID)
+			s.sendToUI(WorkerFinished{WorkerID: workerID})
 		default:
 			s.logOrSendToUI("Unknown message type: %T", m)
 		}
@@ -199,24 +217,72 @@ type WorkerInfo struct {
 	Addr string
 }
 
-// BroadcastCommand sends the same command to all connected Workers.
-//
-//   - Purpose: in distributed load testing, the Master issues the same instruction to all Workers at once.
-//   - Role: API to send one command (start/stop/exit) to every connected Worker.
-//   - Implementation: take a snapshot of s.workers under the lock, then Send to each stream outside the lock to avoid holding the lock during I/O.
-func (s *Server) BroadcastCommand(cmd *proto.MasterCmd) {
-	// Lock the mutex before touching shared s.workers; other goroutines block here.
+// RunSnapshot is authoritative even when a nonblocking UI notification is dropped.
+type RunSnapshot struct {
+	Stats            map[string]StatsUpdate
+	ExpectedRequests int
+	Running          bool
+}
+
+func (s *Server) SnapshotRun() RunSnapshot {
 	s.mu.Lock()
-	// Create a new map: key=WorkerID (string), value=stream. Second arg is capacity hint to reduce reallocation.
+	defer s.mu.Unlock()
+	snapshot := RunSnapshot{
+		Stats:            make(map[string]StatsUpdate, len(s.stats)),
+		ExpectedRequests: s.expectedRequests,
+		Running:          len(s.activeWorkers) > 0,
+	}
+	for id, stats := range s.stats {
+		snapshot.Stats[id] = stats
+	}
+	return snapshot
+}
+
+// StartRun captures one worker set for both the command and expected request count.
+// A second START is ignored until all participants finish or disconnect.
+func (s *Server) StartRun(start *proto.StartCmd) bool {
+	s.mu.Lock()
+	if len(s.activeWorkers) > 0 || len(s.workers) == 0 {
+		s.mu.Unlock()
+		return false
+	}
+	snapshot := make(map[string]proto.SwarmService_ConnectServer, len(s.workers))
+	s.stats = make(map[string]StatsUpdate)
+	for id, stream := range s.workers {
+		snapshot[id] = stream
+		s.activeWorkers[id] = true
+	}
+	s.expectedRequests = int(start.TotalRequests) * len(snapshot)
+	s.ResetErrorReasons()
+	s.mu.Unlock()
+	s.broadcast(snapshot, &proto.MasterCmd{Cmd: &proto.MasterCmd_Start{Start: start}})
+	return true
+}
+
+// BroadcastCommand sends commands outside the worker-registry lock.
+func (s *Server) BroadcastCommand(cmd *proto.MasterCmd) {
+	if start := cmd.GetStart(); start != nil {
+		s.StartRun(start)
+		return
+	}
+	s.mu.Lock()
 	snapshot := make(map[string]proto.SwarmService_ConnectServer, len(s.workers))
 	for id, stream := range s.workers {
 		snapshot[id] = stream
 	}
 	s.mu.Unlock()
-	// Lock released here. We only use snapshot below, so slow operations like stream.Send() run outside the lock.
+	s.broadcast(snapshot, cmd)
+}
 
+func (s *Server) broadcast(snapshot map[string]proto.SwarmService_ConnectServer, cmd *proto.MasterCmd) {
+	// gRPC permits one sender and one receiver per stream, but not concurrent sends.
+	s.broadcastMu.Lock()
+	defer s.broadcastMu.Unlock()
 	for id, stream := range snapshot {
 		if err := stream.Send(cmd); err != nil {
+			s.mu.Lock()
+			delete(s.activeWorkers, id)
+			s.mu.Unlock()
 			s.logOrSendToUI("Failed to send command to %s: %v", id, err)
 		}
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 
@@ -12,19 +13,19 @@ import (
 )
 
 func main() {
-    // os.Args holds CLI arguments: index 0 is the executable name, index 1 is the first argument
-    if len(os.Args) < 2 {
-        printHelp()
-        os.Exit(1)
-    }
+	// os.Args holds CLI arguments: index 0 is the executable name, index 1 is the first argument
+	if len(os.Args) < 2 {
+		printHelp()
+		os.Exit(1)
+	}
 
-    // Determine command (subcommand "master"/"worker" or -mode=master / -mode=worker)
-    cmd := os.Args[1]
-    if cmd == "-mode=master" || cmd == "--mode=master" {
-        cmd = "master"
-    } else if cmd == "-mode=worker" || cmd == "--mode=worker" {
-        cmd = "worker"
-    }
+	// Determine command (subcommand "master"/"worker" or -mode=master / -mode=worker)
+	cmd := os.Args[1]
+	if cmd == "-mode=master" || cmd == "--mode=master" {
+		cmd = "master"
+	} else if cmd == "-mode=worker" || cmd == "--mode=worker" {
+		cmd = "worker"
+	}
 
 	switch cmd {
 	case "master":
@@ -57,7 +58,7 @@ func runMaster() {
 	// Defaults for -url / -n / -c come from TARGET_URL / TOTAL_REQUESTS / CONCURRENCY (easy to override in Docker etc.)
 	urlDefault := os.Getenv("TARGET_URL")
 	if urlDefault == "" {
-		urlDefault = "https://example.com"
+		urlDefault = "http://127.0.0.1:8080"
 	}
 	nDefault := 5
 	if s := os.Getenv("TOTAL_REQUESTS"); s != "" {
@@ -71,11 +72,19 @@ func runMaster() {
 			cDefault = v
 		}
 	}
-	url := masterCmd.String("url", urlDefault, "Target URL for load test (default: TARGET_URL or https://example.com)")
+	url := masterCmd.String("url", urlDefault, "Target URL for load test (default: TARGET_URL or http://127.0.0.1:8080)")
 	n := masterCmd.Int("n", nDefault, "Total requests per run per Worker (default: TOTAL_REQUESTS or 5)")
 	c := masterCmd.Int("c", cDefault, "Concurrency per Worker (default: CONCURRENCY or 1)")
-	noTUI := masterCmd.Bool("no-tui", false, "Run without TUI (headless); gRPC only, log to stdout")
+	noTUI := masterCmd.Bool("no-tui", false, "Run without TUI (headless); gRPC listener only; does not start runs")
 	masterCmd.Parse(os.Args[2:])
+	if err := worker.ValidateTargetURL(*url); err != nil {
+		fmt.Fprintf(os.Stderr, "master: %v\n", err)
+		os.Exit(1)
+	}
+	if *n <= 0 || *c <= 0 || *n > math.MaxInt32 || *c > math.MaxInt32 {
+		fmt.Fprintln(os.Stderr, "master: requests and concurrency must be between 1 and 2147483647")
+		os.Exit(1)
+	}
 
 	if *noTUI {
 		// Headless: start only the gRPC server; logs go to stdout via log.Printf

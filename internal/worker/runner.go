@@ -5,7 +5,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
+	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -23,16 +26,17 @@ type MyResult struct {
 // MySummary represents the results after all requests are completed.
 // For performance reasons, only updated from a single goroutine (no locks needed).
 type MySummary struct {
-	MyTotal         int               // Total number of requests executed
-	MySuccess       int               // Number of successful requests
-	MyFailed        int               // Number of failed requests
-	MyFirstErr      error             // First error encountered (for logging when MyFailed > 0)
-	MyStatusCodeCnt map[int]int       // Number of requests for each status code (pair of [status code] and [number of requests])
-	MyErrorReasons  map[string]int    // occurrence count per failure reason (sent to Master for TUI top-N display)
-	MyTotalDuration time.Duration     // Total duration of all requests (used for average calculation)
-	LatencyP50      time.Duration     // 50th percentile latency (successful requests only)
-	LatencyP90      time.Duration     // 90th percentile latency (successful requests only)
-	LatencyP99      time.Duration     // 99th percentile latency (successful requests only)
+	MyTotal         int            // Total number of requests executed
+	MySuccess       int            // Number of successful requests
+	MyFailed        int            // Number of failed requests
+	MyFirstErr      error          // First error encountered (for logging when MyFailed > 0)
+	MyStatusCodeCnt map[int]int    // Number of requests for each status code (pair of [status code] and [number of requests])
+	MyErrorReasons  map[string]int // occurrence count per failure reason (sent to Master for TUI top-N display)
+	MyTotalDuration time.Duration  // Sum of successful request durations (used for mean latency)
+	Elapsed         time.Duration  // Wall-clock duration of the request run (used for RPS)
+	LatencyP50      time.Duration  // 50th percentile latency (successful requests only)
+	LatencyP90      time.Duration  // 90th percentile latency (successful requests only)
+	LatencyP99      time.Duration  // 99th percentile latency (successful requests only)
 }
 
 // MyRunner is the main struct for running the load test.
@@ -47,7 +51,7 @@ func loadRootCAs() *x509.CertPool {
 	candidates := []string{
 		os.Getenv("SSL_CERT_FILE"),
 		"/etc/ssl/certs/ca-certificates.crt", // Alpine (Debian style)
-		"/etc/ssl/cert.pem",                 // Alpine alternative
+		"/etc/ssl/cert.pem",                  // Alpine alternative
 	}
 	for _, path := range candidates {
 		if path == "" {
@@ -106,7 +110,15 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 		return nil, fmt.Errorf("totalRequests and concurrency must be positive, got %d, %d", totalRequests, concurrency)
 	}
 
-	// Channel for job dispatch (buffer size = concurrency so memory stays O(concurrency) even with huge totalRequests).
+	if err := ValidateTargetURL(url); err != nil {
+		return nil, err
+	}
+	if concurrency > totalRequests {
+		concurrency = totalRequests
+	}
+	runStart := time.Now()
+
+	// Queue and pool sizes depend on concurrency; latency samples are retained separately.
 	myJobs := make(chan struct{}, concurrency)
 	// Single channel for sending and receiving results; one goroutine does all aggregation so no locking is needed.
 	myResults := make(chan MyResult, concurrency)
@@ -123,7 +135,6 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 				// Check for cancellation (e.g. Ctrl+C)
 				select {
 				case <-ctx.Done():
-					myResults <- MyResult{MyErr: ctx.Err()}
 					return
 				default:
 				}
@@ -156,9 +167,8 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 	const progressIntervalCount = 50
 	const progressIntervalTime = 200 * time.Millisecond
 
-	runStart := time.Now()
 	var lastProgressAt time.Time
-	myDurations := make([]time.Duration, 0, totalRequests)
+	myDurations := make([]time.Duration, 0, min(totalRequests, 1024))
 	mySum := &MySummary{
 		MyStatusCodeCnt: make(map[int]int),
 		MyErrorReasons:  make(map[string]int),
@@ -199,6 +209,7 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 			}
 		}
 	}
+	mySum.Elapsed = time.Since(runStart)
 	// Compute latency percentiles from successful requests only.
 	if len(myDurations) > 0 {
 		sort.Slice(myDurations, func(i, j int) bool { return myDurations[i] < myDurations[j] })
@@ -215,11 +226,14 @@ func percentile(sorted []time.Duration, p float64) time.Duration {
 	if len(sorted) == 0 {
 		return 0
 	}
-	idx := p * float64(len(sorted))
-	if idx >= float64(len(sorted)) {
-		idx = float64(len(sorted) - 1)
+	idx := int(math.Ceil(p*float64(len(sorted)))) - 1
+	if idx < 0 {
+		idx = 0
 	}
-	return sorted[int(idx)]
+	if idx >= len(sorted) {
+		idx = len(sorted) - 1
+	}
+	return sorted[idx]
 }
 
 // errorReasonString returns a TUI-friendly error reason string from MyResult. Only meaningful when the request failed.
@@ -260,49 +274,35 @@ func sanitizeError(s string) string {
 	return s[:maxLen] + "..."
 }
 
-// executeRequest performs a single HTTP GET and returns the result.
-// Request creation, send, and response handling are centralized here for readability.
-func (r *MyRunner) executeRequest(ctx context.Context, url string) MyResult {
-	if ctx.Err() != nil {
-		return MyResult{MyErr: ctx.Err()}
+// ValidateTargetURL rejects invalid targets before a run allocates workers or sends traffic.
+func ValidateTargetURL(target string) error {
+	u, err := url.Parse(target)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return fmt.Errorf("target URL must be an absolute http or https URL")
 	}
-
-	// Record time just before sending the HTTP GET so we can measure duration.
-	myStart := time.Now()
-
-	// Standard: http.NewRequestWithContext creates a request for GET to this URL with this context.
-	// No request body, so the fourth argument is nil.
-	myReq, myErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if myErr != nil {
-		return MyResult{MyErr: myErr} // Error creating the request (typically URL-related).
-	}
-
-	// Standard: *http.Client.Do(myReq) sends the request and blocks until the response is received.
-	myResp, myErr := r.MyClient.Do(myReq)
-	// Duration from myStart (just before send) to now (just after response) is this request's elapsed time.
-	myDuration := time.Since(myStart)
-	if myErr != nil {
-		return MyResult{MyErr: myErr, MyDuration: myDuration} // Error during the round-trip (typically network).
-	}
-
-	// In Go, myResp.Body is a stream (ReadCloser) for reading the response; it holds network connections
-	// and buffers, so it must be closed when done.
-	defer myResp.Body.Close()
-
-	// Go's Client.Do() does not return an error for 5xx; it considers the round-trip successful.
-	// For load testing we count 4xx/5xx as failures, so treat StatusCode >= 400 as failure in addition to err != nil.
-	if myResp.StatusCode >= 400 {
-		return MyResult{
-			MyStatusCode: myResp.StatusCode,
-			MyDuration:   myDuration,
-			MyErr:        fmt.Errorf("HTTP %d %s", myResp.StatusCode, myResp.Status),
-		}
-	}
-	// Return the result (status code, duration, no error).
-	return MyResult{
-		MyStatusCode: myResp.StatusCode,
-		MyDuration:   myDuration,
-		MyErr:        nil,
-	}
+	return nil
 }
 
+// executeRequest measures the complete response, including reading its body.
+// Draining the body also lets the transport reuse keep-alive connections.
+func (r *MyRunner) executeRequest(ctx context.Context, target string) MyResult {
+	start := time.Now()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return MyResult{MyErr: err, MyDuration: time.Since(start)}
+	}
+	resp, err := r.MyClient.Do(req)
+	if err != nil {
+		return MyResult{MyErr: err, MyDuration: time.Since(start)}
+	}
+	defer resp.Body.Close()
+	_, readErr := io.Copy(io.Discard, resp.Body)
+	result := MyResult{MyStatusCode: resp.StatusCode, MyDuration: time.Since(start)}
+	switch {
+	case readErr != nil:
+		result.MyErr = fmt.Errorf("read response body: %w", readErr)
+	case resp.StatusCode >= http.StatusBadRequest:
+		result.MyErr = fmt.Errorf("HTTP %s", resp.Status)
+	}
+	return result
+}

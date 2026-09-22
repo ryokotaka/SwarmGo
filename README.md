@@ -1,242 +1,139 @@
-<div align="center">
+# SwarmGo
 
-# **SwarmGo**
+[日本語](./README_ja.md) · [MIT license](./LICENSE)
 
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
-[![gRPC](https://img.shields.io/badge/gRPC-1.0+-244C5A?style=for-the-badge&logo=grpc&logoColor=white)](https://grpc.io/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
-[![README 日本語](https://img.shields.io/badge/README-日本語-00ADD8?style=for-the-badge)](./README_ja.md)
+A distributed HTTP load tester written in Go. Start a test from one terminal, send requests from several workers, and watch throughput, progress, and failures in the same dashboard.
 
-<br>
+The Docker Compose demo runs a controller, three workers, and a target server on your machine. Press **s** to start 9,000 requests, change the worker count to try a different load, or make the target return errors to see how the workers report them.
 
-**A small Go/gRPC load-testing demo with a live terminal dashboard.**
+![A local SwarmGo run with Docker Compose](./demo-docker.gif)
 
-SwarmGo runs one controller, multiple request-sending Workers, and a local target server with Docker Compose. The demo needs no cloud server, external API, or Go install: start it, press **`s`**, and watch worker coordination, RPS, latency, success/failure counts, and grouped errors update in real time.
+## Try it locally
 
-<br>
-
----
-
-</div>
-
-## Demo
-
-The Docker Compose demo starts one controller, three request-sending workers, and a local `target-server`.
-
-<div align="center">
-
-![SwarmGo Demo (Docker Compose Quickstart)](./demo-docker.gif)
-
-</div>
-
-The terminal dashboard shows connected workers, progress, RPS, P50/P90/P99 latency, success/failure counts, and common error reasons while the test runs. The default demo stays inside Docker Compose, so you can try the project without sending traffic to a real external service.
-
----
-
-## Why it's worth a look
-
-SwarmGo is not trying to replace mature tools like k6, wrk, or Vegeta. It is a compact project that makes the moving parts of distributed load generation easy to run and inspect:
-
-- one Master broadcasts commands to many Workers over long-lived gRPC streams
-- Workers generate HTTP traffic concurrently and stream stats back to the Master
-- the TUI makes normally hidden behavior visible: RPS, latency percentiles, progress, success/failure counts, and grouped errors
-- the built-in `target-server` makes success, higher-load, and mixed-failure demos safe to run locally
-- the codebase is small enough to read after the demo
-
-Best for trying load-testing basics and then reading a small Go/gRPC distributed-systems project — not a production benchmark suite.
-
----
-
-## Quickstart: local only
-
-Requires Docker and Docker Compose. You do not need to install Go for this demo.
+Install Docker with Docker Compose, then run:
 
 ```bash
 git clone https://github.com/ryokotaka/SwarmGo.git
 cd SwarmGo
 docker compose up -d --build
-docker attach $(docker compose ps -q master)
+docker attach "$(docker compose ps -q master)"
 ```
 
-When the terminal dashboard opens, press **`s`** to send test traffic to the built-in `target-server`.
+Wait for `Workers: 3`, then press **s**. Each worker sends 3,000 GET requests to the included `target-server`, with up to 10 requests in flight. That is **9,000 requests and up to 30 concurrent requests** across the three workers.
 
-**What you should see** once the workers connect and the run starts:
+The dashboard keeps the result after the run finishes. Press **s** to run again, or **q** to cancel active requests and quit the controller. To detach without quitting, press **Ctrl+P**, then **Ctrl+Q**.
 
-- `Workers: 3` by default.
-- `Total RPS (realtime)` changing from `(no data yet)` to an ASCII graph and a requests-per-second value.
-- `Success`, `Fail`, `Progress: current / total (%)`, and latency values updating during the run.
-- `Errors: None` for the healthy local target, or grouped error reasons when requests fail.
-
-**To stop:** press **`q`** to quit the controller and stop the run; detach without stopping it with `Ctrl+P` then `Ctrl+Q`; clean up with `docker compose down`.
-
-> Safety: only run load tests against systems you own or have explicit permission to test. The default quickstart targets the local `target-server` container.
-
----
-
-## Local-only checks
-
-<details>
-<summary>Show a 100,000-request local run and a mixed-failure demo</summary>
-
-SwarmGo can be pushed harder without a cloud server or public traffic — these runs stay inside the local Docker Compose network.
-
-### 100,000-request run
+Clean up the containers when finished:
 
 ```bash
-TOTAL_REQUESTS=10000 CONCURRENCY=20 docker compose up -d --build --scale worker=10
-docker attach $(docker compose ps -q master)
+docker compose down
 ```
 
-Press **`s`** in the TUI to start. Example result from one local run:
+Only test systems you own or have permission to test. This example sends traffic inside the local Compose network.
 
-| Item | Value |
-|------|-------|
-| Target | `http://target-server` inside Docker Compose |
-| Workers | 10 |
-| Requests | 100,000 total (`10,000` per Worker) |
-| Concurrency | 200 total (`20` per Worker) |
-| Result | 100,000 success, 0 fail (`Errors: None`) |
-| Realtime RPS | roughly 6.3k-7.1k RPS while most workers were active |
+## Change the load
 
-This is a local sanity/stress test, not a claim about public-internet performance; results depend on the machine, Docker runtime, and target. Keep the target as `http://target-server` unless you own the system and have permission to test it.
-
-### Mixed-failure example
-
-The local `target-server` can return a mix of `200`, `404`, and `500`, so the TUI's grouped failures are visible without testing a real service:
+Requests and concurrency are **per worker**. This example runs 5 workers with 1,000 requests each, for 5,000 requests in total:
 
 ```bash
-TARGET_URL='http://target-server/?echo_code=200-200-404-500' TOTAL_REQUESTS=300 CONCURRENCY=10 docker compose up -d --build --scale worker=3
-docker attach $(docker compose ps -q master)
+TOTAL_REQUESTS=1000 CONCURRENCY=5 docker compose up -d --build --scale worker=5
+docker attach "$(docker compose ps -q master)"
 ```
 
-Press **`s`** to start. HTTP `404` and `500` responses are counted as failures and grouped by reason:
+| Setting | Compose default | Meaning |
+| --- | --- | --- |
+| `TARGET_URL` | `http://target-server` | URL each worker sends requests to |
+| `TOTAL_REQUESTS` | `3000` | Requests per worker per run |
+| `CONCURRENCY` | `10` | Maximum in-flight requests per worker |
+| `--scale worker=N` | `3` | Number of worker containers |
 
-```text
-Success: 468   Fail: 432
-Errors:
-  - HTTP 500 500 Internal Server Error: 226
-  - HTTP 404 404 Not Found: 206
-```
-
-Counts vary because the echo server randomizes among the configured codes; the run stays inside Docker Compose. Clean up with `docker compose down`.
-
-</details>
-
----
-
-## Features
-
-| Feature | Description |
-|--------|-------------|
-| **Distributed Master/Worker model** | One Master coordinates many Workers over long-lived gRPC streams. |
-| **Stable concurrency model** | Each Worker uses a fixed-size worker pool instead of spawning one goroutine per request. |
-| **Latency percentiles** | Workers report P50/P90/P99 latency for successful requests. |
-| **Top error reasons** | Network errors and HTTP 4xx/5xx responses are counted as failures and grouped for the TUI. |
-| **Headless Master** | Use `-no-tui` when you only need the gRPC Master for scripts, CI, or remote runs. |
-
----
-
-## Docker options
-
-**Scale Workers** (3 by default):
+To see HTTP failures in the dashboard, the included echo server can return errors:
 
 ```bash
-docker compose up -d --build --scale worker=5
+TARGET_URL='http://target-server/?echo_code=500' TOTAL_REQUESTS=100 docker compose up -d --build
+docker attach "$(docker compose ps -q master)"
 ```
 
-**Change target, requests, or concurrency.** By default Docker Compose points SwarmGo at the included `target-server` (`TARGET_URL=http://target-server`, `TOTAL_REQUESTS=3000`, `CONCURRENCY=10`). For the safest demo, leave `TARGET_URL` unchanged. To test a target you own or have permission to test, set them in a `.env` file or per run:
+Press **s** and wait for the run to finish. The dashboard should show failed requests grouped under `HTTP 500 Internal Server Error`.
+
+## Run from source
+
+Use **Go 1.25.7 or later**, as specified in [go.mod](./go.mod).
 
 ```bash
-TARGET_URL=https://your-api.example.com TOTAL_REQUESTS=100 CONCURRENCY=10 docker compose up -d --build
+go build -o swarmgo ./cmd/swarmgo
 ```
 
-**Foreground mode** (logs in one terminal): `docker compose up --build`. Interactive TUI input works best with the background + `docker attach` flow above.
-
----
-
-## Run without Docker
-
-Requires **Go 1.22+**.
+Start a local HTTP server or use an application already running on your machine. For example, with Python 3, serve an empty temporary directory in one terminal:
 
 ```bash
-go mod tidy
-go build -o swarmgo ./cmd/swarmgo/
+python3 -m http.server 8080 --bind 127.0.0.1 --directory "$(mktemp -d)"
+```
 
-# Terminal 1: Master
-./swarmgo master -p 50051            # optional: -url https://example.com -n 100 -c 10
+In another terminal, start the controller:
 
-# Terminal 2+: Workers
+```bash
+./swarmgo master -url http://127.0.0.1:8080 -n 100 -c 5
+```
+
+Then start a worker in a third terminal:
+
+```bash
 ./swarmgo worker
 ```
 
-Workers connect to `localhost:50051` by default. Use `-addr host:port` or `MASTER_ADDR` for a remote Master.
+Press **s** in the controller. You can start more workers in additional terminals before a run.
 
----
+The source-build defaults are `http://127.0.0.1:8080`, 5 requests, and concurrency 1. Set the same environment variables as above, or override them with `-url`, `-n`, and `-c`. A worker connects to `localhost:50051` by default; use `-addr host:port` or `MASTER_ADDR` to change it. The controller's port is set with `-p`.
 
-## Architecture
+`master -no-tui` starts only the gRPC listener. It does not automatically start a load test or provide a command-line trigger.
 
-1. The **Master** starts a gRPC server and tracks connected Workers.
-2. Each **Worker** opens one long-lived bidirectional gRPC stream to the Master.
-3. The Master sends commands over that stream; Workers send register, stats, and finish messages back over the same stream.
-4. During a run, Workers send HTTP GET requests directly to the target URL and periodically report progress.
+## How it works
 
-The Master does not proxy HTTP traffic: it coordinates Workers and aggregates their reports, while the Workers generate the load directly.
+I built this project to understand Go concurrency and gRPC streaming by making the coordination visible: one controller, several request-sending workers, and a live view of the run.
 
 ```mermaid
-sequenceDiagram
-    actor U as TUI (operator)
-    participant M as Master (gRPC)
-    participant W as Workers
-    participant T as Target URL
-    U->>M: press s: start (url, total, concurrency)
-    M->>W: broadcast Start (one bidirectional gRPC stream)
-    Note over W: N Workers, each a fixed-size pool (not goroutine-per-request)
-    loop until total requests complete
-        W->>T: HTTP GET
-        T-->>W: 2xx / 4xx / 5xx
-        W-->>M: progress stats: RPS, success/fail (same stream)
-        M-->>U: render RPS and progress
-    end
-    W-->>M: final stats: totals, latency, grouped errors
-    M-->>U: render P50/P90/P99 and top errors
-    W-->>M: finish: completion marker
-    U->>M: press q: quit
-    M->>W: broadcast Quit
+flowchart LR
+    C[Controller / terminal dashboard] <-->|gRPC stream| W[Workers]
+    W -->|HTTP GET| T[Target server]
 ```
 
----
+The controller sends a start command to the workers connected at the beginning of a run. Each worker uses a fixed-size goroutine pool, sends HTTP requests directly to the target, and reports progress through the same gRPC stream. Workers that connect later join the next run.
 
-## Design notes
+The worker keeps listening for commands during a run. Quit, Stop, and a lost controller connection cancel in-flight HTTP requests. The dashboard ignores a second start while a run is active.
 
-I built SwarmGo to learn distributed systems, Go concurrency, gRPC streaming, and Docker-based local environments by implementing a working tool end to end.
+Useful entry points in the code:
 
-- **Worker pool, not one goroutine per request.** The first version spawned a goroutine per HTTP request, which blows up allocations at large totals. Each Worker now uses a fixed-size pool, so memory scales with concurrency, not total request count.
-- **Bidirectional gRPC streams.** Each Worker keeps one stream open; the Master sends Start/Stop/Quit while the Worker streams register/stats/finish back, with no polling or protocol switching.
-- **Safe Worker registry.** Connected Workers live in a mutex-protected map; broadcasts copy the streams under the lock, release it, then send, avoiding long lock holds around network I/O.
-- **TUI and gRPC in one process.** gRPC handlers push updates into a channel that the TUI consumes, staying responsive while Workers connect and report.
-- **Explicit HTTP failure handling.** Go's HTTP client does not error on 4xx/5xx, so Workers check status codes directly and treat both network errors and status ≥400 as failures, grouped by reason.
+- [runner.go](./internal/worker/runner.go): HTTP requests, concurrency, and latency samples.
+- [client.go](./internal/worker/client.go): worker commands and ordered progress reports.
+- [server.go](./internal/master/server.go): connected workers and run state.
+- [tui.go](./cmd/swarmgo/tui.go): dashboard and keyboard input.
+- [swarm.proto](./proto/swarm.proto): the messages exchanged between controller and workers.
 
----
+## Measurement details
 
-## Limitations
+<details>
+<summary>How requests, RPS, latency, and errors are counted</summary>
 
-- HTTP requests are currently **GET only**; custom headers, request bodies, and POST/PUT scenarios are not supported yet.
-- Results are shown in the TUI/logs; report export is not implemented yet.
-- There is no ramp-up schedule or advanced scenario scripting yet.
-- SwarmGo is a small distributed load-testing project, not a production benchmark suite.
+- **Success / failure:** a request succeeds if its response body is read completely and its final HTTP status is below 400. HTTP 4xx/5xx, connection errors, timeouts, and canceled in-flight requests count as failures. Redirects follow Go's default HTTP client behavior.
+- **RPS:** completed requests divided by elapsed wall time for each worker, summed on the dashboard. These are running averages, not instantaneous samples or one precisely synchronized cluster-wide rate. The final values stay on screen after completion.
+- **Latency:** time to receive the full response, for successful requests only. Workers calculate nearest-rank P50/P90/P99 when they finish. The dashboard shows the three values from the worker with the highest P99; these are **not pooled percentiles across all workers**. Values are sent as whole milliseconds, so sub-millisecond values may display as `-`.
+- **Errors:** grouped reasons arrive with each worker's final report. A disconnected worker may leave partial results; its missing work is not reassigned.
 
----
+The request queue is bounded by concurrency. Successful latency samples are retained until the run ends, so their memory use grows with the number of successful requests.
 
-## Roadmap
+</details>
 
-- Custom headers and POST/body support.
-- JSON or CSV report export.
-- Ramp-up and duration-based runs.
-- Per-worker summary view after each run.
+## Scope
 
----
+SwarmGo currently supports GET requests, a fixed request count, and fixed concurrency. It has no custom headers or bodies, rate scheduling, report export, worker reconnect logic, or TLS/authentication on the control connection. Keep the controller and workers on a trusted network. Compose exposes the controller port only on localhost; the source-built controller listens on all interfaces.
 
-## License
+## Development
 
-**MIT**
+```bash
+go test -race ./...
+go vet ./...
+go build ./...
+```
+
+The tests use local HTTP and gRPC servers. They cover response-body handling, cancellation, result ordering, elapsed-time calculations, and recovery when dashboard notifications are dropped. The same checks run in GitHub Actions.

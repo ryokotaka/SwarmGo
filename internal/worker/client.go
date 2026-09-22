@@ -46,172 +46,166 @@ func NewGRPCClient(addr string) (*GRPCClient, error) {
 	}, nil
 }
 
-// Start opens the bidirectional stream to the Master, sends Register, then runs a receive loop handling Start/Stop/Quit.
-//
-// Flow: connect → get stream → send Register → loop receiving and handling MasterCmd
+// Start keeps receiving commands while a run is active. Only this event loop
+// writes to the gRPC stream, so progress, final stats, and finish stay ordered.
 func (c *GRPCClient) Start() error {
 	defer c.conn.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	log.Printf("Connecting to Master at %s...", c.masterAddr)
-
-	// context.Background() is the simplest context with no cancellation or timeout.
-	// Connect() takes a context, so we pass it here.
-	stream, err := c.client.Connect(context.Background())
+	stream, err := c.client.Connect(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to open stream: %w", err)
 	}
-	// The stream is now open; use stream.Send() / stream.Recv() to send WorkerMsg and receive MasterCmd.
-
-	// 1. First message: RegisterMsg (tell the Master this worker has connected)
-	// workerID: unique per worker using nanosecond timestamp + 0..999 random (e.g. "worker-1739123456789012345-42")
-	// CpuArch: send runtime.GOARCH ("arm64", "amd64", etc.) so the Master knows the worker's architecture
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	workerID := fmt.Sprintf("worker-%d-%d", time.Now().UnixNano(), rng.Intn(1000))
-	req := &proto.WorkerMsg{
-		Msg: &proto.WorkerMsg_Register{
-			Register: &proto.RegisterMsg{
-				WorkerId: workerID,
-				CpuArch:  runtime.GOARCH,
-			},
-		},
-	}
-	if err := stream.Send(req); err != nil {
+	if err := stream.Send(&proto.WorkerMsg{
+		Msg: &proto.WorkerMsg_Register{Register: &proto.RegisterMsg{
+			WorkerId: workerID, CpuArch: runtime.GOARCH,
+		}},
+	}); err != nil {
 		return fmt.Errorf("failed to send register: %w", err)
 	}
 	log.Printf("Successfully registered as %s", workerID)
 
-	// 2. Receive loop: wait for MasterCmd (Start / Stop / Quit) from Master and handle each
-	for {
-		msg, err := stream.Recv()
-		if err == io.EOF {
-			log.Println("Connection closed by Master")
-			return nil
+	type receivedCommand struct {
+		msg *proto.MasterCmd
+		err error
+	}
+	commands := make(chan receivedCommand, 1)
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			select {
+			case commands <- receivedCommand{msg: msg, err: err}:
+			case <-ctx.Done():
+				return
+			}
+			if err != nil {
+				return
+			}
 		}
-		if err != nil {
-			return fmt.Errorf("stream error: %w", err)
+	}()
+
+	events := make(chan runEvent, 20)
+	var runCancel context.CancelFunc
+	var runDone <-chan struct{}
+	defer func() {
+		cancel()
+		if runCancel != nil {
+			runCancel()
 		}
-
-		switch cmd := msg.Cmd.(type) {
-		case *proto.MasterCmd_Start:
-			// Load test: run TotalRequests GETs to TargetUrl with Concurrency parallelism
-			log.Printf("START: target=%s requests=%d concurrency=%d",
-				cmd.Start.TargetUrl, cmd.Start.TotalRequests, cmd.Start.Concurrency)
-
-			r := NewMyRunner()
-			progressCh := make(chan struct {
-				success int
-				failed  int
-				rps     float64
-			}, 20)
-			runDone := make(chan struct{})
-
-			var summary *MySummary
-			var runErr error
-			go func() {
-				defer close(runDone)
-				defer close(progressCh)
-				summary, runErr = r.MyRun(
-					context.Background(),
-					cmd.Start.TargetUrl,
-					int(cmd.Start.TotalRequests),
-					int(cmd.Start.Concurrency),
-					func(completed, success, failed int, elapsed time.Duration) {
-						rps := 0.0
-						if elapsed.Seconds() > 0 {
-							rps = float64(completed) / elapsed.Seconds()
-						}
-						select {
-						case progressCh <- struct {
-							success int
-							failed  int
-							rps     float64
-						}{success: success, failed: failed, rps: rps}:
-						default:
-						}
-					},
-				)
-			}()
-
-			go func() {
-				for s := range progressCh {
-					report := &proto.WorkerMsg{
-						Msg: &proto.WorkerMsg_Stats{
-							Stats: &proto.StatsMsg{
-								SuccessCount:  int32(s.success),
-								FailCount:     int32(s.failed),
-								CurrentRps:    s.rps,
-								LatencyP50Ms:  0,
-								LatencyP90Ms:  0,
-								LatencyP99Ms:  0,
-							},
-						},
-					}
-					if err := stream.Send(report); err != nil {
-						log.Printf("Failed to send progress stats: %v", err)
-						return
-					}
-				}
-			}()
-
+		if runDone != nil {
 			<-runDone
-			if runErr != nil {
-				log.Printf("Run failed: %v", runErr)
-				continue
-			}
+		}
+	}()
 
-			log.Printf("Run finished: total=%d success=%d failed=%d duration=%v",
-				summary.MyTotal, summary.MySuccess, summary.MyFailed, summary.MyTotalDuration)
-			if summary.MyFailed > 0 && summary.MyFirstErr != nil {
-				log.Printf("First failure reason: %v", summary.MyFirstErr)
+	for {
+		select {
+		case received := <-commands:
+			if received.err == io.EOF {
+				return nil
 			}
-
-			// Report final result to Master via Stats (including percentiles and error reasons)
-			rps := 0.0
-			if summary.MyTotalDuration.Seconds() > 0 {
-				rps = float64(summary.MyTotal) / summary.MyTotalDuration.Seconds()
+			if received.err != nil {
+				return fmt.Errorf("stream error: %w", received.err)
 			}
-			errorReasons := make([]*proto.ErrorReason, 0, len(summary.MyErrorReasons))
-			for msg, cnt := range summary.MyErrorReasons {
-				errorReasons = append(errorReasons, &proto.ErrorReason{Message: msg, Count: int32(cnt)})
+			switch cmd := received.msg.Cmd.(type) {
+			case *proto.MasterCmd_Start:
+				if runCancel != nil {
+					log.Println("Ignoring START: a run is already active")
+					continue
+				}
+				runCtx, stop := context.WithCancel(ctx)
+				runCancel = stop
+				done := make(chan struct{})
+				runDone = done
+				go func() {
+					defer close(done)
+					runAndReport(ctx, runCtx, cmd.Start, events)
+				}()
+			case *proto.MasterCmd_Stop:
+				if runCancel != nil {
+					runCancel()
+				}
+			case *proto.MasterCmd_Quit:
+				return nil
 			}
-			report := &proto.WorkerMsg{
-				Msg: &proto.WorkerMsg_Stats{
-					Stats: &proto.StatsMsg{
-						SuccessCount:   int32(summary.MySuccess),
-						FailCount:      int32(summary.MyFailed),
-						CurrentRps:     rps,
-						LatencyP50Ms:  int32(summary.LatencyP50.Milliseconds()),
-						LatencyP90Ms:  int32(summary.LatencyP90.Milliseconds()),
-						LatencyP99Ms:  int32(summary.LatencyP99.Milliseconds()),
-						ErrorReasons:   errorReasons,
-					},
-				},
+		case event := <-events:
+			if event.err != nil {
+				log.Printf("Run failed: %v", event.err)
 			}
-			if err := stream.Send(report); err != nil {
-				log.Printf("Failed to send stats: %v", err)
+			if event.msg != nil {
+				if err := stream.Send(event.msg); err != nil {
+					return fmt.Errorf("failed to send run report: %w", err)
+				}
 			}
-
-			// Completion report (FinishMsg); send total duration so Master can log "Worker %s finished task." etc.
-			finish := &proto.WorkerMsg{
-				Msg: &proto.WorkerMsg_Finish{
-					Finish: &proto.FinishMsg{
-						TotalDurationMs: int32(summary.MyTotalDuration.Milliseconds()),
-					},
-				},
+			if event.done {
+				runCancel()
+				<-runDone
+				runCancel, runDone = nil, nil
 			}
-			if err := stream.Send(finish); err != nil {
-				log.Printf("Failed to send finish: %v", err)
-			}
-
-		case *proto.MasterCmd_Stop:
-			log.Println("STOP command received")
-
-		case *proto.MasterCmd_Quit:
-			log.Println("QUIT command received")
-			return nil // exit loop; defer runs conn.Close()
-
-		default:
-			log.Printf("Unknown command: %T", cmd)
 		}
 	}
+}
+
+type runEvent struct {
+	msg  *proto.WorkerMsg
+	err  error
+	done bool
+}
+
+func runAndReport(sessionCtx, runCtx context.Context, cmd *proto.StartCmd, events chan<- runEvent) {
+	// Final reports use the session context so STOP can still report partial work.
+	emit := func(event runEvent) bool {
+		select {
+		case events <- event:
+			return true
+		case <-sessionCtx.Done():
+			return false
+		}
+	}
+	runner := NewMyRunner()
+	defer runner.MyClient.CloseIdleConnections()
+	log.Printf("START: target=%s requests=%d concurrency=%d", cmd.TargetUrl, cmd.TotalRequests, cmd.Concurrency)
+	summary, err := runner.MyRun(runCtx, cmd.TargetUrl, int(cmd.TotalRequests), int(cmd.Concurrency),
+		func(completed, success, failed int, elapsed time.Duration) {
+			stats := &proto.StatsMsg{SuccessCount: int32(success), FailCount: int32(failed)}
+			if elapsed > 0 {
+				stats.CurrentRps = float64(completed) / elapsed.Seconds()
+			}
+			select {
+			case events <- runEvent{msg: &proto.WorkerMsg{Msg: &proto.WorkerMsg_Stats{Stats: stats}}}:
+			default: // Intermediate progress can be skipped; final reports cannot.
+			}
+		})
+	if err != nil {
+		emit(runEvent{err: err, done: true, msg: &proto.WorkerMsg{Msg: &proto.WorkerMsg_Finish{Finish: &proto.FinishMsg{}}}})
+		return
+	}
+	log.Printf("Run finished: total=%d success=%d failed=%d duration=%v",
+		summary.MyTotal, summary.MySuccess, summary.MyFailed, summary.Elapsed)
+	if !emit(runEvent{msg: &proto.WorkerMsg{Msg: &proto.WorkerMsg_Stats{Stats: summaryStats(summary)}}}) {
+		return
+	}
+	emit(runEvent{msg: &proto.WorkerMsg{Msg: &proto.WorkerMsg_Finish{Finish: &proto.FinishMsg{
+		TotalDurationMs: int32(summary.Elapsed.Milliseconds()),
+	}}}, done: true})
+}
+
+func summaryStats(summary *MySummary) *proto.StatsMsg {
+	stats := &proto.StatsMsg{
+		SuccessCount: int32(summary.MySuccess),
+		FailCount:    int32(summary.MyFailed),
+		LatencyP50Ms: int32(summary.LatencyP50.Milliseconds()),
+		LatencyP90Ms: int32(summary.LatencyP90.Milliseconds()),
+		LatencyP99Ms: int32(summary.LatencyP99.Milliseconds()),
+	}
+	if summary.Elapsed > 0 {
+		stats.CurrentRps = float64(summary.MyTotal) / summary.Elapsed.Seconds()
+	}
+	for message, count := range summary.MyErrorReasons {
+		stats.ErrorReasons = append(stats.ErrorReasons, &proto.ErrorReason{Message: message, Count: int32(count)})
+	}
+	return stats
 }
