@@ -167,8 +167,9 @@ func runAndReport(sessionCtx, runCtx context.Context, cmd *proto.StartCmd, event
 	}
 	runner := NewMyRunner()
 	defer runner.MyClient.CloseIdleConnections()
-	log.Printf("START: target=%s requests=%d concurrency=%d", cmd.TargetUrl, cmd.TotalRequests, cmd.Concurrency)
-	summary, err := runner.MyRun(runCtx, cmd.TargetUrl, int(cmd.TotalRequests), int(cmd.Concurrency),
+	log.Printf("START: method=%s target=%s requests=%d concurrency=%d", cmd.Method, cmd.TargetUrl, cmd.TotalRequests, cmd.Concurrency)
+	options := RequestOptions{Method: cmd.Method, Body: cmd.Body, Headers: cmd.Headers}
+	summary, err := runner.MyRunWithOptions(runCtx, cmd.TargetUrl, int(cmd.TotalRequests), int(cmd.Concurrency), options,
 		func(completed, success, failed int, elapsed time.Duration) {
 			stats := &proto.StatsMsg{SuccessCount: int32(success), FailCount: int32(failed)}
 			if elapsed > 0 {

@@ -54,6 +54,9 @@ message StartCmd {
   string target_url = 1;      // タグ1 → 受信側で TargetUrl に復元される
   int32 total_requests = 2;   // Workerごとの割当量
   int32 concurrency = 3;      // タグ3
+  string method = 4;          // Empty means GET for older controllers.
+  bytes body = 5;             // Reused for every request in the run.
+  map<string, string> headers = 6;
 }
 
 message StopCmd {}   // 中身なし。停止の印だけ

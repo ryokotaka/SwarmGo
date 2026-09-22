@@ -5,11 +5,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ryokotaka/SwarmGo/internal/master"
+	"github.com/ryokotaka/SwarmGo/internal/worker"
 )
 
 func TestUIRearmsOnlyConsumedEventSource(t *testing.T) {
 	ch := make(chan interface{}, 1)
-	m := newModel(master.NewServer(), ch, "http://127.0.0.1:8080", 5, 1)
+	m := newModel(master.NewServer(), ch, "http://127.0.0.1:8080", 5, 1, worker.RequestOptions{})
 	for _, msg := range []tea.Msg{
 		tea.WindowSizeMsg{Width: 80, Height: 24},
 		tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}},

@@ -2,7 +2,7 @@
 
 [日本語](./README_ja.md) · [MIT license](./LICENSE)
 
-A distributed HTTP load tester written in Go. Start a test from one terminal, send requests from several workers, and watch throughput, progress, and failures in the same dashboard.
+A distributed HTTP load tester written in Go. Send requests from several workers, watch the results in a terminal dashboard, or run a test automatically and save a JSON report. It supports GET, POST, and fixed request bodies and headers.
 
 The Docker Compose demo runs a controller, three workers, and a target server on your machine. Press **s** to start 9,000 requests, change the worker count to try a different load, or make the target return errors to see how the workers report them.
 
@@ -88,6 +88,36 @@ The source-build defaults are `http://127.0.0.1:8080`, 5 requests, and concurren
 
 `master -no-tui` starts only the gRPC listener. It does not automatically start a load test or provide a command-line trigger.
 
+## Run once and save the result
+
+With a local target running, start a controller that waits for two workers:
+
+```bash
+./swarmgo run -url http://127.0.0.1:8080 -workers 2 -n 100 -c 5 -output report.json
+```
+
+Run `./swarmgo worker` in two other terminals. The test starts automatically when both workers connect, sends 200 requests in total, writes `report.json`, and shuts down the workers. No keypress is needed.
+
+`-worker-timeout` sets the wait for workers (default `30s`); `-timeout` limits the run (default `2m`). The command exits with status 0 only when all planned requests finish successfully. Failed requests, disconnections, timeouts, and output errors return status 1; invalid arguments return status 2.
+
+The JSON includes completion status, request counts, elapsed time, a controller-wide request rate, and each worker's latency percentiles and errors. The controller rate uses dispatch through the last report as its time window. Latency percentiles remain per worker. The request flags below work with both `master` and `run`.
+
+## Send JSON
+
+For a local API that accepts JSON at `/api`, create a body file and start the controller with POST:
+
+```bash
+printf '%s\n' '{"message":"hello"}' > request.json
+./swarmgo master -url http://127.0.0.1:8080/api -method POST \
+  -body-file request.json -header 'Content-Type: application/json' -n 100 -c 5
+```
+
+Start workers as above, then press **s**. Use an endpoint that handles POST; Python's file server from the GET example does not.
+
+`-body-file` is read once at startup (maximum 1 MiB), and every request gets the same bytes. Content length is set automatically. Set `Content-Type` explicitly for your payload. Repeat `-header 'Name: value'` for more headers; the last value for a name wins, ignoring case.
+
+Use the same build for the controller and workers. Older workers ignore the new method/body/header fields and send GET requests. Updated workers still accept GET commands from older controllers.
+
 ## How it works
 
 I built this project to understand Go concurrency and gRPC streaming by making the coordination visible: one controller, several request-sending workers, and a live view of the run.
@@ -95,7 +125,7 @@ I built this project to understand Go concurrency and gRPC streaming by making t
 ```mermaid
 flowchart LR
     C[Controller / terminal dashboard] <-->|gRPC stream| W[Workers]
-    W -->|HTTP GET| T[Target server]
+    W -->|HTTP requests| T[Target server]
 ```
 
 The controller sends a start command to the workers connected at the beginning of a run. Each worker uses a fixed-size goroutine pool, sends HTTP requests directly to the target, and reports progress through the same gRPC stream. Workers that connect later join the next run.
@@ -108,6 +138,7 @@ Useful entry points in the code:
 - [client.go](./internal/worker/client.go): worker commands and ordered progress reports.
 - [server.go](./internal/master/server.go): connected workers and run state.
 - [tui.go](./cmd/swarmgo/tui.go): dashboard and keyboard input.
+- [run.go](./cmd/swarmgo/run.go): automatic runs and JSON reports.
 - [swarm.proto](./proto/swarm.proto): the messages exchanged between controller and workers.
 
 ## Measurement details
@@ -126,7 +157,7 @@ The request queue is bounded by concurrency. Successful latency samples are reta
 
 ## Scope
 
-SwarmGo currently supports GET requests, a fixed request count, and fixed concurrency. It has no custom headers or bodies, rate scheduling, report export, worker reconnect logic, or TLS/authentication on the control connection. Keep the controller and workers on a trusted network. Compose exposes the controller port only on localhost; the source-built controller listens on all interfaces.
+SwarmGo supports HTTP methods, fixed request bodies and headers, a fixed request count, and fixed concurrency. It has no rate scheduling, worker reconnect logic, or TLS/authentication on the control connection. Keep the controller and workers on a trusted network. Compose exposes the controller port only on localhost; the source-built controller listens on all interfaces.
 
 ## Development
 
@@ -136,4 +167,11 @@ go vet ./...
 go build ./...
 ```
 
-The tests use local HTTP and gRPC servers. They cover response-body handling, cancellation, result ordering, elapsed-time calculations, and recovery when dashboard notifications are dropped. The same checks run in GitHub Actions.
+The tests use local HTTP and gRPC servers. They cover concurrent GET/POST requests, body replay, cancellation, result ordering, elapsed-time calculations, and recovery when dashboard notifications are dropped. The same checks run in GitHub Actions.
+
+Generated protocol files are checked in, so building does not require `protoc`. To change the schema, regenerate with protoc 33.4, protoc-gen-go v1.36.11, and protoc-gen-go-grpc v1.6.1:
+
+```bash
+protoc --go_out=. --go_opt=paths=source_relative \
+  --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/swarm.proto
+```

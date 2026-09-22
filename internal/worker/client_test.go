@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -200,5 +201,58 @@ func TestClientInvalidRunStillFinishes(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("client did not exit")
+	}
+}
+
+func TestClientsReplayPOSTBodyThroughGRPC(t *testing.T) {
+	const payload = `{"message":"温度","value":42}`
+	var requests, active, peak atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		current := active.Add(1)
+		defer active.Add(-1)
+		for old := peak.Load(); current > old; old = peak.Load() {
+			if peak.CompareAndSwap(old, current) {
+				break
+			}
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil || r.Method != http.MethodPost || string(body) != payload || r.ContentLength != int64(len(payload)) || r.Header.Get("Content-Type") != "application/json" || r.Header.Get("X-Test") != "grpc" {
+			t.Errorf("POST changed on the wire: method=%s body=%q length=%d headers=%v err=%v", r.Method, body, r.ContentLength, r.Header, err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		requests.Add(1)
+		time.Sleep(5 * time.Millisecond)
+		w.Write([]byte("ok"))
+	}))
+	defer target.Close()
+	master1, _, done1 := startTestClient(t)
+	master2, _, done2 := startTestClient(t)
+	for _, master := range []*testMaster{master1, master2} {
+		master.commands <- &proto.MasterCmd{Cmd: &proto.MasterCmd_Start{Start: &proto.StartCmd{
+			TargetUrl: target.URL, TotalRequests: 64, Concurrency: 8,
+			Method: http.MethodPost, Body: []byte(payload),
+			Headers: map[string]string{"Content-Type": "application/json", "X-Test": "grpc"},
+		}}}
+	}
+	for _, master := range []*testMaster{master1, master2} {
+		final := receiveFinal(t, master)
+		if final.SuccessCount != 64 || final.FailCount != 0 {
+			t.Fatalf("incorrect POST run summary: %+v", final)
+		}
+		master.commands <- &proto.MasterCmd{Cmd: &proto.MasterCmd_Quit{Quit: &proto.QuitCmd{}}}
+	}
+	for _, done := range []<-chan error{done1, done2} {
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatal(err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("client did not exit")
+		}
+	}
+	if requests.Load() != 128 || peak.Load() < 2 || peak.Load() > 16 {
+		t.Fatalf("unexpected count or concurrency: requests=%d peak=%d", requests.Load(), peak.Load())
 	}
 }

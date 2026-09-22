@@ -32,6 +32,8 @@ func main() {
 		runMaster()
 	case "worker":
 		runWorker()
+	case "run":
+		os.Exit(runCommand(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		printHelp()
@@ -40,8 +42,9 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker> [options]")
-	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server. Options: -p port, -url target URL, -n total requests, -c concurrency, -no-tui (headless)")
+	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker|run> [options]")
+	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server. Options: -p port, -url target URL, -n total requests, -c concurrency, -method GET, -body-file path, -header 'Name: value', -no-tui")
+	fmt.Fprintln(os.Stderr, "  run     - wait for workers, run once, and write JSON. Options: -workers N, -url, -n, -c, -method, -body-file, -header, -output")
 	fmt.Fprintln(os.Stderr, "  worker  - connect to Master and run load test tasks. Option: -addr (or MASTER_ADDR, default localhost:50051)")
 }
 
@@ -76,7 +79,13 @@ func runMaster() {
 	n := masterCmd.Int("n", nDefault, "Total requests per run per Worker (default: TOTAL_REQUESTS or 5)")
 	c := masterCmd.Int("c", cDefault, "Concurrency per Worker (default: CONCURRENCY or 1)")
 	noTUI := masterCmd.Bool("no-tui", false, "Run without TUI (headless); gRPC listener only; does not start runs")
+	requestFlags := addRequestFlags(masterCmd)
 	masterCmd.Parse(os.Args[2:])
+	requestOptions, err := requestFlags.load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "master: %v\n", err)
+		os.Exit(1)
+	}
 	if err := worker.ValidateTargetURL(*url); err != nil {
 		fmt.Fprintf(os.Stderr, "master: %v\n", err)
 		os.Exit(1)
@@ -105,7 +114,7 @@ func runMaster() {
 	uiChan := make(chan interface{}, 300)
 	srv.SetUIChan(uiChan)
 
-	p := tea.NewProgram(newModel(srv, uiChan, *url, *n, *c), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(srv, uiChan, *url, *n, *c, requestOptions), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "TUI: %v\n", err)
 		os.Exit(1)

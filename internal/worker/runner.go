@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 // MyResult represents the outcome of a single request.
@@ -105,12 +108,19 @@ type OnProgressFunc func(completed, success, failed int, elapsed time.Duration)
 // Returns an aggregated MySummary when done. If ctx is cancelled, unstarted requests are skipped and the run exits.
 // If onProgress is non-nil, it is called periodically (every progressIntervalCount results or progressIntervalTime) with current progress.
 func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurrency int, onProgress OnProgressFunc) (*MySummary, error) {
+	return r.MyRunWithOptions(ctx, url, totalRequests, concurrency, RequestOptions{}, onProgress)
+}
+
+// MyRunWithOptions snapshots the request body and headers once, then replays
+// that request independently in each goroutine. An empty Method means GET.
+func (r *MyRunner) MyRunWithOptions(ctx context.Context, url string, totalRequests, concurrency int, options RequestOptions, onProgress OnProgressFunc) (*MySummary, error) {
 	// Argument check: return error if count or concurrency is zero or less.
 	if totalRequests <= 0 || concurrency <= 0 {
 		return nil, fmt.Errorf("totalRequests and concurrency must be positive, got %d, %d", totalRequests, concurrency)
 	}
 
-	if err := ValidateTargetURL(url); err != nil {
+	template, err := requestTemplate(url, options)
+	if err != nil {
 		return nil, err
 	}
 	if concurrency > totalRequests {
@@ -139,7 +149,7 @@ func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurr
 				default:
 				}
 				// Execute one HTTP request and send the result.
-				myResults <- r.executeRequest(ctx, url)
+				myResults <- r.executeRequest(ctx, template)
 			}
 		}()
 	}
@@ -283,13 +293,78 @@ func ValidateTargetURL(target string) error {
 	return nil
 }
 
+// MaxRequestBodyBytes keeps start commands comfortably below gRPC's default
+// 4 MiB receive limit. The body is sent once to each worker, not once per request.
+const MaxRequestBodyBytes = 1 << 20
+
+// RequestOptions describes the request repeated by a load test.
+// Header names are case-insensitive; each name has one value.
+type RequestOptions struct {
+	Method  string
+	Body    []byte
+	Headers map[string]string
+}
+
+func ValidateRequestOptions(options RequestOptions) error {
+	if _, err := http.NewRequest(options.Method, "http://localhost", nil); err != nil {
+		return fmt.Errorf("invalid HTTP method: %w", err)
+	}
+	if len(options.Body) > MaxRequestBodyBytes {
+		return fmt.Errorf("request body exceeds %d bytes", MaxRequestBodyBytes)
+	}
+	seen := make(map[string]bool, len(options.Headers))
+	for name, value := range options.Headers {
+		if !httpguts.ValidHeaderFieldName(name) || !httpguts.ValidHeaderFieldValue(value) {
+			return fmt.Errorf("invalid HTTP header %q", name)
+		}
+		key := strings.ToLower(name)
+		if seen[key] {
+			return fmt.Errorf("duplicate HTTP header %q", name)
+		}
+		seen[key] = true
+		switch key {
+		case "content-length", "transfer-encoding", "trailer":
+			return fmt.Errorf("header %q is managed by the HTTP client", name)
+		}
+	}
+	return nil
+}
+
+func requestTemplate(target string, options RequestOptions) (*http.Request, error) {
+	if err := ValidateTargetURL(target); err != nil {
+		return nil, err
+	}
+	if err := ValidateRequestOptions(options); err != nil {
+		return nil, err
+	}
+	// Clone the bytes so callers cannot change a run by editing the input buffer.
+	req, err := http.NewRequest(options.Method, target, bytes.NewReader(bytes.Clone(options.Body)))
+	if err != nil {
+		return nil, err
+	}
+	for name, value := range options.Headers {
+		if strings.EqualFold(name, "Host") {
+			req.Host = value
+		} else {
+			req.Header.Set(name, value)
+		}
+	}
+	return req, nil
+}
+
 // executeRequest measures the complete response, including reading its body.
 // Draining the body also lets the transport reuse keep-alive connections.
-func (r *MyRunner) executeRequest(ctx context.Context, target string) MyResult {
+func (r *MyRunner) executeRequest(ctx context.Context, template *http.Request) MyResult {
 	start := time.Now()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
-	if err != nil {
-		return MyResult{MyErr: err, MyDuration: time.Since(start)}
+	req := template.Clone(ctx)
+	// Clone does not clone Body. GetBody gives each request its own reader and
+	// also allows the standard client to replay it across 307/308 redirects.
+	if template.GetBody != nil {
+		var err error
+		req.Body, err = template.GetBody()
+		if err != nil {
+			return MyResult{MyErr: err, MyDuration: time.Since(start)}
+		}
 	}
 	resp, err := r.MyClient.Do(req)
 	if err != nil {

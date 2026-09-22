@@ -124,3 +124,85 @@ func TestRunnerRejectsInvalidTargets(t *testing.T) {
 		}
 	}
 }
+
+func TestRequestBodySurvives307Redirect(t *testing.T) {
+	const body = `{"message":"hello"}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			http.Redirect(w, r, "/finish", http.StatusTemporaryRedirect)
+			return
+		}
+		data, err := io.ReadAll(r.Body)
+		if err != nil || r.Method != http.MethodPost || string(data) != body || r.ContentLength != int64(len(body)) {
+			t.Errorf("redirect changed request: method=%s body=%q length=%d err=%v", r.Method, data, r.ContentLength, err)
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer srv.Close()
+	runner := NewMyRunner()
+	defer runner.MyClient.CloseIdleConnections()
+	summary, err := runner.MyRunWithOptions(context.Background(), srv.URL+"/start", 12, 4, RequestOptions{
+		Method: http.MethodPost, Body: []byte(body),
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.MySuccess != 12 || summary.MyFailed != 0 {
+		t.Fatalf("redirect did not replay POST: %+v", summary)
+	}
+}
+
+func TestRequestOptionsAreSnapshottedForConcurrentRun(t *testing.T) {
+	const body = `{"message":"original"}`
+	started, release := make(chan struct{}), make(chan struct{})
+	var first atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if first.CompareAndSwap(false, true) {
+			close(started)
+		}
+		<-release
+		data, err := io.ReadAll(r.Body)
+		if err != nil || string(data) != body || r.Header.Get("X-Test") != "original" {
+			t.Errorf("request changed during run: body=%q header=%q err=%v", data, r.Header.Get("X-Test"), err)
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer srv.Close()
+	runner := NewMyRunner()
+	defer runner.MyClient.CloseIdleConnections()
+	options := RequestOptions{Method: http.MethodPost, Body: []byte(body), Headers: map[string]string{"X-Test": "original"}}
+	done := make(chan *MySummary, 1)
+	go func() {
+		summary, err := runner.MyRunWithOptions(context.Background(), srv.URL, 20, 4, options, nil)
+		if err != nil {
+			t.Error(err)
+		}
+		done <- summary
+	}()
+	<-started
+	for i := range options.Body {
+		options.Body[i] = 'x'
+	}
+	options.Headers["X-Test"] = "changed"
+	close(release)
+	summary := <-done
+	if summary == nil || summary.MySuccess != 20 || summary.MyFailed != 0 {
+		t.Fatalf("run did not keep original request: %+v", summary)
+	}
+}
+
+func TestValidateRequestOptions(t *testing.T) {
+	for _, options := range []RequestOptions{
+		{Method: "BAD METHOD"},
+		{Headers: map[string]string{"Bad Header": "value"}},
+		{Headers: map[string]string{"X-Test": "value\r\ninjected: true"}},
+		{Headers: map[string]string{"Content-Length": "1"}},
+		{Headers: map[string]string{"Transfer-Encoding": "chunked"}},
+		{Headers: map[string]string{"X-Test": "a", "x-test": "b"}},
+		{Body: make([]byte, MaxRequestBodyBytes+1)},
+	} {
+		if err := ValidateRequestOptions(options); err == nil {
+			t.Errorf("accepted invalid request: method=%q headers=%v bodyBytes=%d", options.Method, options.Headers, len(options.Body))
+		}
+	}
+}

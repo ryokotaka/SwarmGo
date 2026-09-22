@@ -45,6 +45,7 @@ import (
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/ryokotaka/SwarmGo/internal/master"
+	"github.com/ryokotaka/SwarmGo/internal/worker"
 	"github.com/ryokotaka/SwarmGo/proto"
 )
 
@@ -84,6 +85,7 @@ type model struct {
 	defaultTargetURL     string                 // target URL for load test when 's' is pressed (from -url at startup)
 	defaultTotalRequests int                    // total requests per run (from -n)
 	defaultConcurrency   int                    // concurrency (from -c)
+	requestOptions       worker.RequestOptions
 }
 
 // --- Bubble Tea Cmd ("send one message later") ---
@@ -110,7 +112,10 @@ func tickCmd() tea.Cmd {
 
 // --- Initial state ---
 // newModel creates the initial TUI model. Passed from main as tea.NewProgram(newModel(srv, uiChan, url, n, c), ...).
-func newModel(srv *master.Server, ch chan interface{}, targetURL string, totalRequests, concurrency int) model {
+func newModel(srv *master.Server, ch chan interface{}, targetURL string, totalRequests, concurrency int, options worker.RequestOptions) model {
+	if options.Method == "" {
+		options.Method = "GET"
+	}
 	return model{
 		server:               srv,
 		uiChan:               ch,
@@ -121,6 +126,7 @@ func newModel(srv *master.Server, ch chan interface{}, targetURL string, totalRe
 		defaultTargetURL:     targetURL,
 		defaultTotalRequests: totalRequests,
 		defaultConcurrency:   concurrency,
+		requestOptions:       options,
 	}
 }
 
@@ -171,6 +177,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				TargetUrl:     m.defaultTargetURL,
 				TotalRequests: int32(m.defaultTotalRequests),
 				Concurrency:   int32(m.defaultConcurrency),
+				Method:        m.requestOptions.Method,
+				Body:          m.requestOptions.Body,
+				Headers:       m.requestOptions.Headers,
 			}) {
 				m.rpsHistory = m.rpsHistory[:0]
 				m.refreshRunState()
@@ -297,8 +306,8 @@ func (m model) View() string {
 	}
 	logBox := boxStyle.Render(logContent)
 
-	footer := footerStyle.Render(fmt.Sprintf("Target: %s (n=%d, c=%d) | Press 's' to start, 'q' to quit",
-		m.defaultTargetURL, m.defaultTotalRequests, m.defaultConcurrency))
+	footer := footerStyle.Render(fmt.Sprintf("Target: %s %s (n=%d, c=%d) | Press 's' to start, 'q' to quit",
+		m.requestOptions.Method, m.defaultTargetURL, m.defaultTotalRequests, m.defaultConcurrency))
 
 	// Return the full screen as one string; Bubble Tea outputs it to the terminal
 	return header + "\n" + mainBox + "\n" + logBox + "\n" + footer

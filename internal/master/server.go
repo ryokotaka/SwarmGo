@@ -5,7 +5,9 @@ import (
 	"io"
 	"log"
 	"net"
+	"sort"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
@@ -53,6 +55,9 @@ type Server struct {
 	workers          map[string]proto.SwarmService_ConnectServer
 	stats            map[string]StatsUpdate
 	activeWorkers    map[string]bool
+	runWorkers       map[string]WorkerRunState
+	startedAt        time.Time
+	finishedAt       time.Time
 	expectedRequests int
 	broadcastMu      sync.Mutex
 	uiChan           chan interface{}
@@ -68,6 +73,7 @@ func NewServer() *Server {
 		workers:       make(map[string]proto.SwarmService_ConnectServer),
 		stats:         make(map[string]StatsUpdate),
 		activeWorkers: make(map[string]bool),
+		runWorkers:    make(map[string]WorkerRunState),
 		errorReasons:  make(map[string]int),
 	}
 }
@@ -158,6 +164,10 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 
 	// 2. Register in workers
 	s.mu.Lock()
+	if workerID == "" || s.workers[workerID] != nil {
+		s.mu.Unlock()
+		return fmt.Errorf("worker ID must be nonempty and unique")
+	}
 	s.workers[workerID] = stream
 	s.mu.Unlock()
 	s.sendToUI(WorkerListChanged{})
@@ -166,7 +176,7 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 	defer func() {
 		s.mu.Lock()
 		delete(s.workers, workerID)
-		delete(s.activeWorkers, workerID)
+		s.finishWorkerLocked(workerID, true, 0)
 		s.mu.Unlock()
 		s.logOrSendToUI("Worker disconnected: %s", workerID)
 		s.sendToUI(WorkerListChanged{})
@@ -185,7 +195,9 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 		switch m := msg.Msg.(type) {
 		case *proto.WorkerMsg_Stats:
 			stats := m.Stats
-			s.MergeErrorReasons(stats.ErrorReasons)
+			if stats == nil {
+				continue
+			}
 			update := StatsUpdate{
 				WorkerID:     workerID,
 				SuccessCount: stats.SuccessCount,
@@ -196,12 +208,30 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 				LatencyP99Ms: stats.LatencyP99Ms,
 			}
 			s.mu.Lock()
+			if !s.activeWorkers[workerID] {
+				s.mu.Unlock()
+				continue
+			}
 			s.stats[workerID] = update
+			if len(stats.ErrorReasons) > 0 {
+				state := s.runWorkers[workerID]
+				state.ErrorReasons = make(map[string]int)
+				for _, reason := range stats.ErrorReasons {
+					if reason != nil && reason.Message != "" && reason.Count > 0 {
+						state.ErrorReasons[reason.Message] += int(reason.Count)
+					}
+				}
+				s.runWorkers[workerID] = state
+				s.rebuildErrorReasonsLocked()
+			}
 			s.mu.Unlock()
 			s.sendToUI(update)
 		case *proto.WorkerMsg_Finish:
+			if m.Finish == nil {
+				continue
+			}
 			s.mu.Lock()
-			delete(s.activeWorkers, workerID)
+			s.finishWorkerLocked(workerID, false, m.Finish.TotalDurationMs)
 			s.mu.Unlock()
 			s.logOrSendToUI("Worker %s finished task.", workerID)
 			s.sendToUI(WorkerFinished{WorkerID: workerID})
@@ -217,11 +247,23 @@ type WorkerInfo struct {
 	Addr string
 }
 
+// WorkerRunState distinguishes a final report from a lost participant.
+// Disconnected means the worker left before FINISH, not its connection after a run.
+type WorkerRunState struct {
+	Finished     bool
+	Disconnected bool
+	DurationMs   int32
+	ErrorReasons map[string]int
+}
+
 // RunSnapshot is authoritative even when a nonblocking UI notification is dropped.
 type RunSnapshot struct {
 	Stats            map[string]StatsUpdate
+	Workers          map[string]WorkerRunState
 	ExpectedRequests int
 	Running          bool
+	StartedAt        time.Time
+	FinishedAt       time.Time
 }
 
 func (s *Server) SnapshotRun() RunSnapshot {
@@ -229,34 +271,97 @@ func (s *Server) SnapshotRun() RunSnapshot {
 	defer s.mu.Unlock()
 	snapshot := RunSnapshot{
 		Stats:            make(map[string]StatsUpdate, len(s.stats)),
+		Workers:          make(map[string]WorkerRunState, len(s.runWorkers)),
 		ExpectedRequests: s.expectedRequests,
 		Running:          len(s.activeWorkers) > 0,
+		StartedAt:        s.startedAt,
+		FinishedAt:       s.finishedAt,
 	}
 	for id, stats := range s.stats {
 		snapshot.Stats[id] = stats
 	}
+	for id, state := range s.runWorkers {
+		errors := make(map[string]int, len(state.ErrorReasons))
+		for reason, count := range state.ErrorReasons {
+			errors[reason] = count
+		}
+		state.ErrorReasons = errors
+		snapshot.Workers[id] = state
+	}
 	return snapshot
 }
 
-// StartRun captures one worker set for both the command and expected request count.
-// A second START is ignored until all participants finish or disconnect.
+// StartRun captures all current workers for one run. The TUI uses this variant.
 func (s *Server) StartRun(start *proto.StartCmd) bool {
+	return s.startRun(start, 0)
+}
+
+// StartRunWithWorkers starts exactly count participants, only when that many are
+// connected. Selection and the readiness check share the registry lock, so a
+// worker arriving or leaving cannot silently change the planned request count.
+func (s *Server) StartRunWithWorkers(start *proto.StartCmd, count int) bool {
+	if count <= 0 {
+		return false
+	}
+	return s.startRun(start, count)
+}
+
+func (s *Server) startRun(start *proto.StartCmd, count int) bool {
 	s.mu.Lock()
-	if len(s.activeWorkers) > 0 || len(s.workers) == 0 {
+	if start == nil || len(s.activeWorkers) > 0 || len(s.workers) == 0 || len(s.workers) < count {
 		s.mu.Unlock()
 		return false
 	}
-	snapshot := make(map[string]proto.SwarmService_ConnectServer, len(s.workers))
+	ids := make([]string, 0, len(s.workers))
+	for id := range s.workers {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	if count > 0 {
+		ids = ids[:count]
+	}
+	snapshot := make(map[string]proto.SwarmService_ConnectServer, len(ids))
 	s.stats = make(map[string]StatsUpdate)
-	for id, stream := range s.workers {
-		snapshot[id] = stream
+	s.runWorkers = make(map[string]WorkerRunState, len(ids))
+	for _, id := range ids {
+		snapshot[id] = s.workers[id]
 		s.activeWorkers[id] = true
+		s.runWorkers[id] = WorkerRunState{ErrorReasons: make(map[string]int)}
 	}
 	s.expectedRequests = int(start.TotalRequests) * len(snapshot)
+	s.startedAt, s.finishedAt = time.Now(), time.Time{}
 	s.ResetErrorReasons()
 	s.mu.Unlock()
 	s.broadcast(snapshot, &proto.MasterCmd{Cmd: &proto.MasterCmd_Start{Start: start}})
 	return true
+}
+
+// finishWorkerLocked is called with mu held. A disconnection after a valid
+// FINISH must not turn an already completed participant into a failed one.
+func (s *Server) finishWorkerLocked(id string, disconnected bool, durationMs int32) {
+	if !s.activeWorkers[id] {
+		return
+	}
+	state := s.runWorkers[id]
+	state.Finished = !disconnected
+	state.Disconnected = disconnected
+	state.DurationMs = durationMs
+	s.runWorkers[id] = state
+	delete(s.activeWorkers, id)
+	if len(s.activeWorkers) == 0 {
+		s.finishedAt = time.Now()
+	}
+}
+
+func (s *Server) rebuildErrorReasonsLocked() {
+	s.errorReasonsMu.Lock()
+	defer s.errorReasonsMu.Unlock()
+	s.errorReasons = make(map[string]int)
+	for _, state := range s.runWorkers {
+		for reason, count := range state.ErrorReasons {
+			s.errorReasons[reason] += count
+		}
+	}
 }
 
 // BroadcastCommand sends commands outside the worker-registry lock.
@@ -281,7 +386,7 @@ func (s *Server) broadcast(snapshot map[string]proto.SwarmService_ConnectServer,
 	for id, stream := range snapshot {
 		if err := stream.Send(cmd); err != nil {
 			s.mu.Lock()
-			delete(s.activeWorkers, id)
+			s.finishWorkerLocked(id, true, 0)
 			s.mu.Unlock()
 			s.logOrSendToUI("Failed to send command to %s: %v", id, err)
 		}
