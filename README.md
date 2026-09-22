@@ -118,6 +118,8 @@ Start workers as above, then press **s**. Use an endpoint that handles POST; Pyt
 
 Use the same build for the controller and workers. Older workers ignore the new method/body/header fields and send GET requests. Updated workers still accept GET commands from older controllers.
 
+For a complete JSON API example, try the [Thermal Guardian demo](https://github.com/ryokotaka/swarmgo-thermal-demo): one command runs three workers through a temperature-aware chat router and checks the saved results.
+
 ## How it works
 
 I built this project to understand Go concurrency and gRPC streaming by making the coordination visible: one controller, several request-sending workers, and a live view of the run.
