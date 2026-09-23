@@ -1,38 +1,40 @@
 # SwarmGo
 
-**Nearly 200,000 POSTs a second, sustained for five minutes.**
+**Over half a million POSTs a second.**
 
 A Go HTTP load tester with a terminal dashboard and a scriptable CLI. Send requests from multiple workers, watch errors as they happen, and save the results as JSON.
 
-[Try it locally](#try-it-locally) · [Measured results](benchmarks/arrival/recorded-endurance/) · [Overload checks](#check-ordinary-traffic-during-overload) · [日本語](README_ja.md)
+[Try it locally](#try-it-locally) · [Measured results](benchmarks/throughput/) · [Overload checks](#check-ordinary-traffic-during-overload) · [日本語](README_ja.md)
 
-![Target-observed RPS against duration: both tools deliver about 198k/s; SwarmGo finishes the schedule while oha stops](assets/endurance-xy.svg)
+![Uncapped POST rate over one minute: wrk, SwarmGo, oha and k6](assets/throughput.svg)
 
-SwarmGo finished the load window with **59.7 million successful POSTs** and **89.7 MiB peak memory**. In the same test, oha v1.16.0 reached the 6 GiB generator limit and stopped after 169 seconds.
-
-*Higher and farther right means more load, for longer. Rates use the same target-side measurement for both tools. [Data and reproduction](benchmarks/arrival/recorded-endurance/)*
+In this one-minute local comparison, SwarmGo delivered **518k POSTs/s**: **4.3× k6**. wrk reached 575k/s and oha reached 415k/s. All four ran without a request-rate cap.
 
 <details>
-<summary>Watch the recorded run</summary>
+<summary>Test conditions and raw data</summary>
 
-![Recorded POST rate: SwarmGo maintains the load until the scheduled end; oha stops at the memory limit](assets/endurance.gif)
+Apple M4, local Docker, HTTP/1.1, 1 KiB requests and responses. Each generator had 6 GiB of memory and no CPU quota. Each tool used its fastest observed connection setting from a short 64/256/1,024-connection sweep. One 60-second observation per tool, after five seconds of warmup; the target and generators shared the machine.
 
-*Recorded samples replayed at 25× speed. The final sampling interval includes stopping the load. [Request counts and memory](assets/endurance.svg).*
+The figure uses target-validated POST counts in roughly five-second intervals. SwarmGo's later deadline stop and partial report are retained separately. These are observed rates for this workload; wrk was faster.
+
+[Commands, settings and complete reports](benchmarks/throughput/)
 
 </details>
 
 <details>
-<summary>Test conditions</summary>
+<summary>Five-minute trial at 200k POSTs/s</summary>
 
-One local run per tool on Apple M4 in Docker. HTTP/1.1; 1 KiB request and response bodies; no target delay. Both generators had 6 GiB of memory, with no CPU quota. oha used quiet mode.
+At a fixed requested rate of 200,000/s, SwarmGo completed **59.7 million successful POSTs** over five minutes with **89.7 MiB peak memory**. oha v1.16.0 reached the same 6 GiB generator limit and stopped after 169 seconds.
 
-SwarmGo delivered 99.52% of the requested schedule: zero HTTP failures, 0.48% missed starts. Its original report keeps those missed starts and the strict `inconclusive` verdict. This comparison measures the ability to keep this workload running, not a maximum speed for every API.
+![Recorded rate over the five-minute trial](assets/endurance.gif)
 
-[Full conditions and raw reports](benchmarks/arrival/recorded-endurance/)
+SwarmGo had zero HTTP failures and 0.48% missed starts; its native verdict remains inconclusive. This is a separate workload and target, one trial per tool. The animation replays recorded samples at 25×; its last interval includes stopping the load. Five minutes is the tested duration, not the endurance limit.
+
+[RPS/duration points](assets/endurance-xy.svg) · [Data and reproduction](benchmarks/arrival/recorded-endurance/)
 
 </details>
 
-A separate 20,000-concurrency comparison recorded **1.61× k6 v2.3.0's median throughput**, with both tools completing all five runs without failures. [k6 results](benchmarks/capacity/)
+More results: [20,000 concurrent requests against k6](benchmarks/capacity/).
 
 <details>
 <summary>See the three-worker dashboard</summary>

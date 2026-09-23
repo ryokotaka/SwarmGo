@@ -1,38 +1,40 @@
 # SwarmGo
 
-**1台のPCから、毎秒約20万件のPOSTを5分間。**
+**1台のPCから、毎秒50万件を超えるPOSTを。**
 
 Go製のHTTP負荷試験ツールです。複数のワーカーからリクエストを送り、進捗とエラーをターミナルで確認できます。スクリプトから実行し、結果をJSONに保存することもできます。
 
-[まず動かす](#まず動かす) · [実測結果](benchmarks/arrival/recorded-endurance/) · [高負荷時の確認](#大量アクセス時の応答と回復を調べる) · [English](README.md)
+[まず動かす](#まず動かす) · [実測結果](benchmarks/throughput/) · [高負荷時の確認](#大量アクセス時の応答と回復を調べる) · [English](README.md)
 
-![横軸は継続時間、縦軸は実測RPS。両者とも約19.8万RPSで、SwarmGoは5分を完了、ohaは途中で停止](assets/endurance-xy.svg)
+![送信レートの制限なしで測った、wrk・SwarmGo・oha・k6の1分間のRPS推移](assets/throughput.svg)
 
-SwarmGoは5分間で**約5,971万件のPOSTを正常完了**し、最大メモリは**89.7 MiB**でした。同じ試験のoha v1.16.0は、生成側の6 GiB上限に達して約169秒で停止しました。
-
-*右上ほど、大きな負荷を長く維持できます。両者とも対象サーバー側の同じ集計方法で描いています。[データと再現手順](benchmarks/arrival/recorded-endurance/)*
+この1分間の比較では、SwarmGoは**平均51.8万RPS、k6の約4.3倍**でした。wrkは57.5万、ohaは41.5万RPS。4ツールとも送信レートの制限を外して測っています。
 
 <details>
-<summary>負荷が続く様子を見る</summary>
+<summary>測定条件と生データを見る</summary>
 
-![実測RPSの推移。SwarmGoは予定の終了まで負荷を維持し、ohaはメモリ上限で停止](assets/endurance.gif)
+Apple M4のローカルDocker上で、HTTP/1.1・要求と応答とも1 KiB。生成側は各6 GiB、CPU制限なし。64・256・1,024接続を短時間ずつ試し、各ツールで最も速かった設定を採用。5秒の準備運転後、60秒間を各1回観測しました。生成側と対象は同じマシンを共有しています。
 
-*実測ログを25倍速で再生。最後の集計区間には負荷の停止を含みます。[件数とメモリの推移](assets/endurance.svg)。*
+図は対象サーバーで検証したPOST件数を、約5秒ごとに集計したものです。SwarmGoを後から締切で止めた際の部分レポートも保存しています。この条件での実測値で、wrkにはまだ届いていません。
+
+[コマンド・設定・全レポート](benchmarks/throughput/)
 
 </details>
 
 <details>
-<summary>測定条件を見る</summary>
+<summary>毎秒20万件を指定した5分間の試験</summary>
 
-Apple M4のDocker上で各1回測定。HTTP/1.1、要求・応答とも1 KiB、対象に追加の待ち時間なし。生成側は両者とも6 GiB、CPU制限なし。ohaは表示を省くquietモードです。
+SwarmGoは5分間で**約5,971万件のPOSTを正常完了**し、最大メモリは**89.7 MiB**でした。oha v1.16.0は、同じ生成側6 GiB上限に達して約169秒で停止しました。
 
-SwarmGoは予定件数の99.52%を送信し、HTTP失敗はゼロ、未送信は0.48%でした。元のレポートにも未送信と厳密な判定のinconclusiveを残しています。この規模の試験を継続できるかの比較で、あらゆるAPIでの最高速度を示すものではありません。
+![5分間の試験で記録したRPSの推移](assets/endurance.gif)
 
-[全条件と生データ](benchmarks/arrival/recorded-endurance/)
+SwarmGoのHTTP失敗はゼロ、未送信は0.48%。元の厳密な判定はinconclusiveのまま残しています。上の無制限比較とは対象と条件が異なる、各1回の実測です。動画は記録した推移を25倍速で再生し、最後の集計区間には負荷の停止を含みます。5分は今回試した時間です。
+
+[RPSと継続時間の点図](assets/endurance-xy.svg) · [データと再現手順](benchmarks/arrival/recorded-endurance/)
 
 </details>
 
-別の同時2万件の比較では、5回の中央値で**k6 v2.3.0の1.61倍の送信量**でした。両者とも全5回、失敗ゼロで完了しています。[k6との比較](benchmarks/capacity/)
+ほかの実測：[同時2万件でのk6との比較](benchmarks/capacity/)。
 
 <details>
 <summary>3ワーカーで動かした画面を見る</summary>
