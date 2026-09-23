@@ -1,0 +1,652 @@
+{
+  "manifest": {
+    "swarmgo_commit": "413400f7294a9a55277783440149cab037a3fceb",
+    "generator_cpus": "0-1",
+    "generator_cpu_quota": 2,
+    "generator_memory_bytes": 2147483648,
+    "target_cpus": "2-5",
+    "target_cpu_quota": 4,
+    "target_memory_bytes": 2147483648,
+    "image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "requests": 1000000,
+    "repeats": 5,
+    "workloads": [
+      {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      }
+    ],
+    "k6_version": "2.3.0",
+    "swarmgo_binary": "swarmgo-improved",
+    "go_build_info": {
+      "swarmgo": "swarmgo: go1.25.7\n\tpath\tgithub.com/ryokotaka/SwarmGo/cmd/swarmgo\n\tmod\tgithub.com/ryokotaka/SwarmGo\tv0.1.1-0.20260923075041-413400f7294a\t\n\tdep\tgithub.com/aymanbagabas/go-osc52/v2\tv2.0.1\th1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=\n\tdep\tgithub.com/charmbracelet/bubbletea\tv1.3.10\th1:otUDHWMMzQSB0Pkc87rm691KZ3SWa4KUlvF9nRvCICw=\n\tdep\tgithub.com/charmbracelet/colorprofile\tv0.2.3-0.20250311203215-f60798e515dc\th1:4pZI35227imm7yK2bGPcfpFEmuY1gc2YSTShr4iJBfs=\n\tdep\tgithub.com/charmbracelet/lipgloss\tv1.1.0\th1:vYXsiLHVkK7fp74RkV7b2kq9+zDLoEU4MZoFqR/noCY=\n\tdep\tgithub.com/charmbracelet/x/ansi\tv0.10.1\th1:rL3Koar5XvX0pHGfovN03f5cxLbCF2YvLeyz7D2jVDQ=\n\tdep\tgithub.com/charmbracelet/x/cellbuf\tv0.0.13-0.20250311204145-2c3ea96c31dd\th1:vy0GVL4jeHEwG5YOXDmi86oYw2yuYUGqz6a8sLwg0X8=\n\tdep\tgithub.com/charmbracelet/x/term\tv0.2.1\th1:AQeHeLZ1OqSXhrAWpYUtZyX1T3zVxfpZuEQMIQaGIAQ=\n\tdep\tgithub.com/lucasb-eyer/go-colorful\tv1.2.0\th1:1nnpGOrhyZZuNyfu1QjKiUICQ74+3FNCN69Aj6K7nkY=\n\tdep\tgithub.com/mattn/go-isatty\tv0.0.20\th1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=\n\tdep\tgithub.com/mattn/go-runewidth\tv0.0.16\th1:E5ScNMtiwvlvB5paMFdw9p4kSQzbXFikJ5SQO6TULQc=\n\tdep\tgithub.com/muesli/ansi\tv0.0.0-20230316100256-276c6243b2f6\th1:ZK8zHtRHOkbHy6Mmr5D264iyp3TiX5OmNcI5cIARiQI=\n\tdep\tgithub.com/muesli/cancelreader\tv0.2.2\th1:3I4Kt4BQjOR54NavqnDogx/MIoWBFa0StPA8ELUXHmA=\n\tdep\tgithub.com/muesli/termenv\tv0.16.0\th1:S5AlUN9dENB57rsbnkPyfdGuWIlkmzJjbFf0Tf5FWUc=\n\tdep\tgithub.com/rivo/uniseg\tv0.4.7\th1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=\n\tdep\tgithub.com/xo/terminfo\tv0.0.0-20220910002029-abceb7e1c41e\th1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=\n\tdep\tgolang.org/x/net\tv0.48.0\th1:zyQRTTrjc33Lhh0fBgT/H3oZq9WuvRR5gPC70xpDiQU=\n\tdep\tgolang.org/x/sys\tv0.39.0\th1:CvCKL8MeisomCi6qNZ+wbb0DN9E5AATixKsvNtMoMFk=\n\tdep\tgolang.org/x/text\tv0.32.0\th1:ZD01bjUt1FQ9WJ0ClOL5vxgxOI/sVCNgX1YtKwcY0mU=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20251202230838-ff82c1b0f217\th1:gRkg/vSppuSQoDjxyiGfN4Upv/h/DQmIR10ZU8dh4Ww=\n\tdep\tgoogle.golang.org/grpc\tv1.79.1\th1:zGhSi45ODB9/p3VAawt9a+O/MULLl9dpizzNNpq7flY=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.11\th1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=413400f7294a9a55277783440149cab037a3fceb\n\tbuild\tvcs.time=2026-09-23T07:50:41Z\n\tbuild\tvcs.modified=false\n",
+      "k6": "k6: go1.26.8\n\tpath\tgo.k6.io/k6/v2\n\tmod\tgo.k6.io/k6/v2\tv2.3.0\t\n\tdep\tbuf.build/gen/go/gogo/protobuf/protocolbuffers/go\tv1.36.11-20240617172848-e1dbca2775a7.1\t\n\tdep\tbuf.build/gen/go/prometheus/prometheus/protocolbuffers/go\tv1.36.11-20260707164124-2360da55afce.1\t\n\tdep\tgithub.com/Azure/go-ntlmssp\tv0.1.1\t\n\tdep\tgithub.com/Masterminds/semver/v3\tv3.5.0\t\n\tdep\tgithub.com/PuerkitoBio/goquery\tv1.12.0\t\n\tdep\tgithub.com/Soontao/goHttpDigestClient\tv0.0.0-20170320082612-6d28bb1415c5\t\n\tdep\tgithub.com/andybalholm/brotli\tv1.2.3\t\n\tdep\tgithub.com/andybalholm/cascadia\tv1.3.3\t\n\tdep\tgithub.com/beorn7/perks\tv1.0.1\t\n\tdep\tgithub.com/bufbuild/protocompile\tv0.14.1\t\n\tdep\tgithub.com/cenkalti/backoff/v5\tv5.0.3\t\n\tdep\tgithub.com/cespare/xxhash/v2\tv2.3.0\t\n\tdep\tgithub.com/chromedp/cdproto\tv0.0.0-20250803210736-d308e07a266d\t\n\tdep\tgithub.com/chromedp/sysutil\tv1.1.0\t\n\tdep\tgithub.com/dlclark/regexp2/v2\tv2.7.2\t\n\tdep\tgithub.com/evanw/esbuild\tv0.28.2\t\n\tdep\tgithub.com/fatih/color\tv1.19.0\t\n\tdep\tgithub.com/go-json-experiment/json\tv0.0.0-20250211171154-1ae217ad3535\t\n\tdep\tgithub.com/go-logr/logr\tv1.4.4\t\n\tdep\tgithub.com/go-logr/stdr\tv1.2.2\t\n\tdep\tgithub.com/go-sourcemap/sourcemap\tv2.1.4+incompatible\t\n\tdep\tgithub.com/golang/protobuf\tv1.5.4\t\n\tdep\tgithub.com/google/pprof\tv0.0.0-20260115054156-294ebfa9ad83\t\n\tdep\tgithub.com/google/uuid\tv1.6.0\t\n\tdep\tgithub.com/gorilla/websocket\tv1.5.3\t\n\tdep\tgithub.com/grafana/k6-cloud-openapi-client-go\tv0.0.3-0.20260716125012-97c96146fa7c\t\n\tdep\tgithub.com/grafana/k6provider\tv0.5.0\t\n\tdep\tgithub.com/grafana/sobek\tv0.0.0-20260908083152-4698bc773ae7\t\n\tdep\tgithub.com/grafana/sobek-webapi-encoding\tv0.1.0\t\n\tdep\tgithub.com/grafana/xk6-dashboard-assets\tv0.1.2\t\n\tdep\tgithub.com/grpc-ecosystem/go-grpc-middleware\tv1.4.0\t\n\tdep\tgithub.com/grpc-ecosystem/grpc-gateway/v2\tv2.30.0\t\n\tdep\tgithub.com/influxdata/influxdb1-client\tv0.0.0-20190402204710-8ff2fc3824fc\t\n\tdep\tgithub.com/jhump/protoreflect\tv1.18.0\t\n\tdep\tgithub.com/jhump/protoreflect/v2\tv2.0.0-beta.1\t\n\tdep\tgithub.com/klauspost/compress\tv1.20.0\t\n\tdep\tgithub.com/mattn/go-colorable\tv0.1.15\t\n\tdep\tgithub.com/mattn/go-isatty\tv0.0.24\t\n\tdep\tgithub.com/mstoykov/atlas\tv0.0.0-20220811071828-388f114305dd\t\n\tdep\tgithub.com/mstoykov/envconfig\tv1.5.0\t\n\tdep\tgithub.com/munnerz/goautoneg\tv0.0.0-20191010083416-a7dc8b61c822\t\n\tdep\tgithub.com/nu7hatch/gouuid\tv0.0.0-20131221200532-179d4d0c4d8d\t\n\tdep\tgithub.com/pkg/browser\tv0.0.0-20240102092130-5ac0b6a4141c\t\n\tdep\tgithub.com/prometheus/client_golang\tv1.24.1\t\n\tdep\tgithub.com/prometheus/client_model\tv0.6.2\t\n\tdep\tgithub.com/prometheus/common\tv0.70.1\t\n\tdep\tgithub.com/prometheus/procfs\tv0.21.1\t\n\tdep\tgithub.com/r3labs/sse/v2\tv2.10.0\t\n\tdep\tgithub.com/serenize/snaker\tv0.0.0-20201027110005-a7ad2135616e\t\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\t\n\tdep\tgithub.com/spf13/afero\tv1.1.2\t\n\tdep\tgithub.com/spf13/cobra\tv1.4.0\t\n\tdep\tgithub.com/spf13/pflag\tv1.0.5\t\n\tdep\tgithub.com/tidwall/gjson\tv1.19.0\t\n\tdep\tgithub.com/tidwall/match\tv1.1.1\t\n\tdep\tgithub.com/tidwall/pretty\tv1.2.1\t\n\tdep\tgo.opentelemetry.io/auto/sdk\tv1.2.1\t\n\tdep\tgo.opentelemetry.io/otel\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlptrace\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/metric\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/sdk\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/sdk/metric\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/trace\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/proto/otlp\tv1.11.0\t\n\tdep\tgolang.org/x/crypto\tv0.56.0\t\n\tdep\tgolang.org/x/crypto/x509roots/fallback\tv0.0.0-20260811175631-f44d03d253a1\t\n\tdep\tgolang.org/x/net\tv0.58.0\t\n\tdep\tgolang.org/x/sync\tv0.22.0\t\n\tdep\tgolang.org/x/sys\tv0.47.0\t\n\tdep\tgolang.org/x/term\tv0.45.0\t\n\tdep\tgolang.org/x/text\tv0.41.0\t\n\tdep\tgolang.org/x/time\tv0.15.0\t\n\tdep\tgoogle.golang.org/genproto/googleapis/api\tv0.0.0-20260819154853-08b0e4226688\t\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260819154853-08b0e4226688\t\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\t\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\t\n\tdep\tgopkg.in/cenkalti/backoff.v1\tv1.1.0\t\n\tdep\tgopkg.in/guregu/null.v3\tv3.3.0\t\n\tdep\tgopkg.in/validator.v2\tv2.0.1\t\n\tdep\tgopkg.in/yaml.v3\tv3.0.1\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=e0887846143ab176d4b5483c9d52cf3b3e009f1a\n\tbuild\tvcs.time=2026-09-21T15:05:52Z\n\tbuild\tvcs.modified=false\n",
+      "target": "target: go1.25.7\n\tpath\tcommand-line-arguments\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "host_cpu": "Apple M4",
+    "docker": {
+      "KernelVersion": "6.12.67-linuxkit",
+      "OperatingSystem": "Docker Desktop",
+      "Architecture": "aarch64",
+      "NCPU": 10,
+      "MemTotal": 8217317376,
+      "ServerVersion": "29.2.0"
+    },
+    "binary_sha256": {
+      "swarmgo-improved": "b157124919e1875c9512ed2983d6fe07656e8659332c47d3d0be46fe5655b70e",
+      "target": "ad5f4d2b9e778481aead9c10b97ca6c329aae903ba0137d83b6f034c0a07f4b7",
+      "k6": "c458464bcc5e9f6e4ae9b6985286ff337cfb139a64dfe2c731a1f5d551cd601f"
+    },
+    "measurement_date": "2026-09-23",
+    "notes": [
+      "SwarmGo controller and one worker share the generator cgroup.",
+      "The target runs on four separate CPU cores in the same Docker VM.",
+      "No warm-up; alternating tool order; closed-loop HTTP/1.1, no TLS or compression.",
+      "Server RPS is completed handlers / time from the first handler start to the last response write.",
+      "memory.peak is cgroup memory, including both SwarmGo processes; it is not process RSS."
+    ]
+  },
+  "results": [
+    {
+      "tool": "swarmgo",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 1,
+      "process_seconds": 21.600769500000002,
+      "exit_code": 0,
+      "generator": {
+        "memory_peak_bytes": 634941440,
+        "usage_usec": 23475063,
+        "user_usec": 15845016,
+        "system_usec": 7630046,
+        "nice_usec": 0,
+        "nr_periods": 219,
+        "nr_throttled": 2,
+        "throttled_usec": 6521,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 24818367,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 1024000000,
+        "elapsed_seconds": 21.305395635,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 1000000,
+        "tcp_connections": 10046
+      },
+      "server_rps": 46936.46704017191,
+      "summary": {
+        "schema_version": 1,
+        "status": "completed",
+        "success": true,
+        "complete": true,
+        "target_url": "http://swarmgo-perf-81390-target:8080/work?delay_ms=200",
+        "method": "POST",
+        "expected_workers": 1,
+        "requests_per_worker": 1000000,
+        "concurrency_per_worker": 10000,
+        "started_at": "2026-09-23T07:54:40.809477001Z",
+        "finished_at": "2026-09-23T07:55:02.228709637Z",
+        "elapsed_seconds": 21.419232677,
+        "controller_rps": 46687.013259527324,
+        "requests": {
+          "expected": 1000000,
+          "completed": 1000000,
+          "succeeded": 1000000,
+          "failed": 0
+        },
+        "workers": [
+          {
+            "id": "worker-1790150080797856751-608",
+            "state": "finished",
+            "requests": {
+              "expected": 1000000,
+              "completed": 1000000,
+              "succeeded": 1000000,
+              "failed": 0
+            },
+            "duration_ms": 21329,
+            "latency_ms": {
+              "p50": 201,
+              "p90": 232,
+              "p99": 353
+            },
+            "error_reasons": {}
+          }
+        ],
+        "error_reasons": {}
+      }
+    },
+    {
+      "tool": "k6",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 1,
+      "process_seconds": 2.235941375000003,
+      "exit_code": 137,
+      "generator": {
+        "memory_peak_bytes": 2147782656,
+        "usage_usec": 3334205,
+        "user_usec": 2776278,
+        "system_usec": 557927,
+        "nice_usec": 0,
+        "nr_periods": 24,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 1408,
+        "oom": 2,
+        "oom_kill": 1,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 1210965,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 38082560,
+        "elapsed_seconds": 1.039320542,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 37190,
+        "tcp_connections": 10001
+      }
+    },
+    {
+      "tool": "k6",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 2,
+      "process_seconds": 2.5359473749999992,
+      "exit_code": 137,
+      "generator": {
+        "memory_peak_bytes": 2147647488,
+        "usage_usec": 3948057,
+        "user_usec": 3352666,
+        "system_usec": 595390,
+        "nice_usec": 0,
+        "nr_periods": 27,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 1961,
+        "oom": 2,
+        "oom_kill": 1,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 1236322,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 37286912,
+        "elapsed_seconds": 1.413790167,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 36413,
+        "tcp_connections": 10001
+      }
+    },
+    {
+      "tool": "swarmgo",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 2,
+      "process_seconds": 21.476662541000003,
+      "exit_code": 0,
+      "generator": {
+        "memory_peak_bytes": 702087168,
+        "usage_usec": 23437124,
+        "user_usec": 15766871,
+        "system_usec": 7670252,
+        "nice_usec": 0,
+        "nr_periods": 217,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 25233830,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 1024000000,
+        "elapsed_seconds": 21.108357468,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 1000000,
+        "tcp_connections": 10521
+      },
+      "server_rps": 47374.60039304276,
+      "summary": {
+        "schema_version": 1,
+        "status": "completed",
+        "success": true,
+        "complete": true,
+        "target_url": "http://swarmgo-perf-81390-target:8080/work?delay_ms=200",
+        "method": "POST",
+        "expected_workers": 1,
+        "requests_per_worker": 1000000,
+        "concurrency_per_worker": 10000,
+        "started_at": "2026-09-23T07:55:09.168987626Z",
+        "finished_at": "2026-09-23T07:55:30.484811427Z",
+        "elapsed_seconds": 21.315823843,
+        "controller_rps": 46913.50460415793,
+        "requests": {
+          "expected": 1000000,
+          "completed": 1000000,
+          "succeeded": 1000000,
+          "failed": 0
+        },
+        "workers": [
+          {
+            "id": "worker-1790150109166834167-527",
+            "state": "finished",
+            "requests": {
+              "expected": 1000000,
+              "completed": 1000000,
+              "succeeded": 1000000,
+              "failed": 0
+            },
+            "duration_ms": 21225,
+            "latency_ms": {
+              "p50": 201,
+              "p90": 229,
+              "p99": 319
+            },
+            "error_reasons": {}
+          }
+        ],
+        "error_reasons": {}
+      }
+    },
+    {
+      "tool": "swarmgo",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 3,
+      "process_seconds": 21.478882583,
+      "exit_code": 0,
+      "generator": {
+        "memory_peak_bytes": 634388480,
+        "usage_usec": 23283605,
+        "user_usec": 15567243,
+        "system_usec": 7716362,
+        "nice_usec": 0,
+        "nr_periods": 217,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 25264129,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 1024000000,
+        "elapsed_seconds": 21.159481579,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 1000000,
+        "tcp_connections": 10200
+      },
+      "server_rps": 47260.137081641114,
+      "summary": {
+        "schema_version": 1,
+        "status": "completed",
+        "success": true,
+        "complete": true,
+        "target_url": "http://swarmgo-perf-81390-target:8080/work?delay_ms=200",
+        "method": "POST",
+        "expected_workers": 1,
+        "requests_per_worker": 1000000,
+        "concurrency_per_worker": 10000,
+        "started_at": "2026-09-23T07:55:31.335233969Z",
+        "finished_at": "2026-09-23T07:55:52.600965549Z",
+        "elapsed_seconds": 21.265639719,
+        "controller_rps": 47024.21432949134,
+        "requests": {
+          "expected": 1000000,
+          "completed": 1000000,
+          "succeeded": 1000000,
+          "failed": 0
+        },
+        "workers": [
+          {
+            "id": "worker-1790150131334852261-582",
+            "state": "finished",
+            "requests": {
+              "expected": 1000000,
+              "completed": 1000000,
+              "succeeded": 1000000,
+              "failed": 0
+            },
+            "duration_ms": 21175,
+            "latency_ms": {
+              "p50": 201,
+              "p90": 222,
+              "p99": 339
+            },
+            "error_reasons": {}
+          }
+        ],
+        "error_reasons": {}
+      }
+    },
+    {
+      "tool": "k6",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 3,
+      "process_seconds": 2.4666315829999945,
+      "exit_code": 137,
+      "generator": {
+        "memory_peak_bytes": 2147991552,
+        "usage_usec": 3798639,
+        "user_usec": 3244025,
+        "system_usec": 554613,
+        "nice_usec": 0,
+        "nr_periods": 27,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 2693,
+        "oom": 1,
+        "oom_kill": 1,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 1287920,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 38723584,
+        "elapsed_seconds": 1.287037792,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 37816,
+        "tcp_connections": 10001
+      }
+    },
+    {
+      "tool": "k6",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 4,
+      "process_seconds": 2.969727582999994,
+      "exit_code": 137,
+      "generator": {
+        "memory_peak_bytes": 2147790848,
+        "usage_usec": 4824169,
+        "user_usec": 4059599,
+        "system_usec": 764569,
+        "nice_usec": 0,
+        "nr_periods": 32,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 1085,
+        "oom": 3,
+        "oom_kill": 1,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 1916821,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 62297088,
+        "elapsed_seconds": 1.810837501,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 60837,
+        "tcp_connections": 10001
+      }
+    },
+    {
+      "tool": "swarmgo",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 4,
+      "process_seconds": 21.725929125000008,
+      "exit_code": 0,
+      "generator": {
+        "memory_peak_bytes": 636825600,
+        "usage_usec": 23226160,
+        "user_usec": 15387100,
+        "system_usec": 7839059,
+        "nice_usec": 0,
+        "nr_periods": 220,
+        "nr_throttled": 1,
+        "throttled_usec": 16,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 25497940,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 1024000000,
+        "elapsed_seconds": 21.353379829,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 1000000,
+        "tcp_connections": 10004
+      },
+      "server_rps": 46830.993875821994,
+      "summary": {
+        "schema_version": 1,
+        "status": "completed",
+        "success": true,
+        "complete": true,
+        "target_url": "http://swarmgo-perf-81390-target:8080/work?delay_ms=200",
+        "method": "POST",
+        "expected_workers": 1,
+        "requests_per_worker": 1000000,
+        "concurrency_per_worker": 10000,
+        "started_at": "2026-09-23T07:56:00.282181177Z",
+        "finished_at": "2026-09-23T07:56:21.787388215Z",
+        "elapsed_seconds": 21.505343468,
+        "controller_rps": 46500.071086425676,
+        "requests": {
+          "expected": 1000000,
+          "completed": 1000000,
+          "succeeded": 1000000,
+          "failed": 0
+        },
+        "workers": [
+          {
+            "id": "worker-1790150160273275011-858",
+            "state": "finished",
+            "requests": {
+              "expected": 1000000,
+              "completed": 1000000,
+              "succeeded": 1000000,
+              "failed": 0
+            },
+            "duration_ms": 21410,
+            "latency_ms": {
+              "p50": 201,
+              "p90": 240,
+              "p99": 290
+            },
+            "error_reasons": {}
+          }
+        ],
+        "error_reasons": {}
+      }
+    },
+    {
+      "tool": "swarmgo",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 5,
+      "process_seconds": 21.640465707999994,
+      "exit_code": 0,
+      "generator": {
+        "memory_peak_bytes": 633970688,
+        "usage_usec": 23427040,
+        "user_usec": 15592050,
+        "system_usec": 7834989,
+        "nice_usec": 0,
+        "nr_periods": 219,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 25746524,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 1024000000,
+        "elapsed_seconds": 21.218267037,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 1000000,
+        "tcp_connections": 10110
+      },
+      "server_rps": 47129.202316863084,
+      "summary": {
+        "schema_version": 1,
+        "status": "completed",
+        "success": true,
+        "complete": true,
+        "target_url": "http://swarmgo-perf-81390-target:8080/work?delay_ms=200",
+        "method": "POST",
+        "expected_workers": 1,
+        "requests_per_worker": 1000000,
+        "concurrency_per_worker": 10000,
+        "started_at": "2026-09-23T07:56:22.744887174Z",
+        "finished_at": "2026-09-23T07:56:44.15046492Z",
+        "elapsed_seconds": 21.405267802,
+        "controller_rps": 46717.47203772732,
+        "requests": {
+          "expected": 1000000,
+          "completed": 1000000,
+          "succeeded": 1000000,
+          "failed": 0
+        },
+        "workers": [
+          {
+            "id": "worker-1790150182733449424-76",
+            "state": "finished",
+            "requests": {
+              "expected": 1000000,
+              "completed": 1000000,
+              "succeeded": 1000000,
+              "failed": 0
+            },
+            "duration_ms": 21312,
+            "latency_ms": {
+              "p50": 202,
+              "p90": 232,
+              "p99": 278
+            },
+            "error_reasons": {}
+          }
+        ],
+        "error_reasons": {}
+      }
+    },
+    {
+      "tool": "k6",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 10000
+      },
+      "repetition": 5,
+      "process_seconds": 2.3535822919999987,
+      "exit_code": 137,
+      "generator": {
+        "memory_peak_bytes": 2148118528,
+        "usage_usec": 3546997,
+        "user_usec": 2957032,
+        "system_usec": 589965,
+        "nice_usec": 0,
+        "nr_periods": 26,
+        "nr_throttled": 1,
+        "throttled_usec": 2029,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 1605,
+        "oom": 3,
+        "oom_kill": 1,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 1258191,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 39613440,
+        "elapsed_seconds": 1.080807459,
+        "invalid": 0,
+        "peak_active_requests": 10000,
+        "requests": 38685,
+        "tcp_connections": 10001
+      }
+    }
+  ]
+}

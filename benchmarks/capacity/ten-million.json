@@ -1,0 +1,127 @@
+{
+  "manifest": {
+    "swarmgo_commit": "468ba43cb8151e2916f8333faec4556a3a7d78e5",
+    "generator_cpus": "all available in Docker VM",
+    "generator_cpu_quota": null,
+    "generator_memory_bytes": null,
+    "target_cpus": "shared with generator, all available in Docker VM",
+    "target_cpu_quota": null,
+    "target_memory_bytes": null,
+    "image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "requests": 10000000,
+    "repeats": 1,
+    "workloads": [
+      {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 20000
+      }
+    ],
+    "k6_concurrency": null,
+    "k6_version": "2.3.0",
+    "swarmgo_binary": "swarmgo-bounded",
+    "go_build_info": {
+      "swarmgo": "swarmgo: go1.25.7\n\tpath\tgithub.com/ryokotaka/SwarmGo/cmd/swarmgo\n\tmod\tgithub.com/ryokotaka/SwarmGo\tv0.1.1-0.20260923080913-468ba43cb815\t\n\tdep\tgithub.com/aymanbagabas/go-osc52/v2\tv2.0.1\th1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=\n\tdep\tgithub.com/charmbracelet/bubbletea\tv1.3.10\th1:otUDHWMMzQSB0Pkc87rm691KZ3SWa4KUlvF9nRvCICw=\n\tdep\tgithub.com/charmbracelet/colorprofile\tv0.2.3-0.20250311203215-f60798e515dc\th1:4pZI35227imm7yK2bGPcfpFEmuY1gc2YSTShr4iJBfs=\n\tdep\tgithub.com/charmbracelet/lipgloss\tv1.1.0\th1:vYXsiLHVkK7fp74RkV7b2kq9+zDLoEU4MZoFqR/noCY=\n\tdep\tgithub.com/charmbracelet/x/ansi\tv0.10.1\th1:rL3Koar5XvX0pHGfovN03f5cxLbCF2YvLeyz7D2jVDQ=\n\tdep\tgithub.com/charmbracelet/x/cellbuf\tv0.0.13-0.20250311204145-2c3ea96c31dd\th1:vy0GVL4jeHEwG5YOXDmi86oYw2yuYUGqz6a8sLwg0X8=\n\tdep\tgithub.com/charmbracelet/x/term\tv0.2.1\th1:AQeHeLZ1OqSXhrAWpYUtZyX1T3zVxfpZuEQMIQaGIAQ=\n\tdep\tgithub.com/lucasb-eyer/go-colorful\tv1.2.0\th1:1nnpGOrhyZZuNyfu1QjKiUICQ74+3FNCN69Aj6K7nkY=\n\tdep\tgithub.com/mattn/go-isatty\tv0.0.20\th1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=\n\tdep\tgithub.com/mattn/go-runewidth\tv0.0.16\th1:E5ScNMtiwvlvB5paMFdw9p4kSQzbXFikJ5SQO6TULQc=\n\tdep\tgithub.com/muesli/ansi\tv0.0.0-20230316100256-276c6243b2f6\th1:ZK8zHtRHOkbHy6Mmr5D264iyp3TiX5OmNcI5cIARiQI=\n\tdep\tgithub.com/muesli/cancelreader\tv0.2.2\th1:3I4Kt4BQjOR54NavqnDogx/MIoWBFa0StPA8ELUXHmA=\n\tdep\tgithub.com/muesli/termenv\tv0.16.0\th1:S5AlUN9dENB57rsbnkPyfdGuWIlkmzJjbFf0Tf5FWUc=\n\tdep\tgithub.com/rivo/uniseg\tv0.4.7\th1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=\n\tdep\tgithub.com/xo/terminfo\tv0.0.0-20220910002029-abceb7e1c41e\th1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=\n\tdep\tgolang.org/x/net\tv0.48.0\th1:zyQRTTrjc33Lhh0fBgT/H3oZq9WuvRR5gPC70xpDiQU=\n\tdep\tgolang.org/x/sys\tv0.39.0\th1:CvCKL8MeisomCi6qNZ+wbb0DN9E5AATixKsvNtMoMFk=\n\tdep\tgolang.org/x/text\tv0.32.0\th1:ZD01bjUt1FQ9WJ0ClOL5vxgxOI/sVCNgX1YtKwcY0mU=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20251202230838-ff82c1b0f217\th1:gRkg/vSppuSQoDjxyiGfN4Upv/h/DQmIR10ZU8dh4Ww=\n\tdep\tgoogle.golang.org/grpc\tv1.79.1\th1:zGhSi45ODB9/p3VAawt9a+O/MULLl9dpizzNNpq7flY=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.11\th1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=468ba43cb8151e2916f8333faec4556a3a7d78e5\n\tbuild\tvcs.time=2026-09-23T08:09:13Z\n\tbuild\tvcs.modified=false\n",
+      "k6": "k6: go1.26.8\n\tpath\tgo.k6.io/k6/v2\n\tmod\tgo.k6.io/k6/v2\tv2.3.0\t\n\tdep\tbuf.build/gen/go/gogo/protobuf/protocolbuffers/go\tv1.36.11-20240617172848-e1dbca2775a7.1\t\n\tdep\tbuf.build/gen/go/prometheus/prometheus/protocolbuffers/go\tv1.36.11-20260707164124-2360da55afce.1\t\n\tdep\tgithub.com/Azure/go-ntlmssp\tv0.1.1\t\n\tdep\tgithub.com/Masterminds/semver/v3\tv3.5.0\t\n\tdep\tgithub.com/PuerkitoBio/goquery\tv1.12.0\t\n\tdep\tgithub.com/Soontao/goHttpDigestClient\tv0.0.0-20170320082612-6d28bb1415c5\t\n\tdep\tgithub.com/andybalholm/brotli\tv1.2.3\t\n\tdep\tgithub.com/andybalholm/cascadia\tv1.3.3\t\n\tdep\tgithub.com/beorn7/perks\tv1.0.1\t\n\tdep\tgithub.com/bufbuild/protocompile\tv0.14.1\t\n\tdep\tgithub.com/cenkalti/backoff/v5\tv5.0.3\t\n\tdep\tgithub.com/cespare/xxhash/v2\tv2.3.0\t\n\tdep\tgithub.com/chromedp/cdproto\tv0.0.0-20250803210736-d308e07a266d\t\n\tdep\tgithub.com/chromedp/sysutil\tv1.1.0\t\n\tdep\tgithub.com/dlclark/regexp2/v2\tv2.7.2\t\n\tdep\tgithub.com/evanw/esbuild\tv0.28.2\t\n\tdep\tgithub.com/fatih/color\tv1.19.0\t\n\tdep\tgithub.com/go-json-experiment/json\tv0.0.0-20250211171154-1ae217ad3535\t\n\tdep\tgithub.com/go-logr/logr\tv1.4.4\t\n\tdep\tgithub.com/go-logr/stdr\tv1.2.2\t\n\tdep\tgithub.com/go-sourcemap/sourcemap\tv2.1.4+incompatible\t\n\tdep\tgithub.com/golang/protobuf\tv1.5.4\t\n\tdep\tgithub.com/google/pprof\tv0.0.0-20260115054156-294ebfa9ad83\t\n\tdep\tgithub.com/google/uuid\tv1.6.0\t\n\tdep\tgithub.com/gorilla/websocket\tv1.5.3\t\n\tdep\tgithub.com/grafana/k6-cloud-openapi-client-go\tv0.0.3-0.20260716125012-97c96146fa7c\t\n\tdep\tgithub.com/grafana/k6provider\tv0.5.0\t\n\tdep\tgithub.com/grafana/sobek\tv0.0.0-20260908083152-4698bc773ae7\t\n\tdep\tgithub.com/grafana/sobek-webapi-encoding\tv0.1.0\t\n\tdep\tgithub.com/grafana/xk6-dashboard-assets\tv0.1.2\t\n\tdep\tgithub.com/grpc-ecosystem/go-grpc-middleware\tv1.4.0\t\n\tdep\tgithub.com/grpc-ecosystem/grpc-gateway/v2\tv2.30.0\t\n\tdep\tgithub.com/influxdata/influxdb1-client\tv0.0.0-20190402204710-8ff2fc3824fc\t\n\tdep\tgithub.com/jhump/protoreflect\tv1.18.0\t\n\tdep\tgithub.com/jhump/protoreflect/v2\tv2.0.0-beta.1\t\n\tdep\tgithub.com/klauspost/compress\tv1.20.0\t\n\tdep\tgithub.com/mattn/go-colorable\tv0.1.15\t\n\tdep\tgithub.com/mattn/go-isatty\tv0.0.24\t\n\tdep\tgithub.com/mstoykov/atlas\tv0.0.0-20220811071828-388f114305dd\t\n\tdep\tgithub.com/mstoykov/envconfig\tv1.5.0\t\n\tdep\tgithub.com/munnerz/goautoneg\tv0.0.0-20191010083416-a7dc8b61c822\t\n\tdep\tgithub.com/nu7hatch/gouuid\tv0.0.0-20131221200532-179d4d0c4d8d\t\n\tdep\tgithub.com/pkg/browser\tv0.0.0-20240102092130-5ac0b6a4141c\t\n\tdep\tgithub.com/prometheus/client_golang\tv1.24.1\t\n\tdep\tgithub.com/prometheus/client_model\tv0.6.2\t\n\tdep\tgithub.com/prometheus/common\tv0.70.1\t\n\tdep\tgithub.com/prometheus/procfs\tv0.21.1\t\n\tdep\tgithub.com/r3labs/sse/v2\tv2.10.0\t\n\tdep\tgithub.com/serenize/snaker\tv0.0.0-20201027110005-a7ad2135616e\t\n\tdep\tgithub.com/sirupsen/logrus\tv1.9.3\t\n\tdep\tgithub.com/spf13/afero\tv1.1.2\t\n\tdep\tgithub.com/spf13/cobra\tv1.4.0\t\n\tdep\tgithub.com/spf13/pflag\tv1.0.5\t\n\tdep\tgithub.com/tidwall/gjson\tv1.19.0\t\n\tdep\tgithub.com/tidwall/match\tv1.1.1\t\n\tdep\tgithub.com/tidwall/pretty\tv1.2.1\t\n\tdep\tgo.opentelemetry.io/auto/sdk\tv1.2.1\t\n\tdep\tgo.opentelemetry.io/otel\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlptrace\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/metric\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/sdk\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/sdk/metric\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/otel/trace\tv1.46.0\t\n\tdep\tgo.opentelemetry.io/proto/otlp\tv1.11.0\t\n\tdep\tgolang.org/x/crypto\tv0.56.0\t\n\tdep\tgolang.org/x/crypto/x509roots/fallback\tv0.0.0-20260811175631-f44d03d253a1\t\n\tdep\tgolang.org/x/net\tv0.58.0\t\n\tdep\tgolang.org/x/sync\tv0.22.0\t\n\tdep\tgolang.org/x/sys\tv0.47.0\t\n\tdep\tgolang.org/x/term\tv0.45.0\t\n\tdep\tgolang.org/x/text\tv0.41.0\t\n\tdep\tgolang.org/x/time\tv0.15.0\t\n\tdep\tgoogle.golang.org/genproto/googleapis/api\tv0.0.0-20260819154853-08b0e4226688\t\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260819154853-08b0e4226688\t\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\t\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\t\n\tdep\tgopkg.in/cenkalti/backoff.v1\tv1.1.0\t\n\tdep\tgopkg.in/guregu/null.v3\tv3.3.0\t\n\tdep\tgopkg.in/validator.v2\tv2.0.1\t\n\tdep\tgopkg.in/yaml.v3\tv3.0.1\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=e0887846143ab176d4b5483c9d52cf3b3e009f1a\n\tbuild\tvcs.time=2026-09-21T15:05:52Z\n\tbuild\tvcs.modified=false\n",
+      "target": "target: go1.25.7\n\tpath\tcommand-line-arguments\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n"
+    },
+    "host_cpu": "Apple M4",
+    "docker": {
+      "KernelVersion": "6.12.67-linuxkit",
+      "OperatingSystem": "Docker Desktop",
+      "Architecture": "aarch64",
+      "NCPU": 10,
+      "MemTotal": 8217317376,
+      "ServerVersion": "29.2.0"
+    },
+    "binary_sha256": {
+      "swarmgo-bounded": "f1e4458818325a405ecf4094d099039b93915ed2ddc225fea9e408bf6c7064f8",
+      "target": "ad5f4d2b9e778481aead9c10b97ca6c329aae903ba0137d83b6f034c0a07f4b7",
+      "k6": "c458464bcc5e9f6e4ae9b6985286ff337cfb139a64dfe2c731a1f5d551cd601f"
+    },
+    "measurement_date": "2026-09-23"
+  },
+  "results": [
+    {
+      "tool": "swarmgo",
+      "case": {
+        "method": "POST",
+        "delay_ms": 200,
+        "concurrency": 20000
+      },
+      "repetition": 1,
+      "process_seconds": 118.344073708,
+      "exit_code": 0,
+      "generator": {
+        "memory_peak_bytes": 1691901952,
+        "usage_usec": 460492892,
+        "user_usec": 311473154,
+        "system_usec": 149019737,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "target_cpu_usec": 369530157,
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 10240000000,
+        "elapsed_seconds": 116.80938693,
+        "invalid": 0,
+        "peak_active_requests": 20000,
+        "requests": 10000000,
+        "tcp_connections": 20001
+      },
+      "server_rps": 85609.55812560397,
+      "summary": {
+        "schema_version": 1,
+        "status": "completed",
+        "success": true,
+        "complete": true,
+        "target_url": "http://swarmgo-perf-84242-target:8080/work?delay_ms=200",
+        "method": "POST",
+        "expected_workers": 1,
+        "requests_per_worker": 10000000,
+        "concurrency_per_worker": 20000,
+        "started_at": "2026-09-23T08:27:08.267599917Z",
+        "finished_at": "2026-09-23T08:29:06.314802263Z",
+        "elapsed_seconds": 118.04703397,
+        "controller_rps": 84711.99710567365,
+        "requests": {
+          "expected": 10000000,
+          "completed": 10000000,
+          "succeeded": 10000000,
+          "failed": 0
+        },
+        "workers": [
+          {
+            "id": "worker-1790152028258281708-692",
+            "state": "finished",
+            "requests": {
+              "expected": 10000000,
+              "completed": 10000000,
+              "succeeded": 10000000,
+              "failed": 0
+            },
+            "duration_ms": 116906,
+            "latency_ms": {
+              "p50": 213,
+              "p90": 279,
+              "p99": 423
+            },
+            "error_reasons": {}
+          }
+        ],
+        "error_reasons": {}
+      }
+    }
+  ]
+}

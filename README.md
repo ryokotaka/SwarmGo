@@ -1,18 +1,23 @@
 # SwarmGo
 
-**Distributed HTTP load tests, controlled from one terminal.**
+**Send 20,000 concurrent requests to your API from a single machine.**
 
-[Quick start](#try-it-locally) · [JSON requests](#send-json) · [Automated runs](#run-once-and-save-the-result) · [日本語](./README_ja.md)
+[Quick start](#try-it-locally) · [Benchmarks](benchmarks/) · [JSON requests](#send-json) · [Automated runs](#run-once-and-save-the-result) · [日本語](./README_ja.md)
+
+![SwarmGo: 20,000 concurrent requests, 71.5k requests per second, three million POSTs with zero failures](assets/performance.svg)
+
+**1.61× the throughput of k6 v2.3.0 in the same test.** SwarmGo completed three million 1 KiB POSTs with zero failures in each of five runs. Measured on Apple M4 in Docker, without per-container CPU or memory limits, against a local target with a 200 ms response delay. Figures are medians. [Full results and reproduction](benchmarks/capacity/)
+
+Run HTTP load tests across several workers and follow progress and errors from one terminal. SwarmGo supports GET, POST, fixed bodies and headers, plus automated runs that return a JSON report and an exit code. It is written in Go, with gRPC streams between the controller and workers.
+
+<details>
+<summary>See the three-worker dashboard</summary>
 
 ![SwarmGo terminal: three workers complete 180 local requests with no failures](assets/dashboard.svg)
 
-*Captured from a local run: 3 workers × 60 requests. The delayed test server demonstrates the dashboard; these numbers are not a throughput benchmark.*
+*This screen shows a 3 × 60-request local demo, separate from the benchmark above.*
 
-| Send load | See the result | Automate a test |
-| --- | --- | --- |
-| GET, POST, fixed bodies and headers | Live progress, throughput and errors | One run, a JSON report and an exit code |
-
-Written in Go, with gRPC streams between the controller and workers. The Compose demo below starts all three workers and a target server on your machine.
+</details>
 
 ## Try it locally
 

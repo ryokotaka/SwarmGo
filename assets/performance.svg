@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="238" viewBox="0 0 1120 238" role="img" aria-labelledby="title desc">
+<title id="title">SwarmGo: 20,000 concurrent HTTP requests</title>
+<desc id="desc">No per-container CPU or memory limits: 71,548 requests per second median; three million POSTs completed with zero failures in each of five runs. The target waits 200 milliseconds per response.</desc>
+<rect width="1120" height="238" rx="14" fill="#101b2b"/>
+<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">
+<text x="36" y="38" font-size="14" font-weight="600" letter-spacing="1.4" fill="#8adbc6">HTTP LOAD TEST · MEASURED ON APPLE M4</text>
+<path d="M377 67V164M754 67V164" stroke="#344256"/>
+<g fill="#f8fafc" font-size="52" font-weight="700"><text x="36" y="118">20,000</text><text x="411" y="118">71.5k /s</text><text x="788" y="118">3 million</text></g>
+<g fill="#c4d1e0" font-size="18"><text x="36" y="151">concurrent requests</text><text x="411" y="151">completed requests</text><text x="788" y="151">POSTs · zero failures</text></g>
+<path d="M36 181H1084" stroke="#344256"/>
+<text x="36" y="212" fill="#94a8c0" font-size="16">10-CPU Docker VM · 1 KiB JSON · 200 ms target delay · 5 runs</text>
+</g></svg>
