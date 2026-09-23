@@ -1,12 +1,18 @@
 # SwarmGo
 
-[日本語](./README_ja.md) · [MIT license](./LICENSE)
+**Distributed HTTP load tests, controlled from one terminal.**
 
-A distributed HTTP load tester written in Go. Send requests from several workers, watch the results in a terminal dashboard, or run a test automatically and save a JSON report. It supports GET, POST, and fixed request bodies and headers.
+[Quick start](#try-it-locally) · [JSON requests](#send-json) · [Automated runs](#run-once-and-save-the-result) · [日本語](./README_ja.md)
 
-The Docker Compose demo runs a controller, three workers, and a target server on your machine. Press **s** to start 9,000 requests, change the worker count to try a different load, or make the target return errors to see how the workers report them.
+![SwarmGo terminal: three workers complete 180 local requests with no failures](assets/dashboard.svg)
 
-![A local SwarmGo run with Docker Compose](./demo-docker.gif)
+*Captured from a local run: 3 workers × 60 requests. The delayed test server demonstrates the dashboard; these numbers are not a throughput benchmark.*
+
+| Send load | See the result | Automate a test |
+| --- | --- | --- |
+| GET, POST, fixed bodies and headers | Live progress, throughput and errors | One run, a JSON report and an exit code |
+
+Written in Go, with gRPC streams between the controller and workers. The Compose demo below starts all three workers and a target server on your machine.
 
 ## Try it locally
 
@@ -118,8 +124,6 @@ Start workers as above, then press **s**. Use an endpoint that handles POST; Pyt
 
 Use the same build for the controller and workers. Older workers ignore the new method/body/header fields and send GET requests. Updated workers still accept GET commands from older controllers.
 
-For a complete JSON API example, try the [Thermal Guardian demo](https://github.com/ryokotaka/swarmgo-thermal-demo): one command runs three workers through a temperature-aware chat router and checks the saved results.
-
 ## How it works
 
 I built this project to understand Go concurrency and gRPC streaming by making the coordination visible: one controller, several request-sending workers, and a live view of the run.
@@ -162,6 +166,8 @@ The request queue is bounded by concurrency. Successful latency samples are reta
 SwarmGo supports HTTP methods, fixed request bodies and headers, a fixed request count, and fixed concurrency. It has no rate scheduling, worker reconnect logic, or TLS/authentication on the control connection. Keep the controller and workers on a trusted network. Compose exposes the controller port only on localhost; the source-built controller listens on all interfaces.
 
 ## Development
+
+[MIT license](./LICENSE) · [Original Compose walkthrough](./demo-docker.gif)
 
 ```bash
 go test -race ./...
