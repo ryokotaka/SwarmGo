@@ -2,21 +2,31 @@
 
 # SwarmGo
 
-**HTTP load testing with distributed workers and a live dashboard.**
+**Test how your service handles heavy traffic.**
 
 [![Go](https://img.shields.io/badge/Go-1.25.7+-00ADD8?logo=go&logoColor=white)](go.mod)
 [![Checks](https://github.com/ryokotaka/SwarmGo/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/ryokotaka/SwarmGo/actions/workflows/go.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-64748b)](LICENSE)
 
-[Quick start](#quick-start) · [API tests](#test-your-api) · [Benchmarks](#performance-records) · [日本語](README_ja.md)
+[Quick start](#quick-start) · [Benchmarks](#performance-records) · [Design](#how-it-works) · [Usage guide](GUIDE.md)
 
 </div>
 
-SwarmGo sends HTTP traffic from multiple workers and shows throughput, latency and errors in a live terminal dashboard. Use POST bodies and custom headers, automate runs, and save the results as JSON.
+SwarmGo is an HTTP load-testing tool for finding slow responses and failures before users encounter them. Generate traffic from multiple machines, watch one live dashboard, and save the results as JSON.
 
-**518k POSTs/s over one minute — 4.3× k6 in the recorded local comparison.**
+**Over half a million HTTP requests per second.**
 
-[![60-second average with no rate cap: wrk 575k, SwarmGo 518k, oha 415k and k6 119k POSTs per second](assets/throughput-summary.svg)](benchmarks/throughput/)
+[![Median of six 60-second runs per tool: wrk 619k, SwarmGo 577k, oha 463k, k6 123k POSTs per second; thin lines show the observed range](assets/throughput-repeated.svg)](benchmarks/throughput/repeated/)
+
+Apple M4 · local Docker · 1 KiB request and response. Concurrency: k6 64 VUs; others 256 connections. [Setup and data](benchmarks/throughput/repeated/).
+
+## In action
+
+This recorded run completed **10 million requests in 16.2 seconds**, with **zero failures**.
+
+![SwarmGo completing ten million POST requests against a local API](assets/demo.gif)
+
+<sub>Recorded run: ten million POSTs to a local API. 256 connections, 1 KiB request and response, no rate cap. <a href="assets/demo.json">Recording data</a>.</sub>
 
 ## Quick start
 
@@ -33,34 +43,13 @@ Wait for `Workers: 3`, then press **s**. Three workers send **9,000 requests** t
 
 Press **s** to run again, **q** to stop. Clean up with `docker compose down`.
 
-![SwarmGo completing four million POST requests against a local API](assets/demo.gif)
+For POST bodies, custom headers, scripted runs and additional workers, see the [usage guide](GUIDE.md). Request counts and concurrency are configured per worker.
 
-<sub>Recorded run: four million POSTs to a local API. 256 connections, 1 KiB request and response, no rate cap. <a href="assets/demo.json">Recording data</a>.</sub>
-
-## Test your API
-
-Build with Go 1.25.7 or newer: `go build -o swarmgo ./cmd/swarmgo`.
-
-For a local API that accepts JSON at `/api`, save a request body and start a run:
-
-```sh
-printf '%s\n' '{"message":"hello"}' > request.json
-./swarmgo run -url http://127.0.0.1:8080/api \
-  -method POST -body-file request.json -header 'Content-Type: application/json' \
-  -workers 1 -n 10000 -c 100 -output report.json
-```
-
-Start `./swarmgo worker` in a second terminal. The run starts when the worker connects and writes completed counts, errors and latency percentiles to `report.json`. Exit code `0` means every planned request succeeded.
-
-Add workers on other machines to generate load from more than one host. Request counts and concurrency are set **per worker**.
-
-[Multiple workers, headers, timeouts and report fields →](GUIDE.md)
-
-## Check what happens during a traffic spike
+## Traffic spikes and recovery
 
 `swarmgo resilience` sends a timed load spike while continuing ordinary requests. It measures their latency, failures and recovery time.
 
-In the included API example, admission control reduced ordinary-request latency during the spike from **3.51 s to 92 ms**. Run the before/after comparison locally:
+In the included API example, limiting how many load requests are admitted reduced ordinary-request latency from **3.51 s to 92 ms** during the spike (worst one-second p99). Run the before/after comparison locally:
 
 ```sh
 python3 examples/resilience/demo.py
@@ -74,17 +63,31 @@ The opening comparison has no request-rate cap. Rates are counted at the target,
 
 | Workload | SwarmGo result | Recording |
 | :--- | :--- | :--- |
-| Uncapped POSTs, 60 seconds | **518k POSTs/s average** | [Four-tool comparison](benchmarks/throughput/) |
+| Uncapped POSTs, six 60-second runs | **577k POSTs/s median** | [Four-tool comparison](benchmarks/throughput/repeated/) |
+| Earlier four-tool comparison, 60 seconds | **518k POSTs/s**, 4.3× k6 | [Original recording](benchmarks/throughput/) |
 | 200k POSTs/s requested, 5 minutes | **59.7 million successful requests**, 89.7 MiB peak | [Sustained-load trial](benchmarks/arrival/recorded-endurance/) |
 
 <details>
-<summary>See throughput over the full minute</summary>
+<summary>See all six runs per tool</summary>
+
+![Six runs per tool: box plots with all 24 measured values shown below the boxes](assets/throughput-distribution.svg)
+
+Boxes show the middle 50%, with a median line and min–max whiskers. Each dot below is one run: filled for the first three, hollow for the next three per tool. [All 24 recordings](benchmarks/throughput/repeated/).
+
+</details>
+
+<details>
+<summary>Earlier four-tool comparison</summary>
+
+![Original 60-second comparison of wrk, SwarmGo, oha and k6](assets/throughput-summary.svg)
 
 ![Recorded one-minute throughput for wrk, SwarmGo, oha and k6](assets/throughput.svg)
 
 </details>
 
 ## How it works
+
+For distributed tests (`master` and `run`), the controller sends commands and collects results over gRPC. Workers send HTTP traffic directly to the API; the controller does not forward those requests.
 
 ```mermaid
 sequenceDiagram
@@ -101,13 +104,15 @@ sequenceDiagram
     W-->>C: Final percentiles, error reasons · finish
 ```
 
-The controller starts and stops runs and collects results. Workers send HTTP traffic directly to the API. Three choices shape the request path:
+The performance work is concentrated in the workers:
 
 - **Reuse work between requests.** A fixed number of goroutines reuse prepared HTTP/1.1 request bytes and their own connections. Each request avoids starting a goroutine or rebuilding the same wire data. [HTTP implementation](internal/worker/direct.go)
 - **Keep latency storage bounded.** Results are aggregated in small batches. Successful-request latencies go into HDR histograms instead of a growing list of samples, so latency storage stays bounded as the request count increases. [Execution and aggregation](internal/worker/aggregate.go)
 - **Preserve HTTP behavior.** Workers consume response bodies and retain deadlines, cancellation and TLS certificate verification. Redirects and other special cases use Go's standard client. [HTTP tests](internal/worker/direct_test.go)
 
-During a run, workers report success/failure counts and RPS averaged since the start. Final reports add latency percentiles and error reasons. [Metric definitions](GUIDE.md#measurement-details)
+During a run, workers report success/failure counts and RPS averaged since the start. Final reports add latency percentiles and error reasons. Timed spikes and ordinary-traffic probes use a [separate local runner](internal/resilience/resilience.go). [Metric definitions](GUIDE.md#measurement-details)
+
+Tests cover cancellation, connection reuse, TLS verification and incomplete runs:
 
 ```sh
 go test -race ./...
@@ -118,7 +123,9 @@ go build ./...
 <details>
 <summary>Benchmark conditions and measurement details</summary>
 
-**Throughput:** Apple M4, local ARM64 Docker, HTTP/1.1, 1 KiB requests and responses. Generator memory: 6 GiB per tool; no CPU quota. Each tool was screened at 64, 256 and 1,024 connections, then measured once for 60 seconds at its fastest observed setting after five seconds of warmup. The generator and target shared the machine. Rates come from the target's validated POST counter. wrk averaged 575,360/s, SwarmGo 517,832/s, oha 414,956/s and k6 119,480/s. These are results for this workload. SwarmGo's later deadline stop and partial report, plus wrk's native timeout counters, are preserved in the [full records](benchmarks/throughput/).
+**Repeated throughput:** Apple M4, local ARM64 Docker, 1 KiB POSTs and responses. Six 60-second observations per tool after five seconds of warmup. The earlier setting screen selected 256 connections for SwarmGo, wrk and oha; k6 uses 64 VUs. Bars show medians; thin lines show observed minimum–maximum. All complete comparison observations are included. The tools were measured in separate paired series on the same desktop host, with no CPU quota and a 6 GiB generator memory budget. Native stopping and reporting are outside the observation; process status and memory-limit events are retained in the [raw data and method](benchmarks/throughput/repeated/).
+
+**Earlier four-tool comparison:** Apple M4, local ARM64 Docker, HTTP/1.1, 1 KiB requests and responses. Generator memory: 6 GiB per tool; no CPU quota. Each tool was screened at 64, 256 and 1,024 connections, then measured once for 60 seconds at its fastest observed setting after five seconds of warmup. The generator and target shared the machine. Rates come from the target's validated POST counter. wrk averaged 575,360/s, SwarmGo 517,832/s, oha 414,956/s and k6 119,480/s. These are results for this workload. SwarmGo's later deadline stop and partial report, plus wrk's native timeout counters, are preserved in the [full records](benchmarks/throughput/).
 
 **Five-minute trial:** a different target, 200k/s requested, one trial per tool. SwarmGo had zero HTTP failures and 0.48% missed starts; its original strict verdict remains `inconclusive`. oha reached the same 6 GiB memory budget and stopped after 169 seconds. [Conditions and reports](benchmarks/arrival/recorded-endurance/).
 

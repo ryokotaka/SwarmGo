@@ -1,0 +1,33 @@
+{
+  "started_utc": "20260923T141400Z",
+  "order": [
+    "wrk",
+    "swarmgo",
+    "swarmgo",
+    "wrk",
+    "wrk",
+    "swarmgo"
+  ],
+  "pairs": [
+    [
+      1,
+      2
+    ],
+    [
+      3,
+      4
+    ],
+    [
+      5,
+      6
+    ]
+  ],
+  "seconds": 60,
+  "warmup_seconds": 5,
+  "concurrency": 256,
+  "rest_between_seconds": 15,
+  "selection": "Second batch: retain all six trials and combine with the first fixed batch for six trials per tool. Reverse the starting order. No tuning between runs.",
+  "batch": 2,
+  "previous_batch": "20260923T140118Z",
+  "harness_sha256": "ab9e591a94f5c698071752852fe2e36ec5b29edda90c68fe4dc9b761e9d436a0"
+}

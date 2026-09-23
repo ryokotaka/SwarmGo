@@ -4,6 +4,12 @@ This comparison removes the request-rate limit from SwarmGo, wrk, oha and k6. It
 
 Each tool was screened once at 64, 256 and 1,024 connections. The fastest observed setting for each tool was selected for one 60-second observation. SwarmGo, wrk and oha selected 256; k6 selected 64. This is a small configuration search, not an exhaustive maximum or a repeated-trial confidence estimate.
 
+## Repeated four-tool comparison
+
+A follow-up measured each tool six times using the same POST workload and its previously selected concurrency. wrk: **618,869 POST/s**, SwarmGo: **576,958 POST/s**, oha: **462,560 POST/s**, k6: **123,128 POST/s**. [All runs, ranges and conditions](repeated/).
+
+The four-tool figures below retain the original one-run-per-tool recording. The two datasets are not pooled.
+
 ## Recorded minute
 
 ![Target-side RPS over the measured minute](../../assets/throughput.svg)

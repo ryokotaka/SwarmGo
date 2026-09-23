@@ -1,0 +1,386 @@
+{
+  "metric": "target-validated POSTs per second",
+  "aggregation": "median of six complete 60-second observation windows per tool; separate sequential paired batches",
+  "selection": "All complete comparison observations retained, including high and low values. No statistical outlier removal.",
+  "box_plot": "middle 50 percent with linear quartiles; min\u2013max whiskers; every comparison observation plotted",
+  "plans": [
+    {
+      "started_utc": "20260923T140118Z",
+      "order": [
+        "swarmgo",
+        "wrk",
+        "wrk",
+        "swarmgo",
+        "swarmgo",
+        "wrk"
+      ],
+      "pairs": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          5,
+          6
+        ]
+      ],
+      "seconds": 60,
+      "warmup_seconds": 5,
+      "concurrency": 256,
+      "rest_between_seconds": 15,
+      "selection": "All six trials retained; compare medians and each adjacent pair. No tuning between runs.",
+      "harness_sha256": "ab9e591a94f5c698071752852fe2e36ec5b29edda90c68fe4dc9b761e9d436a0"
+    },
+    {
+      "started_utc": "20260923T141400Z",
+      "order": [
+        "wrk",
+        "swarmgo",
+        "swarmgo",
+        "wrk",
+        "wrk",
+        "swarmgo"
+      ],
+      "pairs": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          5,
+          6
+        ]
+      ],
+      "seconds": 60,
+      "warmup_seconds": 5,
+      "concurrency": 256,
+      "rest_between_seconds": 15,
+      "selection": "Second batch: retain all six trials and combine with the first fixed batch for six trials per tool. Reverse the starting order. No tuning between runs.",
+      "batch": 2,
+      "previous_batch": "20260923T140118Z",
+      "harness_sha256": "ab9e591a94f5c698071752852fe2e36ec5b29edda90c68fe4dc9b761e9d436a0"
+    },
+    {
+      "started_utc": "20260923T143105Z",
+      "order": [
+        "k6",
+        "oha",
+        "oha",
+        "k6",
+        "k6",
+        "oha",
+        "oha",
+        "k6",
+        "k6",
+        "oha",
+        "oha",
+        "k6",
+        "swarmgo"
+      ],
+      "reference_trials": [
+        13
+      ],
+      "comparison_pairs": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          11,
+          12
+        ]
+      ],
+      "measurement_seconds": 60,
+      "warmup_seconds": 5,
+      "rest_between_seconds": 15,
+      "concurrency": {
+        "swarmgo": 256,
+        "wrk": 256,
+        "oha": 256,
+        "k6": 64
+      },
+      "setting_source": "benchmarks/throughput/recorded/selected-settings.json",
+      "reference_policy": "The completed initial SwarmGo reference from the interrupted extension and final trial 13 check drift. They remain separate and are not added to the existing six-run primary median.",
+      "primary_policy": "Use all valid planned observations. Never exclude a run because its RPS is low or high.",
+      "invalidity_policy": "A failed full observation, invalid target counters, or changed binary/workload settings invalidates its predeclared pair. Retain the records; stop to inspect instead of silently replacing runs.",
+      "prior_extension": "20260923T142843Z",
+      "harness_sha256": "ab9e591a94f5c698071752852fe2e36ec5b29edda90c68fe4dc9b761e9d436a0"
+    }
+  ],
+  "statistics": {
+    "swarmgo": {
+      "n": 6,
+      "median": 576958.3481260638,
+      "min": 521352.94556493964,
+      "max": 613766.0116060148,
+      "concurrency": 256
+    },
+    "wrk": {
+      "n": 6,
+      "median": 618868.6650079712,
+      "min": 591656.1700859817,
+      "max": 665461.679545699,
+      "concurrency": 256
+    },
+    "oha": {
+      "n": 6,
+      "median": 462560.39865738456,
+      "min": 450373.2975052579,
+      "max": 508608.06301995926,
+      "concurrency": 256
+    },
+    "k6": {
+      "n": 6,
+      "median": 123128.40099851266,
+      "min": 119415.55184667523,
+      "max": 147321.25136619157,
+      "concurrency": 64
+    }
+  },
+  "results": [
+    {
+      "batch": 1,
+      "trial": 1,
+      "tool": "swarmgo",
+      "target_rps": 613766.0116060148,
+      "measurement_seconds": 60.124785834,
+      "record": "batch-1/01-swarmgo/results.json"
+    },
+    {
+      "batch": 1,
+      "trial": 2,
+      "tool": "wrk",
+      "target_rps": 606611.8880324905,
+      "measurement_seconds": 60.095160875,
+      "record": "batch-1/02-wrk/results.json"
+    },
+    {
+      "batch": 1,
+      "trial": 3,
+      "tool": "wrk",
+      "target_rps": 665461.679545699,
+      "measurement_seconds": 60.078143083,
+      "record": "batch-1/03-wrk/results.json"
+    },
+    {
+      "batch": 1,
+      "trial": 4,
+      "tool": "swarmgo",
+      "target_rps": 575326.2923872672,
+      "measurement_seconds": 60.078502334,
+      "record": "batch-1/04-swarmgo/results.json"
+    },
+    {
+      "batch": 1,
+      "trial": 5,
+      "tool": "swarmgo",
+      "target_rps": 580572.9550362681,
+      "measurement_seconds": 60.102139959,
+      "record": "batch-1/05-swarmgo/results.json"
+    },
+    {
+      "batch": 1,
+      "trial": 6,
+      "tool": "wrk",
+      "target_rps": 624611.978938349,
+      "measurement_seconds": 60.076273375,
+      "record": "batch-1/06-wrk/results.json"
+    },
+    {
+      "batch": 2,
+      "trial": 1,
+      "tool": "wrk",
+      "target_rps": 637737.3163577677,
+      "measurement_seconds": 60.116284584,
+      "record": "batch-2/01-wrk/results.json"
+    },
+    {
+      "batch": 2,
+      "trial": 2,
+      "tool": "swarmgo",
+      "target_rps": 578590.4038648603,
+      "measurement_seconds": 60.083412666,
+      "record": "batch-2/02-swarmgo/results.json"
+    },
+    {
+      "batch": 2,
+      "trial": 3,
+      "tool": "swarmgo",
+      "target_rps": 572659.9291297994,
+      "measurement_seconds": 60.088725,
+      "record": "batch-2/03-swarmgo/results.json"
+    },
+    {
+      "batch": 2,
+      "trial": 4,
+      "tool": "wrk",
+      "target_rps": 613125.3510775935,
+      "measurement_seconds": 60.121454667,
+      "record": "batch-2/04-wrk/results.json"
+    },
+    {
+      "batch": 2,
+      "trial": 5,
+      "tool": "wrk",
+      "target_rps": 591656.1700859817,
+      "measurement_seconds": 60.100311292,
+      "record": "batch-2/05-wrk/results.json"
+    },
+    {
+      "batch": 2,
+      "trial": 6,
+      "tool": "swarmgo",
+      "target_rps": 521352.94556493964,
+      "measurement_seconds": 60.085606625,
+      "record": "batch-2/06-swarmgo/results.json"
+    },
+    {
+      "batch": 3,
+      "trial": 1,
+      "extension_trial": 1,
+      "tool": "k6",
+      "target_rps": 147321.25136619157,
+      "measurement_seconds": 60.068665708,
+      "record": "batch-3/01-k6/results.json"
+    },
+    {
+      "batch": 3,
+      "trial": 2,
+      "extension_trial": 2,
+      "tool": "oha",
+      "target_rps": 508608.06301995926,
+      "measurement_seconds": 60.120484167,
+      "record": "batch-3/02-oha/results.json"
+    },
+    {
+      "batch": 3,
+      "trial": 3,
+      "extension_trial": 3,
+      "tool": "oha",
+      "target_rps": 482719.0067002457,
+      "measurement_seconds": 60.108869958,
+      "record": "batch-3/03-oha/results.json"
+    },
+    {
+      "batch": 3,
+      "trial": 4,
+      "extension_trial": 4,
+      "tool": "k6",
+      "target_rps": 129075.80568347865,
+      "measurement_seconds": 60.081430125,
+      "record": "batch-3/04-k6/results.json"
+    },
+    {
+      "batch": 3,
+      "trial": 5,
+      "extension_trial": 5,
+      "tool": "k6",
+      "target_rps": 124129.50289437282,
+      "measurement_seconds": 60.07583875,
+      "record": "batch-3/05-k6/results.json"
+    },
+    {
+      "batch": 3,
+      "trial": 6,
+      "extension_trial": 6,
+      "tool": "oha",
+      "target_rps": 464363.53040970804,
+      "measurement_seconds": 60.11274825,
+      "record": "batch-3/06-oha/results.json"
+    },
+    {
+      "batch": 4,
+      "trial": 1,
+      "extension_trial": 7,
+      "tool": "oha",
+      "target_rps": 460757.2669050611,
+      "measurement_seconds": 60.09794525,
+      "record": "batch-4/01-oha/results.json"
+    },
+    {
+      "batch": 4,
+      "trial": 2,
+      "extension_trial": 8,
+      "tool": "k6",
+      "target_rps": 122127.29910265251,
+      "measurement_seconds": 60.089096,
+      "record": "batch-4/02-k6/results.json"
+    },
+    {
+      "batch": 4,
+      "trial": 3,
+      "extension_trial": 9,
+      "tool": "k6",
+      "target_rps": 121337.452112026,
+      "measurement_seconds": 60.085627917,
+      "record": "batch-4/03-k6/results.json"
+    },
+    {
+      "batch": 4,
+      "trial": 4,
+      "extension_trial": 10,
+      "tool": "oha",
+      "target_rps": 457774.3402058034,
+      "measurement_seconds": 60.110453084,
+      "record": "batch-4/04-oha/results.json"
+    },
+    {
+      "batch": 4,
+      "trial": 5,
+      "extension_trial": 11,
+      "tool": "oha",
+      "target_rps": 450373.2975052579,
+      "measurement_seconds": 60.101125333,
+      "record": "batch-4/05-oha/results.json"
+    },
+    {
+      "batch": 4,
+      "trial": 6,
+      "extension_trial": 12,
+      "tool": "k6",
+      "target_rps": 119415.55184667523,
+      "measurement_seconds": 60.086587459,
+      "record": "batch-4/06-k6/results.json"
+    }
+  ],
+  "reference_checks": [
+    {
+      "role": "before extension",
+      "target_rps": 577580.2056194706,
+      "record": "reference-before/results.json"
+    },
+    {
+      "role": "after extension",
+      "target_rps": 495732.9216032725,
+      "record": "reference-after/results.json"
+    }
+  ],
+  "interrupted_attempt": {
+    "record": "interrupted-attempt/results.json",
+    "reason": "Schedule interrupted before the full observation window. Kept as an incomplete attempt; not included among the six complete observations."
+  }
+}

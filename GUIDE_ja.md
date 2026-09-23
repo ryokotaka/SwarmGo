@@ -1,6 +1,6 @@
 # SwarmGoの使い方
 
-[READMEへ戻る](README_ja.md) · [English](GUIDE.md)
+[READMEへ戻る](README.md) · [English](GUIDE.md)
 
 ## まず動かす
 

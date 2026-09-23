@@ -1,0 +1,31 @@
+{
+  "started_utc": "20260923T140118Z",
+  "order": [
+    "swarmgo",
+    "wrk",
+    "wrk",
+    "swarmgo",
+    "swarmgo",
+    "wrk"
+  ],
+  "pairs": [
+    [
+      1,
+      2
+    ],
+    [
+      3,
+      4
+    ],
+    [
+      5,
+      6
+    ]
+  ],
+  "seconds": 60,
+  "warmup_seconds": 5,
+  "concurrency": 256,
+  "rest_between_seconds": 15,
+  "selection": "All six trials retained; compare medians and each adjacent pair. No tuning between runs.",
+  "harness_sha256": "ab9e591a94f5c698071752852fe2e36ec5b29edda90c68fe4dc9b761e9d436a0"
+}

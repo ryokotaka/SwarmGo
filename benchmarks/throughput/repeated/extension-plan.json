@@ -1,0 +1,62 @@
+{
+  "started_utc": "20260923T143105Z",
+  "order": [
+    "k6",
+    "oha",
+    "oha",
+    "k6",
+    "k6",
+    "oha",
+    "oha",
+    "k6",
+    "k6",
+    "oha",
+    "oha",
+    "k6",
+    "swarmgo"
+  ],
+  "reference_trials": [
+    13
+  ],
+  "comparison_pairs": [
+    [
+      1,
+      2
+    ],
+    [
+      3,
+      4
+    ],
+    [
+      5,
+      6
+    ],
+    [
+      7,
+      8
+    ],
+    [
+      9,
+      10
+    ],
+    [
+      11,
+      12
+    ]
+  ],
+  "measurement_seconds": 60,
+  "warmup_seconds": 5,
+  "rest_between_seconds": 15,
+  "concurrency": {
+    "swarmgo": 256,
+    "wrk": 256,
+    "oha": 256,
+    "k6": 64
+  },
+  "setting_source": "benchmarks/throughput/recorded/selected-settings.json",
+  "reference_policy": "The completed initial SwarmGo reference from the interrupted extension and final trial 13 check drift. They remain separate and are not added to the existing six-run primary median.",
+  "primary_policy": "Use all valid planned observations. Never exclude a run because its RPS is low or high.",
+  "invalidity_policy": "A failed full observation, invalid target counters, or changed binary/workload settings invalidates its predeclared pair. Retain the records; stop to inspect instead of silently replacing runs.",
+  "prior_extension": "20260923T142843Z",
+  "harness_sha256": "ab9e591a94f5c698071752852fe2e36ec5b29edda90c68fe4dc9b761e9d436a0"
+}
