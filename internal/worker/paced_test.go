@@ -110,9 +110,9 @@ func TestPacedWaitsForDurationAndReusesConnection(t *testing.T) {
 	}
 	srv.Start()
 	t.Cleanup(func() { srv.CloseClientConnections(); srv.Close() })
-	o := PaceOptions{Rate: 5, Duration: 450 * time.Millisecond, Concurrency: 1, MaxStartDelay: 100 * time.Millisecond,
+	o := PaceOptions{Rate: 5, Duration: 450 * time.Millisecond, Concurrency: 3, MaxStartDelay: 100 * time.Millisecond,
 		Request: RequestOptions{Method: http.MethodPost, Body: []byte("payload")}}
-	s, err := pacedTestRunner(t, 1).RunPaced(context.Background(), srv.URL, o)
+	s, err := pacedTestRunner(t, 3).RunPaced(context.Background(), srv.URL, o)
 	if err != nil {
 		t.Fatal(err)
 	}

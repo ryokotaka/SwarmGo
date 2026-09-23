@@ -128,7 +128,6 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 	for i := range queues {
 		jobs := make(chan paceJob, 1)
 		queues[i] = jobs
-		ready <- jobs
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -171,6 +170,7 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 	batchLimit := paceCeilCount(quantum, int64(options.Rate))
 	lastDue := paceOffset(planned-1, int64(options.Rate))
 	var next int64
+	unused := 0
 	for next < planned {
 		if ctx.Err() != nil {
 			state.miss(next, planned, paceCanceled)
@@ -212,11 +212,21 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 				next++
 				continue
 			}
+			// Reuse an available lane before opening another connection. The
+			// configured concurrency is a ceiling, not a target pool size.
+			var jobs chan paceJob
 			select {
-			case jobs := <-ready:
+			case jobs = <-ready:
+			default:
+				if unused < len(queues) {
+					jobs = queues[unused]
+					unused++
+				}
+			}
+			if jobs != nil {
 				jobs <- paceJob{ticket: next, due: due}
 				next++
-			default:
+			} else {
 				state.miss(next, latest+1, paceBusy)
 				next = latest + 1
 			}
