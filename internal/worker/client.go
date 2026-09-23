@@ -165,7 +165,7 @@ func runAndReport(sessionCtx, runCtx context.Context, cmd *proto.StartCmd, event
 			return false
 		}
 	}
-	runner := NewMyRunner()
+	runner := NewMyRunnerWithConcurrency(min(int(cmd.Concurrency), int(cmd.TotalRequests)))
 	defer runner.MyClient.CloseIdleConnections()
 	log.Printf("START: method=%s target=%s requests=%d concurrency=%d", cmd.Method, cmd.TargetUrl, cmd.TotalRequests, cmd.Concurrency)
 	options := RequestOptions{Method: cmd.Method, Body: cmd.Body, Headers: cmd.Headers}

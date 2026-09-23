@@ -77,6 +77,14 @@ func loadRootCAs() *x509.CertPool {
 // If INSECURE_SKIP_VERIFY=1 or true, TLS certificate verification is skipped (Docker/dev use).
 // Otherwise, RootCAs are loaded explicitly from SSL_CERT_FILE or common paths so that static Go binaries (CGO_ENABLED=0) on Alpine find the CA bundle.
 func NewMyRunner() *MyRunner {
+	return NewMyRunnerWithConcurrency(100)
+}
+
+// NewMyRunnerWithConcurrency keeps enough idle connections for a full wave of
+// requests. A smaller pool repeatedly closes and redials connections when many
+// responses finish together, which can exhaust local TCP ports at high load.
+func NewMyRunnerWithConcurrency(concurrency int) *MyRunner {
+	concurrency = max(1, concurrency)
 	tlsInsecure := os.Getenv("INSECURE_SKIP_VERIFY") == "1" || os.Getenv("INSECURE_SKIP_VERIFY") == "true"
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: tlsInsecure,
@@ -87,8 +95,8 @@ func NewMyRunner() *MyRunner {
 		}
 	}
 	myTransport := &http.Transport{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 100,
+		MaxIdleConns:        concurrency,
+		MaxIdleConnsPerHost: concurrency,
 		IdleConnTimeout:     90 * time.Second,
 		TLSClientConfig:     tlsConfig,
 	}

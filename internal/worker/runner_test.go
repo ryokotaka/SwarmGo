@@ -44,6 +44,44 @@ func TestRunnerReadsBodiesAndReusesConnections(t *testing.T) {
 	}
 }
 
+func TestRunnerReusesConnectionsAcrossLargeRequestWaves(t *testing.T) {
+	const concurrency = 150 // Exceeds the old fixed pool of 100.
+	var connections, requests atomic.Int32
+	gates := []chan struct{}{make(chan struct{}), make(chan struct{})}
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		n := int(requests.Add(1))
+		wave := (n - 1) / concurrency
+		if n%concurrency == 0 {
+			close(gates[wave])
+		}
+		select {
+		case <-gates[wave]:
+			io.WriteString(w, "ok")
+		case <-req.Context().Done():
+		}
+	}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connections.Add(1)
+		}
+	}
+	srv.Start()
+	defer srv.Close()
+	runner := NewMyRunnerWithConcurrency(concurrency)
+	defer runner.MyClient.CloseIdleConnections()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for wave := 0; wave < 2; wave++ {
+		summary, err := runner.MyRun(ctx, srv.URL, concurrency, concurrency, nil)
+		if err != nil || summary.MySuccess != concurrency || summary.MyFailed != 0 {
+			t.Fatalf("wave %d: summary=%+v err=%v", wave, summary, err)
+		}
+	}
+	if got := connections.Load(); got != concurrency {
+		t.Fatalf("opened %d connections for two waves; want %d reused connections", got, concurrency)
+	}
+}
+
 func TestRunnerCountsTruncatedBodyAsFailure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", "100")

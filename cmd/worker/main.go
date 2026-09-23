@@ -56,7 +56,8 @@ func main() {
 	runStart := time.Now()
 
 	// Create a MyRunner to run the load test and send requests via MyRun.
-	myRunner := worker.NewMyRunner()
+	myRunner := worker.NewMyRunnerWithConcurrency(min(*concurrency, *totalRequests))
+	defer myRunner.MyClient.CloseIdleConnections()
 	mySum, myErr := myRunner.MyRun(ctx, *url, *totalRequests, *concurrency, nil)
 
 	// Calculate the total execution time of the test.
