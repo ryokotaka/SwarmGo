@@ -1,14 +1,38 @@
 # SwarmGo
 
-**手元のPCから、APIへ2万件の同時リクエストを送る。**
+**1台のPCから、毎秒約20万件のPOSTを5分間。**
 
-[まず動かす](#まず動かす) · [高負荷時の確認](#大量アクセス時の応答と回復を調べる) · [性能測定](benchmarks/) · [JSONを送る](#json-を送る) · [English](./README.md)
+Go製のHTTP負荷試験ツールです。複数のワーカーからリクエストを送り、進捗とエラーをターミナルで確認できます。スクリプトから実行し、結果をJSONに保存することもできます。
 
-![SwarmGo: 2万件同時、毎秒7.2万件、各回300万件のPOSTを失敗ゼロで完了](assets/performance.svg)
+[まず動かす](#まず動かす) · [実測結果](benchmarks/arrival/recorded-endurance/) · [高負荷時の確認](#大量アクセス時の応答と回復を調べる) · [English](README.md)
 
-**同じ試験でk6 v2.3.0の1.61倍の送信量。** 1 KiBのJSONを送る試験を5回実施し、毎回300万件を失敗ゼロで完了しました。Apple M4のDocker環境で、コンテナごとのCPU・メモリ制限なし。応答に200 msかかるローカルサーバーに対する中央値です。[全結果・環境・再現手順](benchmarks/capacity/)
+![横軸は継続時間、縦軸は実測RPS。両者とも約19.8万RPSで、SwarmGoは5分を完了、ohaは途中で停止](assets/endurance-xy.svg)
 
-複数のワーカーからHTTPリクエストを送り、1つのターミナルで進捗とエラーを確認できます。GET・POST、本文・ヘッダー指定に対応し、スクリプトからの実行ではJSONと終了コードを返します。Goで実装し、ワーカーの制御にはgRPCを使っています。
+SwarmGoは5分間で**約5,971万件のPOSTを正常完了**し、最大メモリは**89.7 MiB**でした。同じ試験のoha v1.16.0は、生成側の6 GiB上限に達して約169秒で停止しました。
+
+*右上ほど、大きな負荷を長く維持できます。両者とも対象サーバー側の同じ集計方法で描いています。[データと再現手順](benchmarks/arrival/recorded-endurance/)*
+
+<details>
+<summary>負荷が続く様子を見る</summary>
+
+![実測RPSの推移。SwarmGoは予定の終了まで負荷を維持し、ohaはメモリ上限で停止](assets/endurance.gif)
+
+*実測ログを25倍速で再生。最後の集計区間には負荷の停止を含みます。[件数とメモリの推移](assets/endurance.svg)。*
+
+</details>
+
+<details>
+<summary>測定条件を見る</summary>
+
+Apple M4のDocker上で各1回測定。HTTP/1.1、要求・応答とも1 KiB、対象に追加の待ち時間なし。生成側は両者とも6 GiB、CPU制限なし。ohaは表示を省くquietモードです。
+
+SwarmGoは予定件数の99.52%を送信し、HTTP失敗はゼロ、未送信は0.48%でした。元のレポートにも未送信と厳密な判定のinconclusiveを残しています。この規模の試験を継続できるかの比較で、あらゆるAPIでの最高速度を示すものではありません。
+
+[全条件と生データ](benchmarks/arrival/recorded-endurance/)
+
+</details>
+
+別の同時2万件の比較では、5回の中央値で**k6 v2.3.0の1.61倍の送信量**でした。両者とも全5回、失敗ゼロで完了しています。[k6との比較](benchmarks/capacity/)
 
 <details>
 <summary>3ワーカーで動かした画面を見る</summary>

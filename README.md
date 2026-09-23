@@ -1,14 +1,38 @@
 # SwarmGo
 
-**Send 20,000 concurrent requests to your API from a single machine.**
+**Nearly 200,000 POSTs a second, sustained for five minutes.**
 
-[Quick start](#try-it-locally) · [Overload check](#check-ordinary-traffic-during-overload) · [Benchmarks](benchmarks/) · [JSON requests](#send-json) · [日本語](./README_ja.md)
+A Go HTTP load tester with a terminal dashboard and a scriptable CLI. Send requests from multiple workers, watch errors as they happen, and save the results as JSON.
 
-![SwarmGo: 20,000 concurrent requests, 71.5k requests per second, three million POSTs with zero failures](assets/performance.svg)
+[Try it locally](#try-it-locally) · [Measured results](benchmarks/arrival/recorded-endurance/) · [Overload checks](#check-ordinary-traffic-during-overload) · [日本語](README_ja.md)
 
-**1.61× the throughput of k6 v2.3.0 in the same test.** SwarmGo completed three million 1 KiB POSTs with zero failures in each of five runs. Measured on Apple M4 in Docker, without per-container CPU or memory limits, against a local target with a 200 ms response delay. Figures are medians. [Full results and reproduction](benchmarks/capacity/)
+![Target-observed RPS against duration: both tools deliver about 198k/s; SwarmGo finishes the schedule while oha stops](assets/endurance-xy.svg)
 
-Run HTTP load tests across several workers and follow progress and errors from one terminal. SwarmGo supports GET, POST, fixed bodies and headers, plus automated runs that return a JSON report and an exit code. It is written in Go, with gRPC streams between the controller and workers.
+SwarmGo finished the load window with **59.7 million successful POSTs** and **89.7 MiB peak memory**. In the same test, oha v1.16.0 reached the 6 GiB generator limit and stopped after 169 seconds.
+
+*Higher and farther right means more load, for longer. Rates use the same target-side measurement for both tools. [Data and reproduction](benchmarks/arrival/recorded-endurance/)*
+
+<details>
+<summary>Watch the recorded run</summary>
+
+![Recorded POST rate: SwarmGo maintains the load until the scheduled end; oha stops at the memory limit](assets/endurance.gif)
+
+*Recorded samples replayed at 25× speed. The final sampling interval includes stopping the load. [Request counts and memory](assets/endurance.svg).*
+
+</details>
+
+<details>
+<summary>Test conditions</summary>
+
+One local run per tool on Apple M4 in Docker. HTTP/1.1; 1 KiB request and response bodies; no target delay. Both generators had 6 GiB of memory, with no CPU quota. oha used quiet mode.
+
+SwarmGo delivered 99.52% of the requested schedule: zero HTTP failures, 0.48% missed starts. Its original report keeps those missed starts and the strict `inconclusive` verdict. This comparison measures the ability to keep this workload running, not a maximum speed for every API.
+
+[Full conditions and raw reports](benchmarks/arrival/recorded-endurance/)
+
+</details>
+
+A separate 20,000-concurrency comparison recorded **1.61× k6 v2.3.0's median throughput**, with both tools completing all five runs without failures. [k6 results](benchmarks/capacity/)
 
 <details>
 <summary>See the three-worker dashboard</summary>

@@ -1,8 +1,12 @@
 # 10,000 concurrent HTTP requests
 
+![One million POSTs under the same 2 CPU and 2 GiB budget](../../assets/budget.svg)
+
 SwarmGo completed **one million POST requests with zero failures in each of five runs**, reaching 10,000 simultaneous requests at the target. Median throughput was **47,129 requests/s** with **605.5 MiB** peak cgroup memory. The controller and worker shared a **2 CPU / 2 GiB** limit.
 
 Under the same limit, **k6 v2.3.0 was killed by the kernel for exceeding the memory limit in all five runs**. Its default Go memory settings were used; memory tuning was not tested. It reached 10,000 concurrent requests before stopping. This compares a fixed HTTP workload within a resource budget; it does not measure the maximum capacity of k6 with more memory.
+
+[A current-engine check](current/) repeated the million-request workload successfully after the HTTP engine changes. It is a single verification run, separate from the paired results below.
 
 [The follow-up capacity test](../capacity/) removes the per-container limits and increases concurrency to 20,000.
 
