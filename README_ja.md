@@ -92,18 +92,22 @@ sequenceDiagram
     participant W as Worker × N
     participant A as Target API
     C->>W: Start · method, body, count, concurrency
-    par HTTP/1.1 connection pool
+    par Reusable HTTP/1.1 connections
         W->>A: Send prepared request
         A-->>W: Read response, reuse connection
     and gRPC progress stream
-        W-->>C: Counts, errors, latency percentiles
+        W-->>C: Success/failure counts, run-average RPS
     end
-    W-->>C: Final results · finish
+    W-->>C: Final percentiles, error reasons · finish
 ```
 
-HTTP/1.1の送信データを一度だけ組み立て、処理担当ごとに接続を再利用します。結果は小さな単位にまとめて集計。コントローラーはgRPCで指示と進捗をやり取りし、HTTPリクエストはワーカーから対象へ直接送ります。
+コントローラーは開始・停止と結果の集約を担当し、HTTP通信はワーカーからAPIへ直接送ります。負荷を生成する経路では、次の3点を重視しています。
 
-コードは[HTTPの送受信](internal/worker/direct.go)、[並行実行と集計](internal/worker/aggregate.go)、[コントローラー](internal/master/server.go)から追えます。
+- **送信のたびに作り直さない。** 並行数に応じた数のgoroutineを動かし、HTTP/1.1の送信データと各goroutineの接続を再利用します。リクエストごとにgoroutineを起動したり、送信データを組み立てたりする処理を省きます。[送受信の実装](internal/worker/direct.go)
+- **レイテンシの記録を件数に比例させない。** 結果を小さな単位でまとめて集計し、成功リクエストのレイテンシは全件保存せずHDRヒストグラムに記録します。長い試験でも、レイテンシ記録用のメモリは増え続けません。[並行実行と集計](internal/worker/aggregate.go)
+- **HTTPの処理を省略して速度を稼がない。** 応答本文を読み切り、タイムアウト・キャンセル・TLS証明書の検証も行います。リダイレクトなどはGoの標準クライアントに任せています。[HTTP処理のテスト](internal/worker/direct_test.go)
+
+実行中は成功・失敗件数と開始からの平均RPSを報告し、終了時にレイテンシ百分位とエラー理由を確定します。[レポートの指標](GUIDE_ja.md#指標の定義)
 
 ```sh
 go test -race ./...

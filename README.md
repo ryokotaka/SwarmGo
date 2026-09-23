@@ -92,18 +92,22 @@ sequenceDiagram
     participant W as Worker × N
     participant A as Target API
     C->>W: Start · method, body, count, concurrency
-    par HTTP/1.1 connection pool
+    par Reusable HTTP/1.1 connections
         W->>A: Send prepared request
         A-->>W: Read response, reuse connection
     and gRPC progress stream
-        W-->>C: Counts, errors, latency percentiles
+        W-->>C: Success/failure counts, run-average RPS
     end
-    W-->>C: Final results · finish
+    W-->>C: Final percentiles, error reasons · finish
 ```
 
-HTTP/1.1 request bytes are prepared once. Each execution lane owns a reusable connection, and results are aggregated in small batches. The controller exchanges commands and progress over gRPC; workers send HTTP traffic directly to the target.
+The controller starts and stops runs and collects results. Workers send HTTP traffic directly to the API. Three choices shape the request path:
 
-Start with [the HTTP path](internal/worker/direct.go), [parallel execution and aggregation](internal/worker/aggregate.go), or [the controller](internal/master/server.go).
+- **Reuse work between requests.** A fixed number of goroutines reuse prepared HTTP/1.1 request bytes and their own connections. Each request avoids starting a goroutine or rebuilding the same wire data. [HTTP implementation](internal/worker/direct.go)
+- **Keep latency storage bounded.** Results are aggregated in small batches. Successful-request latencies go into HDR histograms instead of a growing list of samples, so latency storage stays bounded as the request count increases. [Execution and aggregation](internal/worker/aggregate.go)
+- **Preserve HTTP behavior.** Workers consume response bodies and retain deadlines, cancellation and TLS certificate verification. Redirects and other special cases use Go's standard client. [HTTP tests](internal/worker/direct_test.go)
+
+During a run, workers report success/failure counts and RPS averaged since the start. Final reports add latency percentiles and error reasons. [Metric definitions](GUIDE.md#measurement-details)
 
 ```sh
 go test -race ./...
