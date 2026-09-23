@@ -82,6 +82,32 @@ func TestRunnerReusesConnectionsAcrossLargeRequestWaves(t *testing.T) {
 	}
 }
 
+func TestRunnerBoundsConnectionsWithQueuedRequests(t *testing.T) {
+	var connections atomic.Int32
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(5 * time.Millisecond)
+		io.WriteString(w, "ok")
+	}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connections.Add(1)
+		}
+	}
+	srv.Start()
+	defer srv.Close()
+	runner := NewMyRunnerWithConcurrency(4)
+	defer runner.MyClient.CloseIdleConnections()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	summary, err := runner.MyRun(ctx, srv.URL, 80, 40, nil)
+	if err != nil || summary.MySuccess != 80 || summary.MyFailed != 0 {
+		t.Fatalf("queued requests did not complete: summary=%+v err=%v", summary, err)
+	}
+	if got := connections.Load(); got > 4 {
+		t.Fatalf("opened %d connections; want at most 4", got)
+	}
+}
+
 func TestRunnerCountsTruncatedBodyAsFailure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", "100")

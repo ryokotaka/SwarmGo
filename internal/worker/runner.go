@@ -83,6 +83,8 @@ func NewMyRunner() *MyRunner {
 // NewMyRunnerWithConcurrency keeps enough idle connections for a full wave of
 // requests. A smaller pool repeatedly closes and redials connections when many
 // responses finish together, which can exhaust local TCP ports at high load.
+// The total connection limit also bounds dials that finish after a request has
+// already obtained a reused connection.
 func NewMyRunnerWithConcurrency(concurrency int) *MyRunner {
 	concurrency = max(1, concurrency)
 	tlsInsecure := os.Getenv("INSECURE_SKIP_VERIFY") == "1" || os.Getenv("INSECURE_SKIP_VERIFY") == "true"
@@ -97,6 +99,7 @@ func NewMyRunnerWithConcurrency(concurrency int) *MyRunner {
 	myTransport := &http.Transport{
 		MaxIdleConns:        concurrency,
 		MaxIdleConnsPerHost: concurrency,
+		MaxConnsPerHost:     concurrency,
 		IdleConnTimeout:     90 * time.Second,
 		TLSClientConfig:     tlsConfig,
 	}
