@@ -73,6 +73,14 @@ message ErrorReason {
   int32 count = 2;     // その要因の発生回数
 }
 
+// Final successful-request percentiles. Message presence distinguishes a
+// measured value below one millisecond from an unfinished report.
+message LatencyMicros {
+  int64 p50 = 1;
+  int64 p90 = 2;
+  int64 p99 = 3;
+}
+
 message StatsMsg {
   int32 success_count = 1;  // 途中報告：成功数
   int32 fail_count = 2;     // 途中報告：失敗数
@@ -81,6 +89,7 @@ message StatsMsg {
   int32 latency_p90_ms = 5; // レイテンシ P90（ミリ秒）
   int32 latency_p99_ms = 6; // レイテンシ P99（ミリ秒）
   repeated ErrorReason error_reasons = 7; // 失敗の要因ごとの集計（最終報告で送信、TUI で上位表示）
+  LatencyMicros latency_us = 8; // Final percentiles; legacy integer-ms fields remain populated.
 }
 
 message FinishMsg {

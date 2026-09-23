@@ -122,6 +122,9 @@ func TestHeadlessRunCompletesAndReportsHTTPFailures(t *testing.T) {
 				if (participant.LatencyMS != nil) != (status == http.StatusOK) {
 					t.Fatalf("latency must cover successful requests only: %+v", participant)
 				}
+				if (participant.LatencyUS != nil) != (status == http.StatusOK) {
+					t.Fatalf("microsecond latency presence lost through gRPC: %+v", participant)
+				}
 			}
 			if status == http.StatusInternalServerError && result.report.ErrorReasons["HTTP 500 Internal Server Error"] != 24 {
 				t.Fatalf("missing grouped errors: %+v", result.report)
@@ -297,5 +300,47 @@ func TestRunReportRequiresEachParticipantToCompleteItsAssignment(t *testing.T) {
 	report := makeRunReport(options, snapshot, nil)
 	if report.Success || report.Complete || report.Requests.Completed != 20 {
 		t.Fatalf("uneven assignments incorrectly passed: %+v", report)
+	}
+}
+
+func TestRunReportJSONPreservesLatencyPrecisionAndLegacyNulls(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		finished bool
+		stats    master.StatsUpdate
+		wantUS   string
+		wantMS   string
+	}{
+		{name: "sub-millisecond", finished: true, stats: master.StatsUpdate{SuccessCount: 1, LatencyUS: &proto.LatencyMicros{P50: 125, P90: 750, P99: 900}}, wantUS: `{"p50":125,"p90":750,"p99":900}`, wantMS: `{"p50":0,"p90":0,"p99":0}`},
+		{name: "measured zero", finished: true, stats: master.StatsUpdate{SuccessCount: 1, LatencyUS: &proto.LatencyMicros{}}, wantUS: `{"p50":0,"p90":0,"p99":0}`, wantMS: `{"p50":0,"p90":0,"p99":0}`},
+		{name: "legacy worker", finished: true, stats: master.StatsUpdate{SuccessCount: 1, LatencyP90Ms: 1, LatencyP99Ms: 2}, wantUS: `null`, wantMS: `{"p50":0,"p90":1,"p99":2}`},
+		{name: "no successful requests", finished: true, stats: master.StatsUpdate{FailCount: 1}, wantUS: `null`, wantMS: `null`},
+		{name: "unfinished worker", stats: master.StatsUpdate{SuccessCount: 1, LatencyUS: &proto.LatencyMicros{P50: 125, P90: 750, P99: 900}}, wantUS: `null`, wantMS: `null`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			snapshot := master.RunSnapshot{
+				StartedAt: time.Now(),
+				Workers:   map[string]master.WorkerRunState{"worker": {Finished: tc.finished}},
+				Stats:     map[string]master.StatsUpdate{"worker": tc.stats},
+			}
+			report := makeRunReport(testRunOptions("http://127.0.0.1", 1, 1), snapshot, nil)
+			encoded, err := json.Marshal(report)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded struct {
+				Workers []map[string]json.RawMessage `json:"workers"`
+			}
+			if err := json.Unmarshal(encoded, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			if len(decoded.Workers) != 1 {
+				t.Fatalf("worker omitted from JSON: %s", encoded)
+			}
+			got := decoded.Workers[0]
+			if string(got["latency_us"]) != tc.wantUS || string(got["latency_ms"]) != tc.wantMS {
+				t.Fatalf("wrong precision or missing/null distinction: latency_us=%s latency_ms=%s", got["latency_us"], got["latency_ms"])
+			}
+		})
 	}
 }

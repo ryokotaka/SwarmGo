@@ -112,6 +112,8 @@ Run `./swarmgo worker` in two other terminals. The test starts automatically whe
 
 The JSON includes completion status, request counts, elapsed time, a controller-wide request rate, and each worker's latency percentiles and errors. The controller rate uses dispatch through the last report as its time window. Latency percentiles remain per worker. The request flags below work with both `master` and `run`.
 
+Use `workers[].latency_us` for P50/P90/P99 in microseconds. The older `latency_ms` field remains as truncated integer milliseconds for compatibility. Both are `null` without a completed worker report or successful samples; `latency_us` is also `null` for older workers that report only whole milliseconds.
+
 ## Send JSON
 
 For a local API that accepts JSON at `/api`, create a body file and start the controller with POST:
@@ -164,7 +166,7 @@ These definitions apply to `master` and `run`. For scheduled spikes and the ordi
 
 - **Success / failure:** a request succeeds if its response body is read completely and its final HTTP status is below 400. HTTP 4xx/5xx, connection errors, timeouts, and canceled in-flight requests count as failures. Redirects follow Go's default HTTP client behavior.
 - **RPS:** completed requests divided by elapsed wall time for each worker, summed on the dashboard. These are running averages, not instantaneous samples or one precisely synchronized cluster-wide rate. The final values stay on screen after completion.
-- **Latency:** time to receive the full response, for successful requests only. Workers calculate P50/P90/P99 from HDR histograms when they finish (microsecond units, three significant digits: up to 0.1% value quantization plus less than 1 microsecond from conversion). The dashboard shows the three values from the worker with the highest P99; these are **not pooled percentiles across all workers**. Values are sent as whole milliseconds, so sub-millisecond values may display as `-`.
+- **Latency:** time to receive the full response, for successful requests only. Workers calculate P50/P90/P99 from HDR histograms when they finish (microsecond units, three significant digits: up to 0.1% value quantization plus less than 1 microsecond from conversion). The dashboard shows the three values from the reporting worker with the highest P99; these are **not pooled percentiles across all workers**. Values retain microsecond precision and display as milliseconds with three decimal places. Until a final report arrives, the dashboard says when latency will be available. For older workers, a truncated zero displays as `<1 ms`.
 - **Errors:** grouped reasons arrive with each worker's final report. A disconnected worker may leave partial results; its missing work is not reassigned.
 
 Connections and small result batches are bounded by concurrency. Latency histogram storage is fixed per CPU shard and does not grow with the request count.

@@ -11,7 +11,49 @@ import (
 
 	"github.com/ryokotaka/SwarmGo/proto"
 	"google.golang.org/grpc"
+	wireproto "google.golang.org/protobuf/proto"
 )
+
+func TestSummaryStatsPreservesLatencyPrecisionAndPresenceOnWire(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		success int
+		us      [3]int64
+		ms      [3]int32
+	}{
+		{name: "sub-millisecond", success: 1, us: [3]int64{125, 750, 900}},
+		{name: "legacy milliseconds retained", success: 1, us: [3]int64{125, 1750, 2900}, ms: [3]int32{0, 1, 2}},
+		{name: "measured zero", success: 1},
+		{name: "no successful samples"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stats := summaryStats(&MySummary{
+				MyTotal: 1, MySuccess: tc.success, MyFailed: 1 - tc.success,
+				LatencyP50: time.Duration(tc.us[0]) * time.Microsecond,
+				LatencyP90: time.Duration(tc.us[1]) * time.Microsecond,
+				LatencyP99: time.Duration(tc.us[2]) * time.Microsecond,
+			})
+			encoded, err := wireproto.Marshal(&proto.WorkerMsg{Msg: &proto.WorkerMsg_Stats{Stats: stats}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded proto.WorkerMsg
+			if err := wireproto.Unmarshal(encoded, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			got := decoded.GetStats()
+			if got == nil || (got.LatencyUs != nil) != (tc.success > 0) {
+				t.Fatalf("latency presence lost on wire: %v", got)
+			}
+			if latency := got.LatencyUs; latency != nil && [3]int64{latency.P50, latency.P90, latency.P99} != tc.us {
+				t.Fatalf("microseconds changed: got %v, want %v", latency, tc.us)
+			}
+			if [3]int32{got.LatencyP50Ms, got.LatencyP90Ms, got.LatencyP99Ms} != tc.ms {
+				t.Fatalf("legacy millisecond fields changed: %v", got)
+			}
+		})
+	}
+}
 
 type testMaster struct {
 	proto.UnimplementedSwarmServiceServer

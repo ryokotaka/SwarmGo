@@ -186,6 +186,10 @@ func runAndReport(sessionCtx, runCtx context.Context, cmd *proto.StartCmd, event
 	}
 	log.Printf("Run finished: total=%d success=%d failed=%d duration=%v",
 		summary.MyTotal, summary.MySuccess, summary.MyFailed, summary.Elapsed)
+	if summary.MySuccess > 0 {
+		log.Printf("Latency (successful requests): p50_us=%d p90_us=%d p99_us=%d",
+			summary.LatencyP50.Microseconds(), summary.LatencyP90.Microseconds(), summary.LatencyP99.Microseconds())
+	}
 	if !emit(runEvent{msg: &proto.WorkerMsg{Msg: &proto.WorkerMsg_Stats{Stats: summaryStats(summary)}}}) {
 		return
 	}
@@ -201,6 +205,13 @@ func summaryStats(summary *MySummary) *proto.StatsMsg {
 		LatencyP50Ms: int32(summary.LatencyP50.Milliseconds()),
 		LatencyP90Ms: int32(summary.LatencyP90.Milliseconds()),
 		LatencyP99Ms: int32(summary.LatencyP99.Milliseconds()),
+	}
+	if summary.MySuccess > 0 {
+		stats.LatencyUs = &proto.LatencyMicros{
+			P50: summary.LatencyP50.Microseconds(),
+			P90: summary.LatencyP90.Microseconds(),
+			P99: summary.LatencyP99.Microseconds(),
+		}
 	}
 	if summary.Elapsed > 0 {
 		stats.CurrentRps = float64(summary.MyTotal) / summary.Elapsed.Seconds()

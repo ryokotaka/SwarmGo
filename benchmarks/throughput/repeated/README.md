@@ -2,7 +2,11 @@
 
 Six 60-second observations per tool. SwarmGo and wrk were measured first; k6 and oha were added in a later series using the same workload, binaries and machine. Each pair was measured sequentially with the starting order reversed between groups.
 
-![Median throughput and observed ranges](../../../assets/throughput-repeated.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../../../assets/throughput-repeated-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="../../../assets/throughput-repeated.svg">
+  <img alt="Median throughput and observed ranges" src="../../../assets/throughput-repeated.svg">
+</picture>
 
 | Tool | Median POST/s | Minimum | Maximum | Runs |
 | --- | ---: | ---: | ---: | ---: |
@@ -13,7 +17,11 @@ Six 60-second observations per tool. SwarmGo and wrk were measured first; k6 and
 
 ## Every observation
 
-![Box plots with all 24 observations](../../../assets/throughput-distribution.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../../../assets/throughput-distribution-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="../../../assets/throughput-distribution.svg">
+  <img alt="Box plots with all 24 observations" src="../../../assets/throughput-distribution.svg">
+</picture>
 
 Each dot is one complete 60-second observation. Filled dots are the first three runs for that tool; hollow dots are the next three. Boxes show the middle 50% with linearly interpolated quartiles. Whiskers show the observed minimum and maximum, not a confidence interval. Every complete comparison observation is retained.
 

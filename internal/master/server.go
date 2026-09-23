@@ -27,6 +27,7 @@ type StatsUpdate struct {
 	LatencyP50Ms int32
 	LatencyP90Ms int32
 	LatencyP99Ms int32
+	LatencyUS    *proto.LatencyMicros
 }
 
 // WorkerListChanged notifies the TUI when a Worker connects or disconnects (triggers list redraw).
@@ -206,6 +207,7 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 				LatencyP50Ms: stats.LatencyP50Ms,
 				LatencyP90Ms: stats.LatencyP90Ms,
 				LatencyP99Ms: stats.LatencyP99Ms,
+				LatencyUS:    stats.LatencyUs,
 			}
 			s.mu.Lock()
 			if !s.activeWorkers[workerID] {
@@ -278,6 +280,9 @@ func (s *Server) SnapshotRun() RunSnapshot {
 		FinishedAt:       s.finishedAt,
 	}
 	for id, stats := range s.stats {
+		if latency := stats.LatencyUS; latency != nil {
+			stats.LatencyUS = &proto.LatencyMicros{P50: latency.P50, P90: latency.P90, P99: latency.P99}
+		}
 		snapshot.Stats[id] = stats
 	}
 	for id, state := range s.runWorkers {

@@ -16,13 +16,19 @@ SwarmGo is an HTTP load-testing tool for finding slow responses and failures bef
 
 **Over half a million HTTP requests per second.**
 
-[![Median of six 60-second runs per tool: wrk 619k, SwarmGo 577k, oha 463k, k6 123k POSTs per second; thin lines show the observed range](assets/throughput-repeated.svg)](benchmarks/throughput/repeated/)
+<a href="benchmarks/throughput/repeated/">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/throughput-repeated-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/throughput-repeated.svg">
+  <img alt="Median of six 60-second runs per tool: wrk 619k, SwarmGo 577k, oha 463k, k6 123k POSTs per second; thin lines show the observed range" src="assets/throughput-repeated.svg">
+</picture>
+</a>
 
 Apple M4 · local Docker · 1 KiB request and response. Concurrency: k6 64 VUs; others 256 connections. [Setup and data](benchmarks/throughput/repeated/).
 
 ## In action
 
-This recorded run completed **10 million requests in 16.2 seconds**, with **zero failures**.
+This recorded run completed **10 million requests in 16.1 seconds**, with **zero failures**.
 
 ![SwarmGo completing ten million POST requests against a local API](assets/demo.gif)
 
@@ -70,7 +76,11 @@ The opening comparison has no request-rate cap. Rates are counted at the target,
 <details>
 <summary>See all six runs per tool</summary>
 
-![Six runs per tool: box plots with all 24 measured values shown below the boxes](assets/throughput-distribution.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/throughput-distribution-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/throughput-distribution.svg">
+  <img alt="Six runs per tool: box plots with all 24 measured values shown below the boxes" src="assets/throughput-distribution.svg">
+</picture>
 
 Boxes show the middle 50%, with a median line and min–max whiskers. Each dot below is one run: filled for the first three, hollow for the next three per tool. [All 24 recordings](benchmarks/throughput/repeated/).
 

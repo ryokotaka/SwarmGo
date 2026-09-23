@@ -66,6 +66,8 @@ type workerStats struct {
 	latencyP50Ms  int32
 	latencyP90Ms  int32
 	latencyP99Ms  int32
+	latencyUS     *proto.LatencyMicros
+	finished      bool
 }
 
 // model is the Bubble Tea "UI state" type.
@@ -214,6 +216,7 @@ func (m *model) refreshRunState() {
 		m.workerStats[id] = workerStats{
 			success: stats.SuccessCount, fail: stats.FailCount, rps: stats.CurrentRps,
 			latencyP50Ms: stats.LatencyP50Ms, latencyP90Ms: stats.LatencyP90Ms, latencyP99Ms: stats.LatencyP99Ms,
+			latencyUS: stats.LatencyUS, finished: snapshot.Workers[id].Finished,
 		}
 	}
 }
@@ -258,15 +261,9 @@ func (m model) View() string {
 	workerCount := len(workers)
 
 	var totalSuccess, totalFail int64
-	var maxP99, repP50, repP90 int32 // for display: use values from the Worker with max P99
 	for _, ws := range m.workerStats {
 		totalSuccess += int64(ws.success)
 		totalFail += int64(ws.fail)
-		if ws.latencyP99Ms > maxP99 {
-			maxP99 = ws.latencyP99Ms
-			repP50 = ws.latencyP50Ms
-			repP90 = ws.latencyP90Ms
-		}
 	}
 
 	completed := totalSuccess + totalFail
@@ -280,15 +277,11 @@ func (m model) View() string {
 		progressStr = fmt.Sprintf("Progress: %d / %d (%.0f%%)", completed, totalExpected, pct)
 	}
 
-	latencyStr := "  |  Latency (worker with highest P99) P50: -  P90: -  P99: -"
-	if maxP99 > 0 || repP50 > 0 || repP90 > 0 {
-		latencyStr = fmt.Sprintf("  |  Latency (worker with highest P99) P50: %d ms  P90: %d ms  P99: %d ms", repP50, repP90, maxP99)
-	}
-
 	mainContent := fmt.Sprintf("Workers: %d\n\n", workerCount)
 	mainContent += "RPS (sum of worker run averages)\n"
 	mainContent += m.renderRPSGraph() + "\n\n"
-	mainContent += fmt.Sprintf("Success: %d   Fail: %d   %s%s", totalSuccess, totalFail, progressStr, latencyStr)
+	mainContent += fmt.Sprintf("Success: %d   Fail: %d   %s\n", totalSuccess, totalFail, progressStr)
+	mainContent += m.renderLatency()
 	mainContent += m.renderErrorReasons()
 
 	mainBox := boxStyle.Render(mainContent) // one block with border and padding
@@ -311,6 +304,56 @@ func (m model) View() string {
 
 	// Return the full screen as one string; Bubble Tea outputs it to the terminal
 	return header + "\n" + mainBox + "\n" + logBox + "\n" + footer
+}
+
+func (m model) renderLatency() string {
+	ids := make([]string, 0, len(m.workerStats))
+	for id := range m.workerStats {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var selected workerStats
+	highestP99 := int64(-1)
+	var successes int64
+	for _, id := range ids {
+		stats := m.workerStats[id]
+		successes += int64(stats.success)
+		if stats.success == 0 || (stats.latencyUS == nil && !stats.finished) {
+			continue
+		}
+		p99 := int64(stats.latencyP99Ms) * 1000
+		if stats.latencyUS != nil {
+			p99 = stats.latencyUS.P99
+		}
+		if p99 > highestP99 {
+			selected, highestP99 = stats, p99
+		}
+	}
+	if highestP99 < 0 {
+		if m.expectedRequests == 0 || m.running {
+			return "Latency: available when a worker finishes"
+		}
+		if successes == 0 {
+			return "Latency: no successful requests"
+		}
+		return "Latency: no final report received"
+	}
+	var p50, p90, p99 string
+	if latency := selected.latencyUS; latency != nil {
+		p50 = fmt.Sprintf("%.3f ms", float64(latency.P50)/1000)
+		p90 = fmt.Sprintf("%.3f ms", float64(latency.P90)/1000)
+		p99 = fmt.Sprintf("%.3f ms", float64(latency.P99)/1000)
+	} else {
+		// Older workers sent truncated integer milliseconds only.
+		format := func(ms int32) string {
+			if ms == 0 {
+				return "<1 ms"
+			}
+			return fmt.Sprintf("%d ms", ms)
+		}
+		p50, p90, p99 = format(selected.latencyP50Ms), format(selected.latencyP90Ms), format(selected.latencyP99Ms)
+	}
+	return fmt.Sprintf("Latency (successful requests; highest worker P99)\nP50: %s   P90: %s   P99: %s", p50, p90, p99)
 }
 
 // renderErrorReasons shows the top topErrorReasons error reasons by count from the Master aggregate; "Errors: no final reports yet" when zero.

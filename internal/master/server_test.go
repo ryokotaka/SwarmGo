@@ -81,12 +81,22 @@ func TestRunStateSurvivesDroppedUINotifications(t *testing.T) {
 	}
 	// Joining during a run must not change its planned request count.
 	connectTestWorker(t, server, "late-worker")
-	stream.incoming <- &proto.WorkerMsg{Msg: &proto.WorkerMsg_Stats{Stats: &proto.StatsMsg{SuccessCount: 10, CurrentRps: 25}}}
+	stream.incoming <- &proto.WorkerMsg{Msg: &proto.WorkerMsg_Stats{Stats: &proto.StatsMsg{
+		SuccessCount: 10, CurrentRps: 25, LatencyUs: &proto.LatencyMicros{P50: 125, P90: 750, P99: 900},
+	}}}
 	stream.incoming <- &proto.WorkerMsg{Msg: &proto.WorkerMsg_Finish{Finish: &proto.FinishMsg{}}}
 	waitUntil(t, func() bool { return !server.SnapshotRun().Running })
 	snapshot := server.SnapshotRun()
 	if snapshot.ExpectedRequests != 10 || snapshot.Stats["worker-1"].SuccessCount != 10 {
 		t.Fatalf("lost final result or changed denominator: %+v", snapshot)
+	}
+	latency := snapshot.Stats["worker-1"].LatencyUS
+	if latency == nil || latency.P50 != 125 || latency.P90 != 750 || latency.P99 != 900 {
+		t.Fatalf("snapshot lost sub-millisecond precision: %v", latency)
+	}
+	latency.P50 = 999
+	if server.SnapshotRun().Stats["worker-1"].LatencyUS.P50 != 125 {
+		t.Fatal("snapshot latency pointer aliases server state")
 	}
 	delete(snapshot.Stats, "worker-1")
 	if server.SnapshotRun().Stats["worker-1"].SuccessCount != 10 {
@@ -100,6 +110,9 @@ func TestRunStateSurvivesDroppedUINotifications(t *testing.T) {
 	}
 	if server.SnapshotRun().ExpectedRequests != 20 {
 		t.Fatal("next run did not include newly connected worker")
+	}
+	if len(server.SnapshotRun().Stats) != 0 {
+		t.Fatal("new run retained the previous run's latency")
 	}
 }
 

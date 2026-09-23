@@ -45,13 +45,20 @@ type latencyPercentiles struct {
 	P99 int32 `json:"p99"`
 }
 
+type latencyMicroseconds struct {
+	P50 int64 `json:"p50"`
+	P90 int64 `json:"p90"`
+	P99 int64 `json:"p99"`
+}
+
 type workerReport struct {
-	ID           string              `json:"id"`
-	State        string              `json:"state"`
-	Requests     requestCounts       `json:"requests"`
-	DurationMS   *int32              `json:"duration_ms"`
-	LatencyMS    *latencyPercentiles `json:"latency_ms"`
-	ErrorReasons map[string]int      `json:"error_reasons"`
+	ID           string               `json:"id"`
+	State        string               `json:"state"`
+	Requests     requestCounts        `json:"requests"`
+	DurationMS   *int32               `json:"duration_ms"`
+	LatencyMS    *latencyPercentiles  `json:"latency_ms"`
+	LatencyUS    *latencyMicroseconds `json:"latency_us"`
+	ErrorReasons map[string]int       `json:"error_reasons"`
 }
 
 // Percentiles remain per worker. ControllerRPS covers dispatch through the last
@@ -361,6 +368,9 @@ func makeRunReport(options runOptions, snapshot master.RunSnapshot, runErr error
 			participant.DurationMS = &duration
 			if stats.SuccessCount > 0 {
 				participant.LatencyMS = &latencyPercentiles{stats.LatencyP50Ms, stats.LatencyP90Ms, stats.LatencyP99Ms}
+				if latency := stats.LatencyUS; latency != nil {
+					participant.LatencyUS = &latencyMicroseconds{latency.P50, latency.P90, latency.P99}
+				}
 			}
 		} else if state.Disconnected {
 			participant.State = "disconnected"
