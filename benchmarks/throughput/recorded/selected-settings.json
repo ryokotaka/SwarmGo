@@ -1,0 +1,22 @@
+{
+  "wrk": {
+    "concurrency": 256,
+    "rps": 603325.8015387075,
+    "from": "results/screen-c256/results.json"
+  },
+  "swarmgo": {
+    "concurrency": 256,
+    "rps": 567417.8899532928,
+    "from": "results/screen-c256/results.json"
+  },
+  "k6": {
+    "concurrency": 64,
+    "rps": 147525.2147889578,
+    "from": "results/screen-c64/results.json"
+  },
+  "oha": {
+    "concurrency": 256,
+    "rps": 537821.0769284018,
+    "from": "results/screen-c256/results.json"
+  }
+}

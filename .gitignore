@@ -4,6 +4,7 @@ reference/
 .cursorrules.DS_Store
 docs/
 /swarmgo
+/resilience-results/
 
 .env
 .env.*

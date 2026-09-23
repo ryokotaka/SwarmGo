@@ -1,0 +1,6 @@
+/bin/
+/build.json
+/body.json
+/results/
+/.prepare-*/
+/__pycache__/

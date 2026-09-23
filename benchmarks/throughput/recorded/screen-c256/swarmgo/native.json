@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "status": "incomplete",
+  "success": false,
+  "complete": false,
+  "error": "running requests: context deadline exceeded",
+  "target_url": "http://172.18.0.2:8080/work",
+  "method": "POST",
+  "expected_workers": 1,
+  "requests_per_worker": 2147483647,
+  "concurrency_per_worker": 256,
+  "started_at": "2026-09-23T11:46:37.423223458Z",
+  "finished_at": "2026-09-23T11:46:57.425267801Z",
+  "elapsed_seconds": 20.002044301,
+  "controller_rps": 587998.547699047,
+  "requests": {
+    "expected": 2147483647,
+    "completed": 11761173,
+    "succeeded": 11761026,
+    "failed": 147
+  },
+  "workers": [
+    {
+      "id": "worker-1790163997411971542-868",
+      "state": "finished",
+      "requests": {
+        "expected": 2147483647,
+        "completed": 11761173,
+        "succeeded": 11761026,
+        "failed": 147
+      },
+      "duration_ms": 20001,
+      "latency_ms": {
+        "p50": 0,
+        "p90": 0,
+        "p99": 2
+      },
+      "error_reasons": {
+        "context canceled": 147
+      }
+    }
+  ],
+  "error_reasons": {
+    "context canceled": 147
+  }
+}

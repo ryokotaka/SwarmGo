@@ -1,0 +1,24 @@
+{
+  "image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "architecture": "arm64",
+  "docker_cpus": 10,
+  "docker_memory_bytes": 8217317376,
+  "network_internal": true,
+  "published_ports": [],
+  "runs": [
+    {
+      "label": "before",
+      "admission_limit_per_client": 0,
+      "exit_code": 1,
+      "status": "fail"
+    },
+    {
+      "label": "after",
+      "admission_limit_per_client": 40,
+      "exit_code": 0,
+      "status": "pass"
+    }
+  ],
+  "revision": "45b89f8dd705808e36c225790495873047bf76c9",
+  "working_tree_modified": false
+}

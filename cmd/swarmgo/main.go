@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 
@@ -12,25 +13,29 @@ import (
 )
 
 func main() {
-    // os.Args holds CLI arguments: index 0 is the executable name, index 1 is the first argument
-    if len(os.Args) < 2 {
-        printHelp()
-        os.Exit(1)
-    }
+	// os.Args holds CLI arguments: index 0 is the executable name, index 1 is the first argument
+	if len(os.Args) < 2 {
+		printHelp()
+		os.Exit(1)
+	}
 
-    // Determine command (subcommand "master"/"worker" or -mode=master / -mode=worker)
-    cmd := os.Args[1]
-    if cmd == "-mode=master" || cmd == "--mode=master" {
-        cmd = "master"
-    } else if cmd == "-mode=worker" || cmd == "--mode=worker" {
-        cmd = "worker"
-    }
+	// Determine command (subcommand "master"/"worker" or -mode=master / -mode=worker)
+	cmd := os.Args[1]
+	if cmd == "-mode=master" || cmd == "--mode=master" {
+		cmd = "master"
+	} else if cmd == "-mode=worker" || cmd == "--mode=worker" {
+		cmd = "worker"
+	}
 
 	switch cmd {
 	case "master":
 		runMaster()
 	case "worker":
 		runWorker()
+	case "run":
+		os.Exit(runCommand(os.Args[2:]))
+	case "resilience":
+		os.Exit(resilienceCommand(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		printHelp()
@@ -39,9 +44,11 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker> [options]")
-	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server. Options: -p port, -url target URL, -n total requests, -c concurrency, -no-tui (headless)")
+	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker|run|resilience> [options]")
+	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server. Options: -p port, -url target URL, -n total requests, -c concurrency, -method GET, -body-file path, -header 'Name: value', -no-tui")
+	fmt.Fprintln(os.Stderr, "  run     - wait for workers, run once, and write JSON. Options: -workers N, -url, -n, -c, -method, -body-file, -header, -output")
 	fmt.Fprintln(os.Stderr, "  worker  - connect to Master and run load test tasks. Option: -addr (or MASTER_ADDR, default localhost:50051)")
+	fmt.Fprintln(os.Stderr, "  resilience - measure ordinary requests during a bounded local load spike. See resilience -help")
 }
 
 // runMaster starts the Master with the TUI.
@@ -57,7 +64,7 @@ func runMaster() {
 	// Defaults for -url / -n / -c come from TARGET_URL / TOTAL_REQUESTS / CONCURRENCY (easy to override in Docker etc.)
 	urlDefault := os.Getenv("TARGET_URL")
 	if urlDefault == "" {
-		urlDefault = "https://example.com"
+		urlDefault = "http://127.0.0.1:8080"
 	}
 	nDefault := 5
 	if s := os.Getenv("TOTAL_REQUESTS"); s != "" {
@@ -71,11 +78,25 @@ func runMaster() {
 			cDefault = v
 		}
 	}
-	url := masterCmd.String("url", urlDefault, "Target URL for load test (default: TARGET_URL or https://example.com)")
+	url := masterCmd.String("url", urlDefault, "Target URL for load test (default: TARGET_URL or http://127.0.0.1:8080)")
 	n := masterCmd.Int("n", nDefault, "Total requests per run per Worker (default: TOTAL_REQUESTS or 5)")
 	c := masterCmd.Int("c", cDefault, "Concurrency per Worker (default: CONCURRENCY or 1)")
-	noTUI := masterCmd.Bool("no-tui", false, "Run without TUI (headless); gRPC only, log to stdout")
+	noTUI := masterCmd.Bool("no-tui", false, "Run without TUI (headless); gRPC listener only; does not start runs")
+	requestFlags := addRequestFlags(masterCmd)
 	masterCmd.Parse(os.Args[2:])
+	requestOptions, err := requestFlags.load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "master: %v\n", err)
+		os.Exit(1)
+	}
+	if err := worker.ValidateTargetURL(*url); err != nil {
+		fmt.Fprintf(os.Stderr, "master: %v\n", err)
+		os.Exit(1)
+	}
+	if *n <= 0 || *c <= 0 || *n > math.MaxInt32 || *c > math.MaxInt32 {
+		fmt.Fprintln(os.Stderr, "master: requests and concurrency must be between 1 and 2147483647")
+		os.Exit(1)
+	}
 
 	if *noTUI {
 		// Headless: start only the gRPC server; logs go to stdout via log.Printf
@@ -96,7 +117,7 @@ func runMaster() {
 	uiChan := make(chan interface{}, 300)
 	srv.SetUIChan(uiChan)
 
-	p := tea.NewProgram(newModel(srv, uiChan, *url, *n, *c), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(srv, uiChan, *url, *n, *c, requestOptions), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "TUI: %v\n", err)
 		os.Exit(1)

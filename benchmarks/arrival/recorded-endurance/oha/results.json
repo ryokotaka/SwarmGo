@@ -1,0 +1,1118 @@
+{
+  "manifest": {
+    "tool": "oha",
+    "seconds": 300,
+    "requested_rate": 200000,
+    "planned_load": 60000000,
+    "concurrency": 2048,
+    "generator_memory_limit_bytes": 6442450944,
+    "target_memory_limit_bytes": 536870912,
+    "cpu_limits": null,
+    "image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "swarmgo_source": "607ff795fd8f05436e5875656a5e8c3b406c6bdc",
+    "oha": {
+      "version": "1.16.0",
+      "url": "https://github.com/hatoo/oha/releases/download/v1.16.0/oha-linux-arm64",
+      "sha256": "99a790eb8c3e0feaca974bd6b32f0f8d4426a0c5b289f39e833e5b2c7529cd39"
+    },
+    "sha256": {
+      "oha": "99a790eb8c3e0feaca974bd6b32f0f8d4426a0c5b289f39e833e5b2c7529cd39",
+      "swarmgo-resilience": "41a894837b6fc781ea86f25666d4d9b33f9a352e9b517b517e89f6c3bed9ccf3",
+      "target": "ad5f4d2b9e778481aead9c10b97ca6c329aae903ba0137d83b6f034c0a07f4b7"
+    },
+    "docker": {
+      "ServerVersion": "29.2.0",
+      "KernelVersion": "6.12.67-linuxkit",
+      "NCPU": 10,
+      "MemTotal": 8217317376,
+      "Architecture": "aarch64"
+    },
+    "internal_network": true,
+    "published_ports": [],
+    "note": "Same local Docker VM. One 10/s GET probe stream begins ~1s before POST load, ends ~1s after it. 6 GiB generator cap and 512 MiB target cap leave room for Docker; no extra swap. No CPU caps. Counts include startup; no warmup is discarded.",
+    "command": [
+      "/bench/bin/oha",
+      "--no-tui",
+      "--output-format",
+      "quiet",
+      "--http-version",
+      "1.1",
+      "-w",
+      "-t",
+      "5s",
+      "--latency-correction",
+      "-H",
+      "Accept-Encoding: identity",
+      "-o",
+      "/results/native.json",
+      "-m",
+      "POST",
+      "-D",
+      "/bench/body.json",
+      "-T",
+      "application/json",
+      "-c",
+      "2048",
+      "-q",
+      "200000",
+      "-z",
+      "300s",
+      "http://172.18.0.2:8080/work"
+    ],
+    "body_sha256": "c0c5e27e598be0bc8b4d21ba2822ff62f9f13fcadf6687e8bc9f45d709243dbc"
+  },
+  "samples": [
+    {
+      "process_seconds": 0.0044486660000000455,
+      "generator": {
+        "memory_peak_bytes": 79085568,
+        "usage_usec": 42683,
+        "user_usec": 24077,
+        "system_usec": 18605,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 1,
+        "body_bytes": 513024,
+        "elapsed_seconds": 1.10594025,
+        "invalid": 0,
+        "peak_active_requests": 6,
+        "requests": 512,
+        "tcp_connections": 563
+      }
+    },
+    {
+      "process_seconds": 5.014009,
+      "generator": {
+        "memory_peak_bytes": 382287872,
+        "usage_usec": 13663431,
+        "user_usec": 5752970,
+        "system_usec": 7910461,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 4,
+        "body_bytes": 1037746176,
+        "elapsed_seconds": 6.109265336,
+        "invalid": 0,
+        "peak_active_requests": 79,
+        "requests": 1013485,
+        "tcp_connections": 2083
+      }
+    },
+    {
+      "process_seconds": 10.039492708000001,
+      "generator": {
+        "memory_peak_bytes": 511377408,
+        "usage_usec": 29524651,
+        "user_usec": 12446168,
+        "system_usec": 17078483,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 3,
+        "body_bytes": 2067171328,
+        "elapsed_seconds": 11.156132463,
+        "invalid": 0,
+        "peak_active_requests": 304,
+        "requests": 2018831,
+        "tcp_connections": 2084
+      }
+    },
+    {
+      "process_seconds": 15.094426540999999,
+      "generator": {
+        "memory_peak_bytes": 769417216,
+        "usage_usec": 45885563,
+        "user_usec": 19421650,
+        "system_usec": 26463912,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 1,
+        "body_bytes": 3102362624,
+        "elapsed_seconds": 16.210489007,
+        "invalid": 0,
+        "peak_active_requests": 304,
+        "requests": 3029812,
+        "tcp_connections": 2085
+      }
+    },
+    {
+      "process_seconds": 20.142130708,
+      "generator": {
+        "memory_peak_bytes": 769417216,
+        "usage_usec": 62362635,
+        "user_usec": 26488118,
+        "system_usec": 35874517,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 12,
+        "body_bytes": 4134367232,
+        "elapsed_seconds": 21.25569501,
+        "invalid": 0,
+        "peak_active_requests": 304,
+        "requests": 4037677,
+        "tcp_connections": 2086
+      }
+    },
+    {
+      "process_seconds": 25.175670999999998,
+      "generator": {
+        "memory_peak_bytes": 1280466944,
+        "usage_usec": 78996322,
+        "user_usec": 33810091,
+        "system_usec": 45186231,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 1,
+        "body_bytes": 5163169792,
+        "elapsed_seconds": 26.27230572,
+        "invalid": 0,
+        "peak_active_requests": 304,
+        "requests": 5042421,
+        "tcp_connections": 2087
+      }
+    },
+    {
+      "process_seconds": 30.198414582999998,
+      "generator": {
+        "memory_peak_bytes": 1280466944,
+        "usage_usec": 95409298,
+        "user_usec": 40899299,
+        "system_usec": 54509998,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 9,
+        "body_bytes": 6197225472,
+        "elapsed_seconds": 31.317578084,
+        "invalid": 0,
+        "peak_active_requests": 304,
+        "requests": 6052290,
+        "tcp_connections": 2088
+      }
+    },
+    {
+      "process_seconds": 35.259661541,
+      "generator": {
+        "memory_peak_bytes": 1280466944,
+        "usage_usec": 112261317,
+        "user_usec": 48096803,
+        "system_usec": 64164514,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 20,
+        "body_bytes": 7235815424,
+        "elapsed_seconds": 36.422905336,
+        "invalid": 0,
+        "peak_active_requests": 304,
+        "requests": 7066589,
+        "tcp_connections": 2089
+      }
+    },
+    {
+      "process_seconds": 40.375241708,
+      "generator": {
+        "memory_peak_bytes": 1280466944,
+        "usage_usec": 128731334,
+        "user_usec": 55026853,
+        "system_usec": 73704481,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 3,
+        "body_bytes": 8284269568,
+        "elapsed_seconds": 41.516581047,
+        "invalid": 0,
+        "peak_active_requests": 364,
+        "requests": 8090521,
+        "tcp_connections": 2090
+      }
+    },
+    {
+      "process_seconds": 45.461767208,
+      "generator": {
+        "memory_peak_bytes": 2291855360,
+        "usage_usec": 146475601,
+        "user_usec": 63650472,
+        "system_usec": 82825128,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 4,
+        "body_bytes": 9286590464,
+        "elapsed_seconds": 46.587806007,
+        "invalid": 0,
+        "peak_active_requests": 364,
+        "requests": 9069401,
+        "tcp_connections": 2091
+      }
+    },
+    {
+      "process_seconds": 50.542030290999996,
+      "generator": {
+        "memory_peak_bytes": 2291855360,
+        "usage_usec": 162567711,
+        "user_usec": 70473883,
+        "system_usec": 92093828,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 10,
+        "body_bytes": 10345687040,
+        "elapsed_seconds": 51.668201177,
+        "invalid": 0,
+        "peak_active_requests": 364,
+        "requests": 10103723,
+        "tcp_connections": 2092
+      }
+    },
+    {
+      "process_seconds": 55.614222583,
+      "generator": {
+        "memory_peak_bytes": 2291855360,
+        "usage_usec": 179106559,
+        "user_usec": 77609852,
+        "system_usec": 101496706,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 10,
+        "body_bytes": 11394418688,
+        "elapsed_seconds": 56.704375804,
+        "invalid": 0,
+        "peak_active_requests": 364,
+        "requests": 11127928,
+        "tcp_connections": 2093
+      }
+    },
+    {
+      "process_seconds": 60.623052291,
+      "generator": {
+        "memory_peak_bytes": 2291855360,
+        "usage_usec": 195403445,
+        "user_usec": 84626427,
+        "system_usec": 110777018,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 5,
+        "body_bytes": 12426944512,
+        "elapsed_seconds": 61.74295875,
+        "invalid": 0,
+        "peak_active_requests": 364,
+        "requests": 12136304,
+        "tcp_connections": 2094
+      }
+    },
+    {
+      "process_seconds": 65.683134666,
+      "generator": {
+        "memory_peak_bytes": 2291855360,
+        "usage_usec": 211927906,
+        "user_usec": 91696726,
+        "system_usec": 120231179,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 8,
+        "body_bytes": 13478648832,
+        "elapsed_seconds": 66.874920003,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 13163410,
+        "tcp_connections": 2095
+      }
+    },
+    {
+      "process_seconds": 70.822912625,
+      "generator": {
+        "memory_peak_bytes": 2291855360,
+        "usage_usec": 228421095,
+        "user_usec": 98680833,
+        "system_usec": 129740261,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 14515729408,
+        "elapsed_seconds": 71.948376255,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 14176237,
+        "tcp_connections": 2096
+      }
+    },
+    {
+      "process_seconds": 75.875203291,
+      "generator": {
+        "memory_peak_bytes": 2291855360,
+        "usage_usec": 244807849,
+        "user_usec": 105746770,
+        "system_usec": 139061078,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 3,
+        "body_bytes": 15550211072,
+        "elapsed_seconds": 76.995513133,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 15186523,
+        "tcp_connections": 2097
+      }
+    },
+    {
+      "process_seconds": 80.918025958,
+      "generator": {
+        "memory_peak_bytes": 2291855360,
+        "usage_usec": 261233025,
+        "user_usec": 112913719,
+        "system_usec": 148319305,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 16580751360,
+        "elapsed_seconds": 82.049804135,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 16192961,
+        "tcp_connections": 2098
+      }
+    },
+    {
+      "process_seconds": 85.98287070800001,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 280847462,
+        "user_usec": 123794400,
+        "system_usec": 157053061,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 5,
+        "body_bytes": 17537270784,
+        "elapsed_seconds": 87.10644454,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 17127111,
+        "tcp_connections": 2099
+      }
+    },
+    {
+      "process_seconds": 91.04676350000001,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 297375101,
+        "user_usec": 130794551,
+        "system_usec": 166580549,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 5,
+        "body_bytes": 18607041536,
+        "elapsed_seconds": 92.197274084,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 18171861,
+        "tcp_connections": 2100
+      }
+    },
+    {
+      "process_seconds": 96.18033750000001,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 314067665,
+        "user_usec": 137688161,
+        "system_usec": 176379504,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 11,
+        "body_bytes": 19546198016,
+        "elapsed_seconds": 97.324287461,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 19089056,
+        "tcp_connections": 2101
+      }
+    },
+    {
+      "process_seconds": 101.27412854100001,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 330493269,
+        "user_usec": 144613496,
+        "system_usec": 185879773,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 13,
+        "body_bytes": 20528713728,
+        "elapsed_seconds": 102.389122422,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 20048592,
+        "tcp_connections": 2102
+      }
+    },
+    {
+      "process_seconds": 106.339471458,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 346985659,
+        "user_usec": 151540107,
+        "system_usec": 195445551,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 3,
+        "body_bytes": 21603436544,
+        "elapsed_seconds": 107.464905425,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 21098178,
+        "tcp_connections": 2103
+      }
+    },
+    {
+      "process_seconds": 111.40525075000001,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 363422811,
+        "user_usec": 158547676,
+        "system_usec": 204875134,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 46,
+        "body_bytes": 22655911936,
+        "elapsed_seconds": 112.534404219,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 22126028,
+        "tcp_connections": 2104
+      }
+    },
+    {
+      "process_seconds": 116.48173916600001,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 380024302,
+        "user_usec": 165559235,
+        "system_usec": 214465066,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 0,
+        "body_bytes": 23723230208,
+        "elapsed_seconds": 117.62930554,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 23168392,
+        "tcp_connections": 2105
+      }
+    },
+    {
+      "process_seconds": 121.58374937500001,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 396683973,
+        "user_usec": 172691969,
+        "system_usec": 223992004,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 5,
+        "body_bytes": 24801667072,
+        "elapsed_seconds": 122.733008459,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 24221602,
+        "tcp_connections": 2106
+      }
+    },
+    {
+      "process_seconds": 126.68869525,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 413411027,
+        "user_usec": 179791104,
+        "system_usec": 233619922,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 5,
+        "body_bytes": 25880479744,
+        "elapsed_seconds": 127.828206503,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 25275184,
+        "tcp_connections": 2107
+      }
+    },
+    {
+      "process_seconds": 131.75274487500002,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 429806836,
+        "user_usec": 186725548,
+        "system_usec": 243081287,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 12,
+        "body_bytes": 26946157568,
+        "elapsed_seconds": 132.950454756,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 26315933,
+        "tcp_connections": 2108
+      }
+    },
+    {
+      "process_seconds": 136.909439666,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 446658855,
+        "user_usec": 193915039,
+        "system_usec": 252743816,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 14,
+        "body_bytes": 28009218048,
+        "elapsed_seconds": 138.032419966,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 27354133,
+        "tcp_connections": 2109
+      }
+    },
+    {
+      "process_seconds": 141.963172875,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 463235806,
+        "user_usec": 200972316,
+        "system_usec": 262263489,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 10,
+        "body_bytes": 29074401280,
+        "elapsed_seconds": 143.103341886,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 28394398,
+        "tcp_connections": 2110
+      }
+    },
+    {
+      "process_seconds": 147.0458175,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 480244870,
+        "user_usec": 208313432,
+        "system_usec": 271931438,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 4,
+        "body_bytes": 30128225280,
+        "elapsed_seconds": 148.18214179,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 29423576,
+        "tcp_connections": 2111
+      }
+    },
+    {
+      "process_seconds": 152.120385833,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 496970679,
+        "user_usec": 215416203,
+        "system_usec": 281554476,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 2,
+        "body_bytes": 31164122112,
+        "elapsed_seconds": 153.242016459,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 30435244,
+        "tcp_connections": 2112
+      }
+    },
+    {
+      "process_seconds": 157.174676916,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 513980049,
+        "user_usec": 222784536,
+        "system_usec": 291195512,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 15,
+        "body_bytes": 32197190656,
+        "elapsed_seconds": 158.28619817,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 31444149,
+        "tcp_connections": 2113
+      }
+    },
+    {
+      "process_seconds": 162.205455916,
+      "generator": {
+        "memory_peak_bytes": 4309860352,
+        "usage_usec": 530854884,
+        "user_usec": 229956940,
+        "system_usec": 300897944,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 3,
+        "body_bytes": 33228616704,
+        "elapsed_seconds": 163.313181923,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 32451453,
+        "tcp_connections": 2114
+      }
+    },
+    {
+      "process_seconds": 167.24507004100002,
+      "generator": {
+        "memory_peak_bytes": 4310159360,
+        "usage_usec": 547951392,
+        "user_usec": 237225924,
+        "system_usec": 310725467,
+        "nice_usec": 0,
+        "nr_periods": 0,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0,
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0
+      },
+      "server": {
+        "active_requests": 7,
+        "body_bytes": 34256371712,
+        "elapsed_seconds": 168.343132633,
+        "invalid": 0,
+        "peak_active_requests": 491,
+        "requests": 33455170,
+        "tcp_connections": 2115
+      }
+    }
+  ],
+  "result": {
+    "exit_code": 137,
+    "timed_out": false,
+    "process_seconds": 169.239553166,
+    "generator": {
+      "memory_peak_bytes": 6442450944,
+      "usage_usec": 561579495,
+      "user_usec": 249421785,
+      "system_usec": 312157709,
+      "nice_usec": 0,
+      "nr_periods": 0,
+      "nr_throttled": 0,
+      "throttled_usec": 0,
+      "nr_bursts": 0,
+      "burst_usec": 0,
+      "low": 0,
+      "high": 0,
+      "max": 326,
+      "oom": 4,
+      "oom_kill": 1,
+      "oom_group_kill": 0
+    },
+    "server": {
+      "active_requests": 0,
+      "body_bytes": 34361835520,
+      "elapsed_seconds": 170.302696176,
+      "invalid": 0,
+      "peak_active_requests": 491,
+      "requests": 33558184,
+      "tcp_connections": 2116
+    }
+  }
+}

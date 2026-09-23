@@ -234,6 +234,9 @@ type StartCmd struct {
 	TargetUrl     string                 `protobuf:"bytes,1,opt,name=target_url,json=targetUrl,proto3" json:"target_url,omitempty"`              // タグ1 → 受信側で TargetUrl に復元される
 	TotalRequests int32                  `protobuf:"varint,2,opt,name=total_requests,json=totalRequests,proto3" json:"total_requests,omitempty"` // Workerごとの割当量
 	Concurrency   int32                  `protobuf:"varint,3,opt,name=concurrency,proto3" json:"concurrency,omitempty"`                          // タグ3
+	Method        string                 `protobuf:"bytes,4,opt,name=method,proto3" json:"method,omitempty"`                                     // Empty means GET for older controllers.
+	Body          []byte                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`                                         // Reused for every request in the run.
+	Headers       map[string]string      `protobuf:"bytes,6,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -287,6 +290,27 @@ func (x *StartCmd) GetConcurrency() int32 {
 		return x.Concurrency
 	}
 	return 0
+}
+
+func (x *StartCmd) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *StartCmd) GetBody() []byte {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *StartCmd) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
 }
 
 type StopCmd struct {
@@ -616,12 +640,18 @@ const file_proto_swarm_proto_rawDesc = "" +
 	"\bregister\x18\x01 \x01(\v2\x12.proto.RegisterMsgH\x00R\bregister\x12'\n" +
 	"\x05stats\x18\x02 \x01(\v2\x0f.proto.StatsMsgH\x00R\x05stats\x12*\n" +
 	"\x06finish\x18\x03 \x01(\v2\x10.proto.FinishMsgH\x00R\x06finishB\x05\n" +
-	"\x03msg\"r\n" +
+	"\x03msg\"\x92\x02\n" +
 	"\bStartCmd\x12\x1d\n" +
 	"\n" +
 	"target_url\x18\x01 \x01(\tR\ttargetUrl\x12%\n" +
 	"\x0etotal_requests\x18\x02 \x01(\x05R\rtotalRequests\x12 \n" +
-	"\vconcurrency\x18\x03 \x01(\x05R\vconcurrency\"\t\n" +
+	"\vconcurrency\x18\x03 \x01(\x05R\vconcurrency\x12\x16\n" +
+	"\x06method\x18\x04 \x01(\tR\x06method\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\fR\x04body\x126\n" +
+	"\aheaders\x18\x06 \x03(\v2\x1c.proto.StartCmd.HeadersEntryR\aheaders\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\t\n" +
 	"\aStopCmd\"\t\n" +
 	"\aQuitCmd\"E\n" +
 	"\vRegisterMsg\x12\x1b\n" +
@@ -657,7 +687,7 @@ func file_proto_swarm_proto_rawDescGZIP() []byte {
 	return file_proto_swarm_proto_rawDescData
 }
 
-var file_proto_swarm_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_proto_swarm_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_proto_swarm_proto_goTypes = []any{
 	(*MasterCmd)(nil),   // 0: proto.MasterCmd
 	(*WorkerMsg)(nil),   // 1: proto.WorkerMsg
@@ -668,6 +698,7 @@ var file_proto_swarm_proto_goTypes = []any{
 	(*ErrorReason)(nil), // 6: proto.ErrorReason
 	(*StatsMsg)(nil),    // 7: proto.StatsMsg
 	(*FinishMsg)(nil),   // 8: proto.FinishMsg
+	nil,                 // 9: proto.StartCmd.HeadersEntry
 }
 var file_proto_swarm_proto_depIdxs = []int32{
 	2, // 0: proto.MasterCmd.start:type_name -> proto.StartCmd
@@ -676,14 +707,15 @@ var file_proto_swarm_proto_depIdxs = []int32{
 	5, // 3: proto.WorkerMsg.register:type_name -> proto.RegisterMsg
 	7, // 4: proto.WorkerMsg.stats:type_name -> proto.StatsMsg
 	8, // 5: proto.WorkerMsg.finish:type_name -> proto.FinishMsg
-	6, // 6: proto.StatsMsg.error_reasons:type_name -> proto.ErrorReason
-	1, // 7: proto.SwarmService.Connect:input_type -> proto.WorkerMsg
-	0, // 8: proto.SwarmService.Connect:output_type -> proto.MasterCmd
-	8, // [8:9] is the sub-list for method output_type
-	7, // [7:8] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	9, // 6: proto.StartCmd.headers:type_name -> proto.StartCmd.HeadersEntry
+	6, // 7: proto.StatsMsg.error_reasons:type_name -> proto.ErrorReason
+	1, // 8: proto.SwarmService.Connect:input_type -> proto.WorkerMsg
+	0, // 9: proto.SwarmService.Connect:output_type -> proto.MasterCmd
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_proto_swarm_proto_init() }
@@ -707,7 +739,7 @@ func file_proto_swarm_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_swarm_proto_rawDesc), len(file_proto_swarm_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

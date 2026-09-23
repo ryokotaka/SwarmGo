@@ -1,0 +1,9 @@
+Ordinary requests: 10/s throughout. Load: 200000/s for 5m0s after 1s baseline; observe recovery for 1s.
+Phase     Ordinary completed  Failed  Missed  Worst 1s p99  All windows pass
+baseline  10/10               0       0       0.59 ms       true
+spike     3000/3000           0       0       56.99 ms      true
+recovery  10/10               0       0       6.04 ms       true
+Load: 59713630/60000000 started, 286370 missed; HTTP 429: 0.
+Recovery confirmed 1.00s after scheduled load stopped.
+Result: inconclusive. Wrote /results/native.json
+- planned requests were missed or interrupted; inspect busy, late and canceled counts

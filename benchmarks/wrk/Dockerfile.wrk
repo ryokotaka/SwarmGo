@@ -1,0 +1,8 @@
+FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251 AS build
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev unzip ca-certificates
+WORKDIR /src
+COPY wrk-src/ ./
+RUN make -j2 WITH_OPENSSL=/usr VER=4.2.0
+FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
+COPY --from=build /src/wrk /usr/local/bin/wrk

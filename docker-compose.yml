@@ -24,7 +24,7 @@ services:
       
       - CONCURRENCY=${CONCURRENCY:-10}
     ports:
-      - "50051:50051"
+      - "127.0.0.1:50051:50051"
     stdin_open: true
     tty: true
     depends_on:

@@ -1,0 +1,27 @@
+{
+  "requests": 4000000,
+  "workers": 1,
+  "requests_per_worker": 4000000,
+  "concurrency_per_worker": 256,
+  "target": "isolated local Docker; fasthttp HTTP/1.1; 1 KiB POST and response; no delay",
+  "server": {
+    "active_requests": 0,
+    "body_bytes": 4096000000,
+    "elapsed_seconds": 6.786427337,
+    "invalid": 0,
+    "peak_active_requests": 6,
+    "requests": 4000000,
+    "snapshot_unix_ns": 1790169476665852423
+  },
+  "product_sha256": "b580aae017f93ef687141c55b3d9fa160299bd42e7192b883bf835d5a228cccc",
+  "binary_sha256": "a1171b428462e19d214953c34b5d12c76121f7ae3e52e9a86e01ccfa2263991f",
+  "image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "internal_network": true,
+  "published_ports": [],
+  "frames": 88,
+  "size": [
+    1273,
+    644
+  ],
+  "source": "0ab4bd122de3454ffcbd1e1c0f9eabe6e2313a5a"
+}
