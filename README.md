@@ -44,7 +44,11 @@ Only test systems you own or have permission to test. This example sends traffic
 
 ## Check ordinary traffic during overload
 
-`swarmgo resilience` sends a bounded load spike while ordinary requests continue through the baseline, spike and recovery phases. It reports their latency and failures separately from the load stream, including how long recovery takes. A missed load schedule produces an inconclusive result.
+Can people still use your API when traffic spikes? `swarmgo resilience` keeps ordinary requests running alongside a timed load spike and checks their latency, failures and recovery.
+
+In the local example, adding admission control to the API reduced ordinary-request latency during the spike from **3.51 s to 92 ms** (worst one-second p99). Both runs sent the full load schedule. This is the API's before/after result, measured with SwarmGo.
+
+![Ordinary API traffic before and after admission control: latency rises above three seconds without it and stays near 90 milliseconds with it](assets/resilience.svg)
 
 Try the local before/after example from the repository root:
 
@@ -52,7 +56,7 @@ Try the local before/after example from the repository root:
 python3 examples/resilience/demo.py
 ```
 
-Requires Go, Python 3 and a local Docker engine. The example uses an internal network, writes JSON reports, then removes its containers. [Commands, output and measurement details](examples/resilience/)
+Requires Go, Python 3 and a local Docker engine. The example uses an internal network, writes JSON reports, then removes its containers. Missed requests make the result inconclusive. [Recorded results, commands and measurement details](examples/resilience/)
 
 ## Change the load
 

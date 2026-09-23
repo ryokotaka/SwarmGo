@@ -1,0 +1,432 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "reasons": [],
+  "started_at": "2026-09-23T10:09:37.991290423Z",
+  "settings": {
+    "target_url": "http://swarmgo-resilience-3ab64b8ea2-api:8080/work",
+    "probe_url": "http://swarmgo-resilience-3ab64b8ea2-api:8080/work",
+    "load_method": "GET",
+    "probe_method": "GET",
+    "load_rate": 200,
+    "load_concurrency": 512,
+    "probe_rate": 10,
+    "probe_concurrency": 64,
+    "probe_status": 200,
+    "baseline_seconds": 2,
+    "spike_seconds": 3,
+    "recovery_seconds": 7,
+    "recovery_window_seconds": 2,
+    "request_timeout_seconds": 5,
+    "max_start_delay_us": 50000,
+    "max_p99_us": 250000,
+    "max_error_rate": 0.01
+  },
+  "load": {
+    "planned": 600,
+    "started": 600,
+    "completed": 600,
+    "succeeded": 123,
+    "failed": 477,
+    "incomplete_responses": 0,
+    "missed": 0,
+    "busy_missed": 0,
+    "late_missed": 0,
+    "canceled_missed": 0,
+    "elapsed_seconds": 3.063802211,
+    "latency_p95_us": 82367,
+    "latency_p99_us": 82943,
+    "start_delay_p99_us": 2611,
+    "canceled": false,
+    "windows": [
+      {
+        "index": 0,
+        "seconds": 1,
+        "planned": 200,
+        "started": 200,
+        "completed": 200,
+        "succeeded": 43,
+        "failed": 157,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 82303,
+        "latency_p99_us": 83647,
+        "start_delay_p99_us": 2467,
+        "last_completion_seconds": 1.064054668,
+        "status_codes": {
+          "200": 43,
+          "429": 157
+        }
+      },
+      {
+        "index": 1,
+        "seconds": 1,
+        "planned": 200,
+        "started": 200,
+        "completed": 200,
+        "succeeded": 40,
+        "failed": 160,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 82495,
+        "latency_p99_us": 82943,
+        "start_delay_p99_us": 2609,
+        "last_completion_seconds": 2.063930585,
+        "status_codes": {
+          "200": 40,
+          "429": 160
+        }
+      },
+      {
+        "index": 2,
+        "seconds": 1,
+        "planned": 200,
+        "started": 200,
+        "completed": 200,
+        "succeeded": 40,
+        "failed": 160,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 82239,
+        "latency_p99_us": 82815,
+        "start_delay_p99_us": 2695,
+        "last_completion_seconds": 3.063158919,
+        "status_codes": {
+          "200": 40,
+          "429": 160
+        }
+      }
+    ],
+    "status_codes": {
+      "200": 123,
+      "429": 477
+    }
+  },
+  "probe": {
+    "planned": 120,
+    "started": 120,
+    "completed": 120,
+    "succeeded": 120,
+    "failed": 0,
+    "incomplete_responses": 0,
+    "missed": 0,
+    "busy_missed": 0,
+    "late_missed": 0,
+    "canceled_missed": 0,
+    "elapsed_seconds": 12.00056138,
+    "latency_p95_us": 90303,
+    "latency_p99_us": 90751,
+    "start_delay_p99_us": 8383,
+    "canceled": false,
+    "windows": [
+      {
+        "index": 0,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 89023,
+        "latency_p99_us": 89023,
+        "start_delay_p99_us": 7695,
+        "last_completion_seconds": 0.991400125,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 1,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 90303,
+        "latency_p99_us": 90303,
+        "start_delay_p99_us": 6251,
+        "last_completion_seconds": 1.985533751,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 2,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 89855,
+        "latency_p99_us": 89855,
+        "start_delay_p99_us": 2469,
+        "last_completion_seconds": 2.983162001,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 3,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 91775,
+        "latency_p99_us": 91775,
+        "start_delay_p99_us": 1797,
+        "last_completion_seconds": 3.982008127,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 4,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 82559,
+        "latency_p99_us": 82559,
+        "start_delay_p99_us": 2293,
+        "last_completion_seconds": 4.982936669,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 5,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 90431,
+        "latency_p99_us": 90431,
+        "start_delay_p99_us": 8383,
+        "last_completion_seconds": 5.992597169,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 6,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 90751,
+        "latency_p99_us": 90751,
+        "start_delay_p99_us": 8255,
+        "last_completion_seconds": 6.995608128,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 7,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 86847,
+        "latency_p99_us": 86847,
+        "start_delay_p99_us": 8399,
+        "last_completion_seconds": 7.986125129,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 8,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 89663,
+        "latency_p99_us": 89663,
+        "start_delay_p99_us": 7155,
+        "last_completion_seconds": 8.991066796,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 9,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 90367,
+        "latency_p99_us": 90367,
+        "start_delay_p99_us": 6279,
+        "last_completion_seconds": 9.984756213,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 10,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 90239,
+        "latency_p99_us": 90239,
+        "start_delay_p99_us": 6759,
+        "last_completion_seconds": 10.99398263,
+        "status_codes": {
+          "200": 10
+        }
+      },
+      {
+        "index": 11,
+        "seconds": 1,
+        "planned": 10,
+        "started": 10,
+        "completed": 10,
+        "succeeded": 10,
+        "failed": 0,
+        "incomplete_responses": 0,
+        "missed": 0,
+        "busy_missed": 0,
+        "late_missed": 0,
+        "canceled_missed": 0,
+        "latency_p95_us": 90239,
+        "latency_p99_us": 90239,
+        "start_delay_p99_us": 4803,
+        "last_completion_seconds": 11.993832922,
+        "status_codes": {
+          "200": 10
+        }
+      }
+    ],
+    "status_codes": {
+      "200": 120
+    }
+  },
+  "phases": [
+    {
+      "name": "baseline",
+      "start_seconds": 0,
+      "end_seconds": 2,
+      "planned": 20,
+      "started": 20,
+      "completed": 20,
+      "failed": 0,
+      "missed": 0,
+      "error_rate": 0,
+      "worst_window_p99_us": 90303,
+      "passed": true
+    },
+    {
+      "name": "spike",
+      "start_seconds": 2,
+      "end_seconds": 5,
+      "planned": 30,
+      "started": 30,
+      "completed": 30,
+      "failed": 0,
+      "missed": 0,
+      "error_rate": 0,
+      "worst_window_p99_us": 91775,
+      "passed": true
+    },
+    {
+      "name": "recovery",
+      "start_seconds": 5,
+      "end_seconds": 12,
+      "planned": 70,
+      "started": 70,
+      "completed": 70,
+      "failed": 0,
+      "missed": 0,
+      "error_rate": 0,
+      "worst_window_p99_us": 90751,
+      "passed": true
+    }
+  ],
+  "recovered": true,
+  "recovery_confirmed_seconds": 2,
+  "load_settled_after_spike_seconds": 0.063894627
+}
