@@ -443,6 +443,7 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 		result.MyErr = fmt.Errorf("read response body: %w", err)
 		return
 	}
+	result.ResponseComplete = true
 	if l.header.ConnectionClose() || (l.header.ContentLength() == -2 && l.plan.template.Method != http.MethodHead && result.MyStatusCode != 204 && result.MyStatusCode != 304) || result.MyStatusCode == 101 || l.plan.template.Close || strings.EqualFold(l.plan.template.Header.Get("Connection"), "close") {
 		l.closeConn()
 	}

@@ -34,6 +34,8 @@ func main() {
 		runWorker()
 	case "run":
 		os.Exit(runCommand(os.Args[2:]))
+	case "resilience":
+		os.Exit(resilienceCommand(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		printHelp()
@@ -42,10 +44,11 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker|run> [options]")
+	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker|run|resilience> [options]")
 	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server. Options: -p port, -url target URL, -n total requests, -c concurrency, -method GET, -body-file path, -header 'Name: value', -no-tui")
 	fmt.Fprintln(os.Stderr, "  run     - wait for workers, run once, and write JSON. Options: -workers N, -url, -n, -c, -method, -body-file, -header, -output")
 	fmt.Fprintln(os.Stderr, "  worker  - connect to Master and run load test tasks. Option: -addr (or MASTER_ADDR, default localhost:50051)")
+	fmt.Fprintln(os.Stderr, "  resilience - measure ordinary requests during a bounded local load spike. See resilience -help")
 }
 
 // runMaster starts the Master with the TUI.

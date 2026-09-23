@@ -18,9 +18,10 @@ import (
 
 // MyResult represents the outcome of a single request.
 type MyResult struct {
-	MyStatusCode int           // HTTP status code to return
-	MyDuration   time.Duration // Duration of the request from start to response completion
-	MyErr        error         // Failure of the communication itself
+	MyStatusCode     int           // HTTP status code to return
+	MyDuration       time.Duration // Duration of the request from start to response completion
+	ResponseComplete bool          // A final HTTP response and its complete body were received.
+	MyErr            error         // Failure of the communication itself
 }
 
 // MySummary represents the results after all requests are completed.
@@ -263,7 +264,7 @@ func (r *MyRunner) executeRequest(ctx context.Context, template *http.Request) M
 	}
 	defer resp.Body.Close()
 	_, readErr := io.Copy(io.Discard, resp.Body)
-	result := MyResult{MyStatusCode: resp.StatusCode, MyDuration: time.Since(start)}
+	result := MyResult{MyStatusCode: resp.StatusCode, MyDuration: time.Since(start), ResponseComplete: readErr == nil}
 	switch {
 	case readErr != nil:
 		result.MyErr = fmt.Errorf("read response body: %w", readErr)

@@ -18,10 +18,14 @@ type requestFlags struct {
 }
 
 func addRequestFlags(flags *flag.FlagSet) *requestFlags {
+	return addRequestFlagsWithPrefix(flags, "")
+}
+
+func addRequestFlagsWithPrefix(flags *flag.FlagSet, prefix string) *requestFlags {
 	request := &requestFlags{}
-	flags.StringVar(&request.method, "method", http.MethodGet, "HTTP method")
-	flags.StringVar(&request.bodyFile, "body-file", "", "Read the request body from this file (maximum 1 MiB)")
-	flags.Var(&request.headers, "header", "Request header 'Name: value'; repeat for different names")
+	flags.StringVar(&request.method, prefix+"method", http.MethodGet, "HTTP method")
+	flags.StringVar(&request.bodyFile, prefix+"body-file", "", "Read the request body from this file (maximum 1 MiB)")
+	flags.Var(&request.headers, prefix+"header", "Request header 'Name: value'; repeat for different names")
 	return request
 }
 

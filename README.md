@@ -2,7 +2,7 @@
 
 **Send 20,000 concurrent requests to your API from a single machine.**
 
-[Quick start](#try-it-locally) · [Benchmarks](benchmarks/) · [JSON requests](#send-json) · [Automated runs](#run-once-and-save-the-result) · [日本語](./README_ja.md)
+[Quick start](#try-it-locally) · [Overload check](#check-ordinary-traffic-during-overload) · [Benchmarks](benchmarks/) · [JSON requests](#send-json) · [日本語](./README_ja.md)
 
 ![SwarmGo: 20,000 concurrent requests, 71.5k requests per second, three million POSTs with zero failures](assets/performance.svg)
 
@@ -41,6 +41,18 @@ docker compose down
 ```
 
 Only test systems you own or have permission to test. This example sends traffic inside the local Compose network.
+
+## Check ordinary traffic during overload
+
+`swarmgo resilience` sends a bounded load spike while ordinary requests continue through the baseline, spike and recovery phases. It reports their latency and failures separately from the load stream, including how long recovery takes. A missed load schedule produces an inconclusive result.
+
+Try the local before/after example from the repository root:
+
+```sh
+python3 examples/resilience/demo.py
+```
+
+Requires Go, Python 3 and a local Docker engine. The example uses an internal network, writes JSON reports, then removes its containers. [Commands, output and measurement details](examples/resilience/)
 
 ## Change the load
 
