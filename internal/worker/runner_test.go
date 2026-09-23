@@ -166,21 +166,6 @@ func TestSummaryRPSUsesWallTime(t *testing.T) {
 	}
 }
 
-func TestNearestRankPercentiles(t *testing.T) {
-	durations := make([]time.Duration, 100)
-	for i := range durations {
-		durations[i] = time.Duration(i+1) * time.Millisecond
-	}
-	for _, tc := range []struct {
-		p    float64
-		want time.Duration
-	}{{0.5, 50 * time.Millisecond}, {0.9, 90 * time.Millisecond}, {0.99, 99 * time.Millisecond}} {
-		if got := percentile(durations, tc.p); got != tc.want {
-			t.Errorf("percentile(%v)=%v; want %v", tc.p, got, tc.want)
-		}
-	}
-}
-
 func TestRunnerRejectsInvalidTargets(t *testing.T) {
 	for _, target := range []string{"", "example.com", "ftp://example.com", "http://"} {
 		if _, err := NewMyRunner().MyRun(context.Background(), target, 1, 1, nil); err == nil {

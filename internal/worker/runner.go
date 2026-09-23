@@ -7,13 +7,10 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
-	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/net/http/httpguts"
@@ -27,7 +24,7 @@ type MyResult struct {
 }
 
 // MySummary represents the results after all requests are completed.
-// For performance reasons, only updated from a single goroutine (no locks needed).
+// The run merges per-shard counters after all execution lanes finish.
 type MySummary struct {
 	MyTotal         int            // Total number of requests executed
 	MySuccess       int            // Number of successful requests
@@ -104,7 +101,7 @@ func NewMyRunnerWithConcurrency(concurrency int) *MyRunner {
 		TLSClientConfig:     tlsConfig,
 	}
 	myClient := &http.Client{
-		Transport: myTransport,
+		Transport: &directTransport{base: myTransport},
 		Timeout:   30 * time.Second,
 	}
 	return &MyRunner{MyClient: myClient}
@@ -115,9 +112,9 @@ func NewMyRunnerWithConcurrency(concurrency int) *MyRunner {
 type OnProgressFunc func(completed, success, failed int, elapsed time.Duration)
 
 // MyRun sends totalRequests GET requests to the given URL, with up to concurrency concurrent executions.
-// Uses a worker pool: a fixed number of workers take jobs and call executeRequest.
+// Uses a fixed number of execution lanes, each with its own reusable connection.
 // Returns an aggregated MySummary when done. If ctx is cancelled, unstarted requests are skipped and the run exits.
-// If onProgress is non-nil, it is called periodically (every progressIntervalCount results or progressIntervalTime) with current progress.
+// If onProgress is non-nil, it receives a snapshot every 200 ms and at completion.
 func (r *MyRunner) MyRun(ctx context.Context, url string, totalRequests, concurrency int, onProgress OnProgressFunc) (*MySummary, error) {
 	return r.MyRunWithOptions(ctx, url, totalRequests, concurrency, RequestOptions{}, onProgress)
 }
@@ -137,124 +134,7 @@ func (r *MyRunner) MyRunWithOptions(ctx context.Context, url string, totalReques
 	if concurrency > totalRequests {
 		concurrency = totalRequests
 	}
-	runStart := time.Now()
-
-	// Queue and pool sizes depend on concurrency; latency samples are retained separately.
-	myJobs := make(chan struct{}, concurrency)
-	// Single channel for sending and receiving results; one goroutine does all aggregation so no locking is needed.
-	myResults := make(chan MyResult, concurrency)
-
-	var myWg sync.WaitGroup
-
-	// Start exactly concurrency workers (loop only starts them, so it exits quickly).
-	for i := 0; i < concurrency; i++ {
-		// We are about to start one worker, so add one to the wait count.
-		myWg.Add(1)
-		go func() {
-			defer myWg.Done() // When this goroutine exits, signal one completion to the WaitGroup.
-			for range myJobs {
-				// Check for cancellation (e.g. Ctrl+C)
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-				// Execute one HTTP request and send the result.
-				myResults <- r.executeRequest(ctx, template)
-			}
-		}()
-	}
-
-	// Producer: enqueue jobs in a separate goroutine so we can react to ctx.Done() and avoid blocking main.
-	go func() {
-		defer close(myJobs)
-		for i := 0; i < totalRequests; i++ {
-			select {
-			case <-ctx.Done():
-				return
-			case myJobs <- struct{}{}:
-			}
-		}
-	}()
-
-	// Close the results channel after all workers finish (done once, outside the loop).
-	go func() {
-		myWg.Wait() // Block until the count reaches zero.
-		close(myResults)
-	}()
-
-	// Receive results one by one from myResults and aggregate (safe because only this goroutine writes).
-	// Collect successful request durations for percentile calculation.
-	const progressIntervalCount = 50
-	const progressIntervalTime = 200 * time.Millisecond
-
-	var lastProgressAt time.Time
-	myDurations := make([]time.Duration, 0, min(totalRequests, 1024))
-	mySum := &MySummary{
-		MyStatusCodeCnt: make(map[int]int),
-		MyErrorReasons:  make(map[string]int),
-	}
-	for res := range myResults {
-		if res.MyErr != nil {
-			mySum.MyTotal++
-			mySum.MyFailed++
-			if mySum.MyFirstErr == nil {
-				mySum.MyFirstErr = res.MyErr
-			}
-			// Aggregate status code breakdown even for HTTP errors (4xx/5xx) so the TUI can show e.g. how many 500s
-			if res.MyStatusCode != 0 {
-				mySum.MyStatusCodeCnt[res.MyStatusCode]++
-			}
-			// Aggregate error reasons for Master's TUI top-N display; network errors are normalized to a generic name
-			reason := errorReasonString(res)
-			if reason != "" {
-				mySum.MyErrorReasons[reason]++
-			}
-			goto reportProgress
-		}
-		mySum.MyTotal++
-		mySum.MyTotalDuration += res.MyDuration
-		mySum.MySuccess++
-		mySum.MyStatusCodeCnt[res.MyStatusCode]++
-		myDurations = append(myDurations, res.MyDuration)
-
-	reportProgress:
-		if onProgress != nil {
-			now := time.Now()
-			elapsed := now.Sub(runStart)
-			shouldReport := mySum.MyTotal%progressIntervalCount == 0 ||
-				lastProgressAt.IsZero() || now.Sub(lastProgressAt) >= progressIntervalTime
-			if shouldReport {
-				lastProgressAt = now
-				onProgress(mySum.MyTotal, mySum.MySuccess, mySum.MyFailed, elapsed)
-			}
-		}
-	}
-	mySum.Elapsed = time.Since(runStart)
-	// Compute latency percentiles from successful requests only.
-	if len(myDurations) > 0 {
-		sort.Slice(myDurations, func(i, j int) bool { return myDurations[i] < myDurations[j] })
-		mySum.LatencyP50 = percentile(myDurations, 0.50)
-		mySum.LatencyP90 = percentile(myDurations, 0.90)
-		mySum.LatencyP99 = percentile(myDurations, 0.99)
-	}
-	return mySum, nil // Return the aggregated result to the caller.
-}
-
-// percentile returns the duration at the given percentile (0.0–1.0) from a sorted slice.
-// The slice must be non-empty and sorted in ascending order.
-func percentile(sorted []time.Duration, p float64) time.Duration {
-	if len(sorted) == 0 {
-		return 0
-	}
-	idx := int(math.Ceil(p*float64(len(sorted)))) - 1
-	if idx < 0 {
-		idx = 0
-	}
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
-	}
-	return sorted[idx]
+	return r.runLanes(ctx, template, totalRequests, concurrency, onProgress)
 }
 
 // errorReasonString returns a TUI-friendly error reason string from MyResult. Only meaningful when the request failed.

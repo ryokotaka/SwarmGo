@@ -145,12 +145,16 @@ The worker keeps listening for commands during a run. Quit, Stop, and a lost con
 
 Useful entry points in the code:
 
-- [runner.go](./internal/worker/runner.go): HTTP requests, concurrency, and latency samples.
+- [runner.go](./internal/worker/runner.go): request validation and standard HTTP execution.
+- [direct.go](./internal/worker/direct.go): prebuilt HTTP/1.1 requests, connection reuse, verified TLS and cancellation.
+- [aggregate.go](./internal/worker/aggregate.go): concurrent execution, counters and bounded latency histograms.
 - [client.go](./internal/worker/client.go): worker commands and ordered progress reports.
 - [server.go](./internal/master/server.go): connected workers and run state.
 - [tui.go](./cmd/swarmgo/tui.go): dashboard and keyboard input.
 - [run.go](./cmd/swarmgo/run.go): automatic runs and JSON reports.
 - [swarm.proto](./proto/swarm.proto): the messages exchanged between controller and workers.
+
+Most HTTP/1.1 requests reuse prebuilt request bytes and a connection owned by one execution lane. HEAD, CONNECT, upgrades, `Expect` requests and custom client policies use the standard Go client. Redirects follow Go’s method and credential rules; a redirected lane then keeps using the standard client.
 
 ## Measurement details
 
@@ -159,10 +163,10 @@ Useful entry points in the code:
 
 - **Success / failure:** a request succeeds if its response body is read completely and its final HTTP status is below 400. HTTP 4xx/5xx, connection errors, timeouts, and canceled in-flight requests count as failures. Redirects follow Go's default HTTP client behavior.
 - **RPS:** completed requests divided by elapsed wall time for each worker, summed on the dashboard. These are running averages, not instantaneous samples or one precisely synchronized cluster-wide rate. The final values stay on screen after completion.
-- **Latency:** time to receive the full response, for successful requests only. Workers calculate nearest-rank P50/P90/P99 when they finish. The dashboard shows the three values from the worker with the highest P99; these are **not pooled percentiles across all workers**. Values are sent as whole milliseconds, so sub-millisecond values may display as `-`.
+- **Latency:** time to receive the full response, for successful requests only. Workers calculate P50/P90/P99 from HDR histograms when they finish (microsecond units, three significant digits: up to 0.1% value quantization plus less than 1 microsecond from conversion). The dashboard shows the three values from the worker with the highest P99; these are **not pooled percentiles across all workers**. Values are sent as whole milliseconds, so sub-millisecond values may display as `-`.
 - **Errors:** grouped reasons arrive with each worker's final report. A disconnected worker may leave partial results; its missing work is not reassigned.
 
-The request queue is bounded by concurrency. Successful latency samples are retained until the run ends, so their memory use grows with the number of successful requests.
+Connections and small result batches are bounded by concurrency. Latency histogram storage is fixed per CPU shard and does not grow with the request count.
 
 </details>
 
