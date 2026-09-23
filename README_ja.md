@@ -1,236 +1,127 @@
+<div align="center">
+
 # SwarmGo
 
-**1台のPCから、毎秒50万件を超えるPOSTを。**
+**分散HTTP負荷試験を、ひとつのターミナルから。**
 
-Go製のHTTP負荷試験ツールです。複数のワーカーからリクエストを送り、進捗とエラーをターミナルで確認できます。スクリプトから実行し、結果をJSONに保存することもできます。
+[![Go](https://img.shields.io/badge/Go-1.25.7+-00ADD8?logo=go&logoColor=white)](go.mod)
+[![Checks](https://github.com/ryokotaka/SwarmGo/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/ryokotaka/SwarmGo/actions/workflows/go.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-64748b)](LICENSE)
 
-[まず動かす](#まず動かす) · [実測結果](benchmarks/throughput/) · [高負荷時の確認](#大量アクセス時の応答と回復を調べる) · [English](README.md)
+[まず動かす](#まず動かす) · [APIを試験する](#apiを試験する) · [性能の記録](#性能の記録) · [English](README.md)
 
-![送信レートの制限なしで測った、wrk・SwarmGo・oha・k6の1分間のRPS推移](assets/throughput.svg)
+</div>
 
-この1分間の比較では、SwarmGoは**平均51.8万RPS、k6の約4.3倍**でした。wrkは57.5万、ohaは41.5万RPS。4ツールとも送信レートの制限を外して測っています。
+Go製の分散HTTP負荷試験ツールです。POST本文やヘッダーを指定し、処理量・レイテンシ・エラーを確認できます。自動実行とJSONレポートにも対応しています。
 
-<details>
-<summary>測定条件と生データを見る</summary>
+**1分間のローカル比較で平均51.8万POST/秒。k6の4.3倍を記録しました。**
 
-Apple M4のローカルDocker上で、HTTP/1.1・要求と応答とも1 KiB。生成側は各6 GiB、CPU制限なし。64・256・1,024接続を短時間ずつ試し、各ツールで最も速かった設定を採用。5秒の準備運転後、60秒間を各1回観測しました。生成側と対象は同じマシンを共有しています。
-
-図は対象サーバーで検証したPOST件数を、約5秒ごとに集計したものです。SwarmGoを後から締切で止めた際の部分レポートも保存しています。この条件での実測値で、wrkにはまだ届いていません。
-
-[コマンド・設定・全レポート](benchmarks/throughput/)
-
-</details>
-
-<details>
-<summary>毎秒20万件を指定した5分間の試験</summary>
-
-SwarmGoは5分間で**約5,971万件のPOSTを正常完了**し、最大メモリは**89.7 MiB**でした。oha v1.16.0は、同じ生成側6 GiB上限に達して約169秒で停止しました。
-
-![5分間の試験で記録したRPSの推移](assets/endurance.gif)
-
-SwarmGoのHTTP失敗はゼロ、未送信は0.48%。元の厳密な判定はinconclusiveのまま残しています。上の無制限比較とは対象と条件が異なる、各1回の実測です。動画は記録した推移を25倍速で再生し、最後の集計区間には負荷の停止を含みます。5分は今回試した時間です。
-
-[RPSと継続時間の点図](assets/endurance-xy.svg) · [データと再現手順](benchmarks/arrival/recorded-endurance/)
-
-</details>
-
-ほかの実測：[同時2万件でのk6との比較](benchmarks/capacity/)。
-
-<details>
-<summary>3ワーカーで動かした画面を見る</summary>
-
-![3台のワーカーが合計180件を完了したSwarmGoの実行画面](assets/dashboard.svg)
-
-*画面の例は3台 × 60件のローカルデモです。上の性能測定とは別の実行です。*
-
-</details>
+[![送信レート制限なしの60秒平均。wrk 57.5万、SwarmGo 51.8万、oha 41.5万、k6 11.9万POST/秒](assets/throughput-summary.svg)](benchmarks/throughput/)
 
 ## まず動かす
 
-Docker と Docker Compose を用意して、次を実行します。
+DockerとDocker Composeを用意して実行します。
 
-```bash
+```sh
 git clone https://github.com/ryokotaka/SwarmGo.git
 cd SwarmGo
 docker compose up -d --build
 docker attach "$(docker compose ps -q master)"
 ```
 
-`Workers: 3` になったら **s** を押します。各ワーカーが、同梱の `target-server` に 3,000 回の GET リクエストを送ります。並行数は各ワーカーで最大 10、全体では **合計 9,000 リクエスト、最大 30 並行**です。
+`Workers: 3`になったら **s** を押します。3台のワーカーが同梱のローカルサーバーに**合計9,000件**を送ります。完了後も、処理量・進捗・エラーを画面で確認できます。
 
-完了後も結果は画面に残ります。もう一度実行する場合は **s**、実行中のリクエストを中止してコントローラーを終了する場合は **q** を押します。終了せずに画面から離れる場合は **Ctrl+P**、続けて **Ctrl+Q** です。
+もう一度実行する場合は **s**、停止は **q**。使い終わったら `docker compose down` で片付けます。
 
-使い終わったらコンテナを片付けます。
+![SwarmGoの実行画面。ローカルAPIに400万件のPOSTを送信](assets/demo.gif)
 
-```bash
-docker compose down
+<sub>実行画面：ローカルAPIへ400万件のPOSTを送信。256接続、要求・応答とも1 KiB、送信レート制限なし。<a href="assets/demo.json">実行記録</a>。</sub>
+
+## APIを試験する
+
+Go 1.25.7以降でビルドします：`go build -o swarmgo ./cmd/swarmgo`。
+
+手元のAPIが`/api`でJSONを受け付ける場合は、本文を用意して起動します。
+
+```sh
+printf '%s\n' '{"message":"hello"}' > request.json
+./swarmgo run -url http://127.0.0.1:8080/api \
+  -method POST -body-file request.json -header 'Content-Type: application/json' \
+  -workers 1 -n 10000 -c 100 -output report.json
 ```
 
-負荷テストは、自分が所有しているか、許可を得ている対象にだけ実行してください。この手順ではローカルの Compose ネットワーク内にだけリクエストを送ります。
+別のターミナルで `./swarmgo worker` を起動すると試験が始まります。完了件数・エラー・レイテンシ百分位を`report.json`に保存し、予定したリクエストがすべて成功すると終了コード`0`を返します。
 
-## 大量アクセス時の応答と回復を調べる
+別のPCでもワーカーを起動すれば、複数の機材から負荷を送れます。リクエスト数と並行数は**ワーカー1台あたり**の設定です。
 
-アクセスが急増しても、普段の利用者を待たせずに応答できるか。`swarmgo resilience` は、通常アクセスを続けながら一定時間だけ負荷を増やし、応答時間・失敗率・回復時間を調べます。
+[ワーカーの追加・ヘッダー・タイムアウト・レポートの読み方 →](GUIDE_ja.md)
 
-ローカルのデモでは、APIに受け入れ制限を加えると、負荷中の通常アクセスの応答時間が **3.51秒から92ミリ秒** に改善しました（1秒ごとのp99の最大値）。両方とも予定した負荷を送り切っています。API側の対策効果を、SwarmGoで測った結果です。
+## アクセスが急増しても応答できるか
 
-![APIの受け入れ制限の前後比較。通常アクセスの応答時間は、対策前は3秒を超え、対策後は約90ミリ秒を維持](assets/resilience.svg)
+`swarmgo resilience`は、通常アクセスを続けながら一定時間だけ負荷を増やします。通常リクエストの応答時間・失敗率・回復までの時間を測ります。
 
-リポジトリのルートで次を実行すると、同梱APIでレート制限の導入前後を比較できます。
+同梱のAPIでは、受け入れ制限を加えると、負荷中の通常アクセスの応答時間が**3.51秒から92ミリ秒**に改善しました。次のコマンドで、対策前後を手元で比較できます。
 
 ```sh
 python3 examples/resilience/demo.py
 ```
 
-Go、Python 3、ローカルのDockerが必要です。試験は外部へ接続しない内部ネットワークで行い、JSONを保存してからコンテナを片付けます。予定した負荷を送れなかった場合は「判定不能」になります。[実測データ・手動実行・結果の読み方](examples/resilience/)
+Go・Python 3・Dockerが必要です。[実測結果とコマンド →](examples/resilience/)
 
-## 負荷を変える
+## 性能の記録
 
-リクエスト数と並行数は、どちらも **ワーカー 1 台あたり**の値です。次の例では 5 台のワーカーが各 1,000 回、合計 5,000 回のリクエストを送ります。
+冒頭の比較は、送信レートに上限を設けず、対象サーバーが受け取った有効なPOSTを数えたものです。各ツールの設定、実行コマンド、JSONの生データを公開しています。
 
-```bash
-TOTAL_REQUESTS=1000 CONCURRENCY=5 docker compose up -d --build --scale worker=5
-docker attach "$(docker compose ps -q master)"
-```
-
-| 設定 | Compose の初期値 | 意味 |
-| --- | --- | --- |
-| `TARGET_URL` | `http://target-server` | 各ワーカーがリクエストを送る URL |
-| `TOTAL_REQUESTS` | `3000` | 1 回の実行で各ワーカーが送るリクエスト数 |
-| `CONCURRENCY` | `10` | 各ワーカーで同時に処理するリクエスト数の上限 |
-| `--scale worker=N` | `3` | ワーカーのコンテナ数 |
-
-失敗時の表示を見るには、同梱の echo server にエラーを返させます。
-
-```bash
-TARGET_URL='http://target-server/?echo_code=500' TOTAL_REQUESTS=100 docker compose up -d --build
-docker attach "$(docker compose ps -q master)"
-```
-
-**s** を押して完了を待つと、失敗したリクエストが `HTTP 500 Internal Server Error` として集計されます。
-
-## ソースから動かす
-
-[go.mod](./go.mod) に合わせて **Go 1.25.7 以降**を使います。
-
-```bash
-go build -o swarmgo ./cmd/swarmgo
-```
-
-テスト対象には、手元で起動した HTTP サーバーを使います。Python 3 があれば、1 つ目のターミナルで空の一時ディレクトリを配信できます。
-
-```bash
-python3 -m http.server 8080 --bind 127.0.0.1 --directory "$(mktemp -d)"
-```
-
-2 つ目のターミナルでコントローラーを起動します。
-
-```bash
-./swarmgo master -url http://127.0.0.1:8080 -n 100 -c 5
-```
-
-3 つ目のターミナルでワーカーを起動します。
-
-```bash
-./swarmgo worker
-```
-
-コントローラーの画面で **s** を押すと開始します。ワーカーを増やす場合は、実行前に別のターミナルでも起動してください。
-
-ソースから起動した場合の初期値は、対象が `http://127.0.0.1:8080`、リクエスト数が 5、並行数が 1 です。Compose と同じ環境変数を使うか、`-url`、`-n`、`-c` で指定できます。ワーカーの接続先は初期値が `localhost:50051` で、`-addr host:port` または `MASTER_ADDR` で変更します。コントローラーのポートは `-p` で指定します。
-
-`master -no-tui` は gRPC の待ち受けだけを起動します。負荷テストの自動開始や、コマンドラインから開始する機能はありません。
-
-## 1 回実行して結果を保存する
-
-ローカルのテスト対象を起動してから、2 台のワーカーを待つコントローラーを起動します。
-
-```bash
-./swarmgo run -url http://127.0.0.1:8080 -workers 2 -n 100 -c 5 -output report.json
-```
-
-別のターミナルを 2 つ開き、それぞれで `./swarmgo worker` を実行します。2 台が接続すると自動で開始し、合計 200 リクエストを送って `report.json` に保存したあと、ワーカーを終了します。キー入力は不要です。
-
-接続を待つ時間は `-worker-timeout`（初期値 `30s`）、実行時間の上限は `-timeout`（初期値 `2m`）で指定します。予定したリクエストがすべて成功した場合だけ終了コード 0 を返します。リクエストの失敗、切断、タイムアウト、出力エラーは 1、引数の誤りは 2 です。
-
-JSON には完了状態、リクエスト数、経過時間、コントローラー全体の RPS、ワーカー別のレイテンシ百分位とエラーを保存します。コントローラーの RPS は、指示の送信開始から最終報告までを計測区間に使います。百分位はワーカー別の値です。次のリクエスト指定は `master` と `run` の両方で使えます。
-
-## JSON を送る
-
-ローカルの API が `/api` で JSON を受け付ける場合は、本文をファイルに保存して POST を指定します。
-
-```bash
-printf '%s\n' '{"message":"hello"}' > request.json
-./swarmgo master -url http://127.0.0.1:8080/api -method POST \
-  -body-file request.json -header 'Content-Type: application/json' -n 100 -c 5
-```
-
-上と同じようにワーカーを起動し、**s** を押します。対象には POST を処理できる API を使ってください。GET の例で使った Python のファイルサーバーは POST に対応していません。
-
-`-body-file` は起動時に一度だけ読み込みます（上限 1 MiB）。各リクエストには同じバイト列を送り、Content-Length は自動で設定します。`Content-Type` は本文に合わせて指定してください。ヘッダーを増やす場合は `-header 'Name: value'` を繰り返します。同じ名前では大文字・小文字を区別せず、最後の指定を使います。
-
-コントローラーとワーカーには同じビルドを使ってください。旧ワーカーは追加されたメソッド・本文・ヘッダーの指定を無視し、GET を送ります。更新後のワーカーは旧コントローラーの GET 指示も受け付けます。
-
-## 仕組み
-
-Go の並行処理と gRPC ストリーミングを理解するために作りました。複数のワーカーへの指示と結果の集約が、実際に動かしながら見える構成にしています。
-
-```mermaid
-flowchart LR
-    C[コントローラー / ターミナル画面] <-->|gRPC stream| W[ワーカー]
-    W -->|HTTP リクエスト| T[対象サーバー]
-```
-
-コントローラーは、開始時点で接続しているワーカーに指示を送ります。各ワーカーは固定数の goroutine で対象サーバーに直接リクエストを送り、同じ gRPC ストリームで進捗を返します。途中から接続したワーカーは次の実行から参加します。
-
-ワーカーは負荷テスト中も指示を受け付けます。Quit、Stop、コントローラーとの切断で、処理中の HTTP リクエストをキャンセルします。実行中にもう一度 **s** を押しても、重複して開始しません。
-
-コードを読む場合は、次のファイルから追えます。
-
-- [runner.go](./internal/worker/runner.go)：リクエストの検証と標準HTTPクライアントによる実行。
-- [direct.go](./internal/worker/direct.go)：HTTP/1.1要求の事前生成、接続再利用、TLS検証、中断。
-- [aggregate.go](./internal/worker/aggregate.go)：並行実行、件数集計、固定サイズのレイテンシ記録。
-- [client.go](./internal/worker/client.go)：ワーカーの指示受信と、順序を保った進捗報告。
-- [server.go](./internal/master/server.go)：接続中のワーカーと実行状態の管理。
-- [tui.go](./cmd/swarmgo/tui.go)：画面表示とキー入力。
-- [run.go](./cmd/swarmgo/run.go)：自動実行と JSON レポート。
-- [swarm.proto](./proto/swarm.proto)：コントローラーとワーカーがやり取りするメッセージ。
-
-通常のHTTP/1.1要求は、事前に組み立てた送信データと、処理担当ごとの接続を再利用します。HEAD・CONNECT・Upgrade・`Expect`付き要求や独自のクライアント設定はGo標準の処理を使います。リダイレクトのメソッド変更と認証情報の扱いもGo標準に従い、その処理担当は以降も標準クライアントを使います。
-
-## 指標の定義
+| 試験 | SwarmGoの結果 | 記録 |
+| :--- | :--- | :--- |
+| 送信レート制限なし・60秒 | **平均51.8万POST/秒** | [4ツールの比較](benchmarks/throughput/) |
+| 毎秒20万件指定・5分間 | **5,971万件が正常完了**・最大89.7 MiB | [継続試験](benchmarks/arrival/recorded-endurance/) |
 
 <details>
-<summary>リクエスト数・RPS・レイテンシ・エラーの数え方</summary>
+<summary>60秒間のRPS推移を見る</summary>
 
-- **成功・失敗：** レスポンス本文を最後まで読めて、最終的な HTTP ステータスが 400 未満なら成功です。4xx/5xx、通信エラー、タイムアウト、処理中にキャンセルしたリクエストは失敗として数えます。リダイレクトは Go 標準の HTTP クライアントに従います。
-- **RPS：** 各ワーカーの「完了リクエスト数 ÷ 開始からの経過時間」を画面上で合計します。実行開始からの平均値であり、瞬間的な処理量や、全ワーカーの時刻を厳密にそろえた値ではありません。完了後も最後の値が残ります。
-- **レイテンシ：** 成功したリクエストについて、本文を受信し終わるまでの時間を測ります。各ワーカーが HDR ヒストグラムから P50/P90/P99 を計算し（マイクロ秒単位・有効数字3桁、値の丸めは最大約0.1%と単位変換の1 μs未満）、画面には P99 が最も大きいワーカーの 3 つの値を表示します。**全ワーカーのリクエストをまとめて計算した百分位ではありません。** 通信時に整数のミリ秒に変換するため、1 ms 未満の値は `-` と表示される場合があります。
-- **エラー理由：** 各ワーカーの最終報告で反映します。ワーカーが切断した場合は途中までの結果になることがあり、残りの処理は他のワーカーに割り当て直しません。
-
-接続と小さな結果バッファは並行数に応じた大きさです。レイテンシはCPUごとの固定サイズのヒストグラムへ記録するため、試験件数に比例して記録メモリが増えることはありません。
+![1分間のRPS推移：wrk、SwarmGo、oha、k6](assets/throughput.svg)
 
 </details>
 
-## 現在の範囲
+## 仕組み
 
-HTTP メソッドの指定、固定のリクエスト本文とヘッダー、固定リクエスト数、固定並行数に対応しています。送信レートのスケジュール、ワーカーの再接続、制御用 gRPC 接続の TLS・認証は未対応です。コントローラーとワーカーは信頼できるネットワーク内で使ってください。Compose のコントローラーポートは localhost にだけ公開しています。ソースから起動したコントローラーは全インターフェースで待ち受けます。
+```mermaid
+sequenceDiagram
+    participant C as Controller
+    participant W as Worker × N
+    participant A as Target API
+    C->>W: Start · method, body, count, concurrency
+    par HTTP/1.1 connection pool
+        W->>A: Send prepared request
+        A-->>W: Read response, reuse connection
+    and gRPC progress stream
+        W-->>C: Counts, errors, latency percentiles
+    end
+    W-->>C: Final results · finish
+```
 
-## 開発時の確認
+HTTP/1.1の送信データを一度だけ組み立て、処理担当ごとに接続を再利用します。結果は小さな単位にまとめて集計。コントローラーはgRPCで指示と進捗をやり取りし、HTTPリクエストはワーカーから対象へ直接送ります。
 
-[MITライセンス](./LICENSE) · [初期のComposeデモ動画](./demo-docker.gif)
+コードは[HTTPの送受信](internal/worker/direct.go)、[並行実行と集計](internal/worker/aggregate.go)、[コントローラー](internal/master/server.go)から追えます。
 
-```bash
+```sh
 go test -race ./...
 go vet ./...
 go build ./...
 ```
 
-テストにはローカルの HTTP / gRPC サーバーを使います。GET/POST の並行実行、本文の再送、キャンセル、報告順序、経過時間の計算、画面への通知が落ちた場合の状態復元を確認しています。同じチェックを GitHub Actions でも実行します。
+<details>
+<summary>測定条件と指標の詳細</summary>
 
-生成済みのプロトコルファイルを含めているため、ビルドに `protoc` は不要です。スキーマを変えた場合は、protoc 33.4、protoc-gen-go v1.36.11、protoc-gen-go-grpc v1.6.1 で再生成します。
+**処理量の比較：** Apple M4のローカルARM64 Docker、HTTP/1.1、要求・応答とも1 KiB。生成側は各6 GiB、CPU制限なし。64・256・1,024接続を短時間ずつ試し、各ツールで最も速かった設定を採用。5秒の準備運転後、60秒を各1回観測しました。生成側と対象は同じマシンを共有し、対象側で本文を検証したPOST件数からRPSを計算しています。wrkは575,360/s、SwarmGoは517,832/s、ohaは414,956/s、k6は119,480/s。この負荷条件での実測値です。SwarmGoを観測後に締切停止した際の部分レポートと、wrkのtimeoutカウンターも[全記録](benchmarks/throughput/)に残しています。
 
-```bash
-protoc --go_out=. --go_opt=paths=source_relative \
-  --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/swarm.proto
-```
+**5分間の試験：** 対象サーバーが異なる、毎秒20万件指定の各1回の試験です。SwarmGoのHTTP失敗はゼロ、未送信は0.48%。元の厳密な判定は`inconclusive`のまま保存しています。ohaは同じ6 GiBのメモリ上限に達し、約169秒で停止しました。[条件と生データ](benchmarks/arrival/recorded-endurance/)。
+
+**高負荷時の比較：** 3.51秒と92ミリ秒は、通常アクセスにおける1秒ごとのp99の最大値です。両方とも予定した負荷を送り切っています。同梱APIに施した対策の効果をSwarmGoで測定した結果です。
+
+**利用範囲：** 自分が所有するか、許可を得た対象に使ってください。制御用接続にTLS・認証はないため、コントローラーとワーカーは信頼できるネットワーク内で使います。ソースから起動したコントローラーは全インターフェースで待ち受け、Composeはそのポートをlocalhostに公開します。[指標の定義と対応範囲](GUIDE_ja.md#指標の定義)。
+
+</details>
+
+[MITライセンス](LICENSE) · [使い方ガイド](GUIDE_ja.md)
