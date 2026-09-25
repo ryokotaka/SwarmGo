@@ -127,20 +127,24 @@ Five-minute trial: a different target, 200k requests per second requested, one r
 
 ## How it works
 
-The controller and workers talk over gRPC. Workers send HTTP traffic straight to the API; it never passes through the controller.
+Each worker dials the controller and keeps one gRPC stream open for commands and progress. HTTP traffic goes straight from the workers to the API and never passes through the controller.
 
 ```mermaid
-flowchart LR
-    C["Controller<br/>master / run"]
-    subgraph W ["Workers, on one or more machines"]
-        direction LR
-        W1[Worker]
-        W2[Worker]
-        W3[Worker]
+flowchart TB
+    subgraph C ["Controller (master / run)"]
+        UI["Live dashboard · JSON report"]
     end
-    A[Target API]
-    C <-->|"gRPC: start, progress, results"| W
-    W -->|"HTTP/1.1, reused connections"| A
+    subgraph W ["Worker × N"]
+        direction LR
+        P["c goroutines<br/>prepared request bytes"] --> K["Keep-alive connections"]
+        K --> Q{"Common HTTP/1.1<br/>response?"}
+        Q -->|yes| F["In-place header parse<br/>no allocation"]
+        Q -->|no| X["fasthttp full parser"]
+        F --> S["Per-goroutine shards<br/>HDR histograms"]
+        X --> S
+    end
+    C <-->|"gRPC stream, worker dials :50051<br/>↓ Start · Stop · Quit<br/>↑ Register · Stats · Finish"| W
+    W <-->|"HTTP/1.1, keep-alive"| A[Target API]
 ```
 
 Most of the performance work is in the worker:
