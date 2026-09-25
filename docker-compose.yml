@@ -10,7 +10,6 @@
 services:
   target-server:
     image: ealen/echo-server
-    
     networks:
       - swarm-net
 
@@ -19,9 +18,7 @@ services:
     command: ["master", "-p", "50051"]
     environment:
       - TARGET_URL=${TARGET_URL:-http://target-server}
-      
       - TOTAL_REQUESTS=${TOTAL_REQUESTS:-3000}
-      
       - CONCURRENCY=${CONCURRENCY:-10}
     ports:
       - "127.0.0.1:50051:50051"

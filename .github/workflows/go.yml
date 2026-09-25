@@ -16,6 +16,18 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: gofmt
+        # benchmarks/ holds the exact sources used for recorded runs.
+        run: |
+          unformatted=$(gofmt -l cmd internal examples)
+          if [ -n "$unformatted" ]; then echo "$unformatted"; exit 1; fi
       - run: go test -race ./...
       - run: go vet ./...
       - run: go build ./...
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t swarmgo .
+      - run: docker run --rm swarmgo version

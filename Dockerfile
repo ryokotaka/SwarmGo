@@ -1,4 +1,4 @@
-FROM golang:alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -7,14 +7,19 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o swarmgo ./cmd/swarmgo/
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /swarmgo ./cmd/swarmgo/
 
 FROM debian:bookworm-slim
 
-WORKDIR /root/
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && update-ca-certificates && rm -rf /var/lib/apt/lists/* \
+    && mkdir /work && chown 65532:65532 /work
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && update-ca-certificates && rm -rf /var/lib/apt/lists/*
+# Writable directory for `run -output` and `resilience -output` reports.
+WORKDIR /work
 
-COPY --from=builder /app/swarmgo .
+COPY --from=builder /swarmgo /usr/local/bin/swarmgo
 
-ENTRYPOINT ["./swarmgo"]
+# Load generation needs no privileges.
+USER 65532:65532
+
+ENTRYPOINT ["swarmgo"]

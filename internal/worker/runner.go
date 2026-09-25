@@ -159,6 +159,8 @@ func sanitizeError(s string) string {
 		return "connection refused"
 	case strings.Contains(lower, "connection reset"):
 		return "connection reset by peer"
+	case strings.Contains(lower, "broken pipe"):
+		return "broken pipe"
 	case strings.Contains(lower, "i/o timeout"), strings.Contains(lower, "timeout"):
 		return "timeout"
 	case strings.Contains(lower, "no such host"), strings.Contains(lower, "unknown host"):

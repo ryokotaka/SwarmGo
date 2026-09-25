@@ -2,10 +2,11 @@ package worker
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"runtime"
 	"time"
 
@@ -46,6 +47,14 @@ func NewGRPCClient(addr string) (*GRPCClient, error) {
 	}, nil
 }
 
+// newWorkerID returns a random ID. The controller rejects duplicate IDs, so it
+// must stay unique even when several workers start in the same clock tick.
+func newWorkerID() string {
+	var b [8]byte
+	rand.Read(b[:])
+	return "worker-" + hex.EncodeToString(b[:])
+}
+
 // Start keeps receiving commands while a run is active. Only this event loop
 // writes to the gRPC stream, so progress, final stats, and finish stay ordered.
 func (c *GRPCClient) Start() error {
@@ -58,8 +67,7 @@ func (c *GRPCClient) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to open stream: %w", err)
 	}
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	workerID := fmt.Sprintf("worker-%d-%d", time.Now().UnixNano(), rng.Intn(1000))
+	workerID := newWorkerID()
 	if err := stream.Send(&proto.WorkerMsg{
 		Msg: &proto.WorkerMsg_Register{Register: &proto.RegisterMsg{
 			WorkerId: workerID, CpuArch: runtime.GOARCH,

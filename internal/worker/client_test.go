@@ -298,3 +298,14 @@ func TestClientsReplayPOSTBodyThroughGRPC(t *testing.T) {
 		t.Fatalf("unexpected count or concurrency: requests=%d peak=%d", requests.Load(), peak.Load())
 	}
 }
+
+func TestWorkerIDsAreUniqueWhenCreatedTogether(t *testing.T) {
+	seen := make(map[string]bool)
+	for range 1000 {
+		id := newWorkerID()
+		if seen[id] {
+			t.Fatalf("duplicate worker ID %q", id)
+		}
+		seen[id] = true
+	}
+}

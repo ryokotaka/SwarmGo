@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"runtime/debug"
 	"strconv"
 
 	"github.com/charmbracelet/bubbletea"
@@ -36,6 +37,10 @@ func main() {
 		os.Exit(runCommand(os.Args[2:]))
 	case "resilience":
 		os.Exit(resilienceCommand(os.Args[2:]))
+	case "help", "-h", "-help", "--help":
+		printHelp()
+	case "version", "-version", "--version":
+		fmt.Println("swarmgo", version())
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		printHelp()
@@ -44,11 +49,48 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Fprintln(os.Stderr, "usage: swarmgo <master|worker|run|resilience> [options]")
-	fmt.Fprintln(os.Stderr, "  master  - start the Master gRPC server. Options: -p port, -url target URL, -n total requests, -c concurrency, -method GET, -body-file path, -header 'Name: value', -no-tui")
-	fmt.Fprintln(os.Stderr, "  run     - wait for workers, run once, and write JSON. Options: -workers N, -url, -n, -c, -method, -body-file, -header, -output")
-	fmt.Fprintln(os.Stderr, "  worker  - connect to Master and run load test tasks. Option: -addr (or MASTER_ADDR, default localhost:50051)")
-	fmt.Fprintln(os.Stderr, "  resilience - measure ordinary requests during a bounded local load spike. See resilience -help")
+	fmt.Fprint(os.Stderr, `usage: swarmgo <command> [options]
+
+Commands:
+  master      Start the controller with a live dashboard (press s to run, q to quit)
+  worker      Connect to a controller and send the HTTP traffic it requests
+  run         Wait for workers, run once without a dashboard, and write a JSON report
+  resilience  Measure ordinary requests during a timed local load spike
+  version     Print the build version
+
+Requests (-n) and concurrency (-c) are per worker.
+Run "swarmgo <command> -h" for a command's options.
+`)
+}
+
+// version reports the module version for "go install ...@vX" builds and the
+// VCS revision for builds from a checkout.
+func version() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+	if v := info.Main.Version; v != "" && v != "(devel)" {
+		return v
+	}
+	var revision, modified string
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			revision = setting.Value
+		case "vcs.modified":
+			if setting.Value == "true" {
+				modified = "-dirty"
+			}
+		}
+	}
+	if len(revision) > 12 {
+		revision = revision[:12]
+	}
+	if revision == "" {
+		return "devel"
+	}
+	return "devel+" + revision + modified
 }
 
 // runMaster starts the Master with the TUI.
