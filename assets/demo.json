@@ -7,36 +7,36 @@
   "server": {
     "active_requests": 0,
     "body_bytes": 10240000000,
-    "elapsed_seconds": 16.131875702,
+    "elapsed_seconds": 15.394593549,
     "invalid": 0,
-    "peak_active_requests": 6,
+    "peak_active_requests": 7,
     "requests": 10000000,
-    "snapshot_unix_ns": 1790177669691186463
+    "snapshot_unix_ns": 1790328065241993176
   },
   "worker_result": {
     "total": 10000000,
     "success": 10000000,
     "failed": 0,
-    "elapsed_seconds": 16.13972509,
+    "elapsed_seconds": 15.403898425,
     "latency_us": {
-      "p50": 304,
-      "p90": 812,
-      "p99": 2005
+      "p50": 292,
+      "p90": 772,
+      "p99": 1891
     }
   },
-  "source_dirty": true,
-  "product_sha256": "38160bef4a65fced5a718ea39d33907850a8aed491f5558f8bf97837689ed217",
-  "binary_sha256": "1c527793c9a9015e0e72a5d0c51326e58d1001fe598945714a7aa481cf9d7bd4",
+  "source_dirty": false,
+  "product_sha256": "7eff4c1e8c0843637ebcd3cff56dc61af7468d7105b754343b83b7e0ef276c4f",
+  "binary_sha256": "fe7d77b3d812db75fd6930ef17c298b079869634673a35fa7e585c76d1f58e9c",
   "image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
   "internal_network": true,
   "published_ports": [],
   "playback": "real-time capture, with final result held for four seconds",
-  "gif_duration_ms": 23580,
-  "frames": 104,
+  "gif_duration_ms": 22950,
+  "captured_frames": 163,
+  "frames": 100,
   "size": [
     877,
     684
   ],
-  "source": "2f4940bc4da5ddb048d88eab728fc8c5a35fb449",
-  "captured_frames": 168
+  "source": "182e7d75b71164116ffa869d796a2a176a6c87ed"
 }
