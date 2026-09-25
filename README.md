@@ -14,8 +14,6 @@
 
 SwarmGo is an HTTP load-testing tool for finding slow responses and failures before users encounter them. Generate traffic from multiple machines, watch one live dashboard, and save the results as JSON.
 
-**Over half a million HTTP requests per second.**
-
 <a href="benchmarks/throughput/repeated/">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/throughput-repeated-dark.svg">
@@ -24,7 +22,7 @@ SwarmGo is an HTTP load-testing tool for finding slow responses and failures bef
 </picture>
 </a>
 
-Apple M4 · local Docker · 1 KiB request and response. Concurrency: k6 64 VUs; others 256 connections. [Setup and data](benchmarks/throughput/repeated/).
+Six 60-second runs per tool on one Apple M4 machine, generator and target in local Docker. [Setup, commands and raw data](benchmarks/throughput/repeated/).
 
 | Strength | What it means |
 | :--- | :--- |
@@ -93,7 +91,13 @@ The report has request counts, controller-wide RPS, and each worker's P50/P90/P9
 
 In the included API example, limiting how many load requests are admitted reduced ordinary-request latency from **3.51 s to 92 ms** during the spike (worst one-second p99).
 
-<a href="examples/resilience/"><img alt="Ordinary API traffic before and after admission control: latency rises above three seconds without it and stays near 90 milliseconds with it" src="assets/resilience.svg"></a>
+<a href="examples/resilience/">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/resilience-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/resilience.svg">
+  <img alt="Ordinary API traffic before and after admission control: latency rises above three seconds without it and stays near 90 milliseconds with it" src="assets/resilience.svg">
+</picture>
+</a>
 
 Run the before/after comparison locally:
 
