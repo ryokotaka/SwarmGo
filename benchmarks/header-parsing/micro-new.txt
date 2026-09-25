@@ -1,0 +1,32 @@
+goos: linux
+goarch: amd64
+pkg: github.com/ryokotaka/SwarmGo/internal/worker
+cpu: Intel(R) Xeon(R) Processor @ 2.80GHz
+BenchmarkDirectRequestContentLength-4   	 3654271	       324.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestContentLength-4   	 3574564	       330.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestContentLength-4   	 3552249	       334.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestContentLength-4   	 3418970	       336.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestContentLength-4   	 3495662	       337.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestChunked-4         	 2357718	       530.7 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-4         	 2315364	       535.0 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-4         	 2319080	       520.3 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-4         	 2356279	       527.1 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-4         	 2191687	       549.6 ns/op	      48 B/op	       1 allocs/op
+PASS
+ok  	github.com/ryokotaka/SwarmGo/internal/worker	12.078s
+goos: linux
+goarch: amd64
+pkg: github.com/ryokotaka/SwarmGo/internal/worker
+cpu: Intel(R) Xeon(R) Processor @ 2.80GHz
+BenchmarkDirectRequestContentLength-4   	 3683649	       337.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestContentLength-4   	 3698853	       334.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestContentLength-4   	 3610624	       327.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestContentLength-4   	 3750234	       330.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestContentLength-4   	 3748563	       336.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDirectRequestChunked-4         	 2201785	       537.6 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-4         	 2012439	       597.2 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-4         	 2200521	       522.2 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-4         	 2347894	       538.2 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-4         	 2231810	       521.1 ns/op	      48 B/op	       1 allocs/op
+PASS
+ok  	github.com/ryokotaka/SwarmGo/internal/worker	12.185s
