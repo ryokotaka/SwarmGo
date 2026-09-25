@@ -144,3 +144,7 @@ geomean                            1.732                    ?                   
 ```
 
 The micro benchmark isolates the worker's request/response path. End to end, the generator also shares the machine with the target and the Docker VM, so the throughput difference between new and old is much smaller than the per-request time difference here.
+
+## Figures
+
+`python3 benchmarks/throughput/plot_repeated.py --data rerun-m4` renders the README figures `assets/throughput-m4*.svg` from [`summary.json`](summary.json) with matplotlib 3.11.2. They plot SwarmGo new from runs 1–18, wrk from runs 1–18, and oha and k6 from runs 19–36; filled dots are each tool's first three runs.
