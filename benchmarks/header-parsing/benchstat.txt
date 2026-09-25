@@ -1,0 +1,25 @@
+goos: linux
+goarch: amd64
+pkg: github.com/ryokotaka/SwarmGo/internal/worker
+cpu: Intel(R) Xeon(R) Processor @ 2.80GHz
+                             │ benchmarks/header-parsing/micro-old.txt │ benchmarks/header-parsing/micro-new.txt │
+                             │                 sec/op                  │     sec/op       vs base                │
+DirectRequestContentLength-4                               914.8n ± 8%       334.7n ± 2%  -63.41% (p=0.000 n=10)
+DirectRequestChunked-4                                    1064.0n ± 5%       532.9n ± 3%  -49.92% (p=0.000 n=10)
+geomean                                                    986.6n            422.3n       -57.20%
+
+                             │ benchmarks/header-parsing/micro-old.txt │ benchmarks/header-parsing/micro-new.txt │
+                             │                  B/op                   │    B/op     vs base                     │
+DirectRequestContentLength-4                                8.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
+DirectRequestChunked-4                                      64.00 ± 0%   48.00 ± 0%   -25.00% (p=0.000 n=10)
+geomean                                                     22.63                    ?                       ¹ ²
+¹ summaries must be >0 to compute geomean
+² ratios must be >0 to compute geomean
+
+                             │ benchmarks/header-parsing/micro-old.txt │ benchmarks/header-parsing/micro-new.txt │
+                             │                allocs/op                │ allocs/op   vs base                     │
+DirectRequestContentLength-4                                1.000 ± 0%   0.000 ± 0%  -100.00% (p=0.000 n=10)
+DirectRequestChunked-4                                      3.000 ± 0%   1.000 ± 0%   -66.67% (p=0.000 n=10)
+geomean                                                     1.732                    ?                       ¹ ²
+¹ summaries must be >0 to compute geomean
+² ratios must be >0 to compute geomean
