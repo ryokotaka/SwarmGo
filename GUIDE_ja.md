@@ -146,6 +146,7 @@ flowchart LR
 
 - [runner.go](./internal/worker/runner.go)：リクエストの検証と標準HTTPクライアントによる実行。
 - [direct.go](./internal/worker/direct.go)：HTTP/1.1要求の事前生成、接続再利用、TLS検証、中断。
+- [direct_head.go](./internal/worker/direct_head.go)：よくある形のレスポンスヘッダをその場で解析し、それ以外は fasthttp に任せる処理。
 - [aggregate.go](./internal/worker/aggregate.go)：並行実行、件数集計、固定サイズのレイテンシ記録。
 - [client.go](./internal/worker/client.go)：ワーカーの指示受信と、順序を保った進捗報告。
 - [server.go](./internal/master/server.go)：接続中のワーカーと実行状態の管理。
@@ -154,6 +155,8 @@ flowchart LR
 - [swarm.proto](./proto/swarm.proto)：コントローラーとワーカーがやり取りするメッセージ。
 
 通常のHTTP/1.1要求は、事前に組み立てた送信データと、処理担当ごとの接続を再利用します。HEAD・CONNECT・Upgrade・`Expect`付き要求や独自のクライアント設定はGo標準の処理を使います。リダイレクトのメソッド変更と認証情報の扱いもGo標準に従い、その処理担当は以降も標準クライアントを使います。
+
+よくある形のレスポンスヘッダ（HTTP/1.1、リダイレクト以外の最終ステータス、`Content-Length` 1つか `Transfer-Encoding: chunked` による長さ指定）は、コピーもメモリ確保もせずにその場で読みます。解釈するのはステータス・長さの指定・`Content-Encoding`・`Connection` だけですが、すべての項目で不正なバイトがないかは確認します。それ以外（HTTP/1.0、1xx、リダイレクト、折り返し行、重複・矛盾する長さ指定、`Trailer`、複数回の読み込みにまたがるヘッダ）は、同じ未消費のバイト列を fasthttp の完全なパーサーで読みます。
 
 ## 指標の定義
 
@@ -186,6 +189,13 @@ go build ./...
 ```
 
 テストにはローカルの HTTP / gRPC サーバーを使います。GET/POST の並行実行、本文の再送、キャンセル、報告順序、経過時間の計算、画面への通知が落ちた場合の状態復元を確認しています。同じチェックを GitHub Actions でも実行します。
+
+ヘッダの高速パスには差分テストとファジングがあります。高速パスが受け付けたヘッダは、読み進めたバイト数も含めて fasthttp と同じ結果になる必要があります。HTTP/1.1 の処理にかかる1リクエストあたりのコストは、通信を固定のレスポンスに置き換えたマイクロベンチマークで測れます。
+
+```bash
+go test ./internal/worker -run '^$' -fuzz FuzzParseHead -fuzztime 60s
+go test ./internal/worker -run '^$' -bench DirectRequest -benchmem
+```
 
 生成済みのプロトコルファイルを含めているため、ビルドに `protoc` は不要です。スキーマを変えた場合は、protoc 33.4、protoc-gen-go v1.36.11、protoc-gen-go-grpc v1.6.1 で再生成します。
 
