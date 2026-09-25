@@ -1,0 +1,5 @@
+2026/09/25 04:20:00 Connecting to Master at 127.0.0.1:50051...
+2026/09/25 04:20:00 Successfully registered as worker-1cac8d6a96c0c813
+2026/09/25 04:20:00 START: method=POST target=http://172.18.0.2:8080/work requests=2147483647 concurrency=256
+2026/09/25 04:21:10 Run finished: total=44082504 success=44082503 failed=1 duration=1m10.005075449s
+2026/09/25 04:21:10 Latency (successful requests): p50_us=297 p90_us=802 p99_us=2014

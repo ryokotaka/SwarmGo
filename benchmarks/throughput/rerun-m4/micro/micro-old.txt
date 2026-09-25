@@ -1,0 +1,26 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/ryokotaka/SwarmGo/internal/worker
+cpu: Apple M4
+BenchmarkDirectRequestContentLength-10    	 3050190	       387.9 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3153391	       385.0 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3111024	       387.1 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3056914	       394.7 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3058436	       391.6 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3054693	       392.1 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3084729	       391.1 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3052920	       391.3 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3055236	       391.4 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestContentLength-10    	 3072793	       392.0 ns/op	       8 B/op	       1 allocs/op
+BenchmarkDirectRequestChunked-10          	 3213849	       373.4 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3221425	       372.8 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3202069	       374.5 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3182643	       376.3 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3203922	       374.3 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3224708	       374.3 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3200698	       375.5 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3211068	       372.7 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3206256	       374.1 ns/op	      64 B/op	       3 allocs/op
+BenchmarkDirectRequestChunked-10          	 3200907	       374.8 ns/op	      64 B/op	       3 allocs/op
+PASS
+ok  	github.com/ryokotaka/SwarmGo/internal/worker	24.410s
