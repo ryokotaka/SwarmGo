@@ -2,7 +2,11 @@
 
 This example runs against an API on your own machine. The API has eight processing slots, each taking 80 ms. A second run enables a small per-client admission limit so you can compare ordinary-request latency before and after the change.
 
-![Ordinary-request latency before and after admission control](../../assets/resilience.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../../assets/resilience-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="../../assets/resilience.svg">
+  <img alt="Ordinary-request latency before and after admission control" src="../../assets/resilience.svg">
+</picture>
 
 The recorded run used **200 load requests/s for three seconds**, alongside 10 ordinary requests/s throughout a two-second baseline, the spike and seven seconds of recovery observation.
 
@@ -16,7 +20,7 @@ The recorded run used **200 load requests/s for three seconds**, alongside 10 or
 
 The protected API stayed within the latency limit. Without the limit, ordinary requests eventually succeeded but kept waiting well after the spike ended. Recovery was confirmed six seconds after the scheduled load stopped. For the protected API, the two-second confirmation window completed with no preceding degradation.
 
-These are single local demonstrations of an API change, not generator performance benchmarks. Each one-second window has ten ordinary samples, so its p99 is effectively the slowest request. [Before JSON](results/before.json), [after JSON](results/after.json) and [source revision and environment](results/manifest.json) preserve the measurement. Results will vary with the machine. Regenerate the figure with `python3 examples/resilience/plot.py` after installing matplotlib.
+These are single local demonstrations of an API change, not generator performance benchmarks. Each one-second window has ten ordinary samples, so its p99 is effectively the slowest request. [Before JSON](results/before.json), [after JSON](results/after.json) and [source revision and environment](results/manifest.json) preserve the measurement. Results will vary with the machine. Regenerate the light and dark figures with `python3 examples/resilience/plot.py` after installing matplotlib.
 
 ## Run it locally
 
