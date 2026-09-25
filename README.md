@@ -129,23 +129,11 @@ Five-minute trial: a different target, 200k requests per second requested, one r
 
 Each worker dials the controller and keeps one gRPC stream open for commands and progress. HTTP traffic goes straight from the workers to the API and never passes through the controller.
 
-```mermaid
-flowchart TB
-    subgraph C ["Controller (master / run)"]
-        UI["Live dashboard · JSON report"]
-    end
-    subgraph W ["Worker × N"]
-        direction LR
-        P["c goroutines<br/>prepared request bytes"] --> K["Keep-alive connections"]
-        K --> Q{"Common HTTP/1.1<br/>response?"}
-        Q -->|yes| F["In-place header parse<br/>no allocation"]
-        Q -->|no| X["fasthttp full parser"]
-        F --> S["Per-goroutine shards<br/>HDR histograms"]
-        X --> S
-    end
-    C <-->|"gRPC stream, worker dials :50051<br/>↓ Start · Stop · Quit<br/>↑ Register · Stats · Finish"| W
-    W <-->|"HTTP/1.1, keep-alive"| A[Target API]
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/architecture.svg">
+  <img alt="The controller and each worker share one gRPC stream that the worker dials on port 50051: Start, Stop and Quit go to the worker; Register, Stats and Finish come back. Inside a worker, a goroutine pool sends prepared request bytes over keep-alive connections, response headers are parsed in place with a fasthttp fallback, and latencies go into per-goroutine HDR histograms. HTTP/1.1 load goes from the connections straight to the target API." src="assets/architecture.svg">
+</picture>
 
 Most of the performance work is in the worker:
 
