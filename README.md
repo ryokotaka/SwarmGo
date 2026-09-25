@@ -14,19 +14,19 @@
 
 SwarmGo is an HTTP load-testing tool for finding slow responses and failures before users encounter them. Generate traffic from multiple machines, watch one live dashboard, and save the results as JSON.
 
-<a href="benchmarks/throughput/repeated/">
+<a href="benchmarks/throughput/rerun-m4/">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/throughput-repeated-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/throughput-repeated.svg">
-  <img alt="Median of six 60-second runs per tool: wrk 619k, SwarmGo 577k, oha 463k, k6 123k POSTs per second; thin lines show the observed range" src="assets/throughput-repeated.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/throughput-m4-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/throughput-m4.svg">
+  <img alt="Median of six 60-second runs per tool: wrk 683k, SwarmGo 640k, oha 591k, k6 159k POSTs per second; thin lines show the observed range" src="assets/throughput-m4.svg">
 </picture>
 </a>
 
-Six 60-second runs per tool on one Apple M4 machine, generator and target in local Docker. [Setup, commands and raw data](benchmarks/throughput/repeated/).
+Six 60-second runs per tool in one session on one Apple M4 machine, generator and target in local Docker. [Setup, commands and raw data](benchmarks/throughput/rerun-m4/).
 
 | Strength | What it means |
 | :--- | :--- |
-| **Fast workers** | 577k POSTs/s median from one machine: within 7% of wrk and 4.7× k6 in the same recording. |
+| **Fast workers** | 640k POSTs/s median from one machine: within 7% of wrk and 4.0× k6 in the same session. |
 | **Distributed** | Start workers on as many machines as you need; one controller starts them together and collects their results. |
 | **Overload you can trust** | `swarmgo resilience` keeps ordinary requests running during a timed spike and records requests it could not start on schedule, so a struggling target cannot hide its latency. |
 | **CI-ready** | `swarmgo run` writes a JSON report and exits non-zero on failed requests, timeouts or a lost worker. |
@@ -113,22 +113,36 @@ The opening comparison has no request-rate cap. Rates are counted at the target,
 
 | Workload | SwarmGo result | Recording |
 | :--- | :--- | :--- |
-| Uncapped POSTs, six 60-second runs | **577k POSTs/s median** | [Four-tool comparison](benchmarks/throughput/repeated/) |
+| Uncapped POSTs, six 60-second runs | **640k POSTs/s median**, 628k for the previous build in the same session | [M4 re-measurement](benchmarks/throughput/rerun-m4/) |
+| Earlier six-run comparison | **577k POSTs/s median** | [Four-tool comparison](benchmarks/throughput/repeated/) |
 | Earlier four-tool comparison, 60 seconds | **518k POSTs/s**, 4.3× k6 | [Original recording](benchmarks/throughput/) |
 | 200k POSTs/s requested, 5 minutes | **59.7 million successful requests**, 89.7 MiB peak | [Sustained-load trial](benchmarks/arrival/recorded-endurance/) |
 
-<sub>These recordings predate the response-header fast path described in [How it works](#how-it-works), which cuts the worker's per-request CPU outside the kernel by about 60% in a micro-benchmark ([measurements](benchmarks/header-parsing/)). They have not been re-recorded yet.</sub>
+<sub>The first row uses the response-header fast path described in [How it works](#how-it-works) ([measurements](benchmarks/header-parsing/)). In that session the worker's request path took 42–56% less time per request than the previous build in a micro-benchmark, and the load generator used 4.5% less CPU per request end to end. The other rows predate the fast path.</sub>
 
 <details>
 <summary>See all six runs per tool</summary>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/throughput-distribution-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/throughput-distribution.svg">
-  <img alt="Six runs per tool: box plots with all 24 measured values shown below the boxes" src="assets/throughput-distribution.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/throughput-m4-distribution-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/throughput-m4-distribution.svg">
+  <img alt="Six runs per tool: box plots with all 24 measured values shown below the boxes" src="assets/throughput-m4-distribution.svg">
 </picture>
 
-Boxes show the middle 50%, with a median line and min–max whiskers. Each dot below is one run: filled for the first three, hollow for the next three per tool. [All 24 recordings](benchmarks/throughput/repeated/).
+Boxes show the middle 50%, with a median line and min–max whiskers. Each dot below is one run: filled for the first three, hollow for the next three per tool. [All recordings](benchmarks/throughput/rerun-m4/).
+
+</details>
+
+<details>
+<summary>Earlier six-run comparison</summary>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/throughput-repeated-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/throughput-repeated.svg">
+  <img alt="Earlier median of six 60-second runs per tool: wrk 619k, SwarmGo 577k, oha 463k, k6 123k POSTs per second" src="assets/throughput-repeated.svg">
+</picture>
+
+Recorded before the response-header fast path, in separate paired series. [All 24 recordings](benchmarks/throughput/repeated/).
 
 </details>
 
@@ -180,7 +194,9 @@ go build ./...
 <details>
 <summary>Benchmark conditions and measurement details</summary>
 
-**Repeated throughput:** Apple M4, local ARM64 Docker, 1 KiB POSTs and responses. Six 60-second observations per tool after five seconds of warmup. The earlier setting screen selected 256 connections for SwarmGo, wrk and oha; k6 uses 64 VUs. Bars show medians; thin lines show observed minimum–maximum. All complete comparison observations are included. The tools were measured in separate paired series on the same desktop host, with no CPU quota and a 6 GiB generator memory budget. Native stopping and reporting are outside the observation; process status and memory-limit events are retained in the [raw data and method](benchmarks/throughput/repeated/).
+**Six-run throughput:** MacBook Air with Apple M4, local ARM64 Docker (10 CPUs, about 7.65 GiB), 1 KiB POSTs and responses. Six 60-second observations per tool after five seconds of warmup, all in one session. The earlier setting screen selected 256 connections for SwarmGo, wrk and oha; k6 uses 64 VUs. SwarmGo, the previous SwarmGo build and wrk were rotated in blocks of three; oha and k6 were rotated the same way with six more SwarmGo runs as a reference, which had a 652k median. The last five runs were lower for every tool that ran in them. Bars show medians; thin lines show observed minimum–maximum. All 36 observations are complete and none were excluded; the figures plot the 24 runs of the four tools. No CPU quota and a 6 GiB generator memory budget. Native stopping and reporting are outside the observation; process status and memory-limit events are retained in the [raw data and method](benchmarks/throughput/rerun-m4/).
+
+**Earlier six-run comparison:** the same workload before the fast path, measured in separate paired series. wrk 619k, SwarmGo 577k, oha 463k and k6 123k median. [Raw data and method](benchmarks/throughput/repeated/).
 
 **Earlier four-tool comparison:** Apple M4, local ARM64 Docker, HTTP/1.1, 1 KiB requests and responses. Generator memory: 6 GiB per tool; no CPU quota. Each tool was screened at 64, 256 and 1,024 connections, then measured once for 60 seconds at its fastest observed setting after five seconds of warmup. The generator and target shared the machine. Rates come from the target's validated POST counter. wrk averaged 575,360/s, SwarmGo 517,832/s, oha 414,956/s and k6 119,480/s. These are results for this workload. SwarmGo's later deadline stop and partial report, plus wrk's native timeout counters, are preserved in the [full records](benchmarks/throughput/).
 

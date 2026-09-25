@@ -1,4 +1,4 @@
-"""Render the six-run comparison. All values come from repeated/summary.json."""
+"""Render a six-run comparison from repeated/summary.json or rerun-m4/summary.json."""
 import argparse
 import json
 from pathlib import Path
@@ -12,8 +12,19 @@ from matplotlib.colors import to_rgba
 ROOT=Path(__file__).resolve().parent
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--png-dir',type=Path)
+p.add_argument('--data',choices=['repeated','rerun-m4'],default='repeated')
 a=p.parse_args()
-d=json.loads((ROOT/'repeated/summary.json').read_text())
+d=json.loads((ROOT/a.data/'summary.json').read_text())
+if a.data=='repeated':
+    rows=[dict(tool=r['tool'],target_rps=r['target_rps'],filled=r['batch']%2==1) for r in d['results']]
+    prefix='throughput-repeated'
+else:
+    # SwarmGo is the current build from runs 1-18; old-build runs are not plotted.
+    tool={'new':'swarmgo','wrk':'wrk','oha':'oha','k6':'k6'}
+    picked=[r for r in d['runs'] if r['variant'] in tool]
+    rows=[dict(tool=tool[r['variant']],target_rps=r['target_rps'],
+               filled=sum(o['variant']==r['variant'] and o['run']<r['run'] for o in picked)<3) for r in picked]
+    prefix='throughput-m4'
 tools=['wrk','swarmgo','oha','k6'];names=['wrk','SwarmGo','oha','k6']
 for font in (ROOT/'fonts').glob('*.ttf'):
     font_manager.fontManager.addfont(font)
@@ -26,7 +37,7 @@ palettes={
     'dark':dict(background='#0d1117',ink='#e6edf3',muted='#9198a1',grid='#21262d',axis='#484f58',
                 accent='#4f8fd1',neutral='#4a525c',point='#b1bac4'),
 }
-values={t:[r['target_rps']/1000 for r in d['results'] if r['tool']==t] for t in tools}
+values={t:[r['target_rps']/1000 for r in rows if r['tool']==t] for t in tools}
 assert all(len(v)==6 for v in values.values())
 max_x=math.ceil(max(max(v) for v in values.values())/100)*100
 
@@ -79,7 +90,7 @@ for theme,palette in palettes.items():
     fig.text(.03,.045,'Bars: median of six 60-second runs per tool. Whiskers: observed minimum and maximum. '
              'Concurrency: 256 connections; k6 64 VUs.',fontsize=9,color=muted)
     fig.subplots_adjust(left=.12,right=.87,bottom=.27,top=.78)
-    save(fig,'throughput-repeated.svg')
+    save(fig,prefix+'.svg')
 
     fig,ax=plt.subplots(figsize=(8.4,4.9),facecolor=background)
     heading(fig,'Run-to-run variation, all 24 observations',conditions)
@@ -99,13 +110,12 @@ for theme,palette in palettes.items():
         ax.boxplot([v],positions=[y-.16],orientation='horizontal',widths=.22,whis=(0,100),showfliers=False,patch_artist=True,manage_ticks=False,
             boxprops={'facecolor':to_rgba(colors[t],.35),'edgecolor':ink,'linewidth':.9},medianprops={'color':ink,'linewidth':1.6},
             whiskerprops={'color':ink,'linewidth':.9},capprops={'color':ink,'linewidth':.9})
-        rows=[r for r in d['results'] if r['tool']==t]
         lanes=[]
-        for r in rows:
+        for r in [r for r in rows if r['tool']==t]:
             x=r['target_rps']/1000
             x_pt=x/max_x*width_pt
             lane=next((i for i,points in enumerate(lanes) if all(abs(x_pt-other)>=7.5 for other in points)),len(lanes))
             if lane==len(lanes):lanes.append([])
             lanes[lane].append(x_pt)
-            ax.scatter(x,y+.13+lane*lane_step,s=24,facecolors=edge if r['batch']%2==1 else background,edgecolors=edge,linewidths=1,zorder=5)
-    save(fig,'throughput-distribution.svg')
+            ax.scatter(x,y+.13+lane*lane_step,s=24,facecolors=edge if r['filled'] else background,edgecolors=edge,linewidths=1,zorder=5)
+    save(fig,'throughput-distribution.svg' if a.data=='repeated' else prefix+'-distribution.svg')
