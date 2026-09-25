@@ -31,7 +31,11 @@ docker compose down
 
 ローカルのデモでは、APIに受け入れ制限を加えると、負荷中の通常アクセスの応答時間が **3.51秒から92ミリ秒** に改善しました（1秒ごとのp99の最大値）。両方とも予定した負荷を送り切っています。API側の対策効果を、SwarmGoで測った結果です。
 
-![APIの受け入れ制限の前後比較。通常アクセスの応答時間は、対策前は3秒を超え、対策後は約90ミリ秒を維持](assets/resilience.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/resilience-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/resilience.svg">
+  <img alt="APIの受け入れ制限の前後比較。通常アクセスの応答時間は、対策前は3秒を超え、対策後は約90ミリ秒を維持" src="assets/resilience.svg">
+</picture>
 
 リポジトリのルートで次を実行すると、同梱APIでレート制限の導入前後を比較できます。
 

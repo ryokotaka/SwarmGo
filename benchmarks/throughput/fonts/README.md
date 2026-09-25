@@ -1,5 +1,5 @@
 # Chart typography
 
-Mona Sans matches the font family used in GitHub’s interface. These unmodified Regular and SemiBold files are from [github/mona-sans](https://github.com/github/mona-sans/tree/0f7dc66ddd766605eb0e75c3f47bf9d1dd38ceca/fonts/static/ttf), commit `0f7dc66ddd766605eb0e75c3f47bf9d1dd38ceca`.
+The figures use IBM Plex Sans: `IBMPlexSans-Regular.ttf` and `IBMPlexSans-Medium.ttf`, unmodified from [IBM/plex](https://github.com/IBM/plex/tree/763c36ef9117782905ae010056dfbe8fd2653a25/packages/plex-sans/fonts/complete/ttf), commit `763c36ef9117782905ae010056dfbe8fd2653a25`. [plot_repeated.py](../plot_repeated.py) and [the resilience example](../../../examples/resilience/plot.py) load them from this directory.
 
-The fonts are licensed under the [SIL Open Font License 1.1](OFL.txt). The chart renderer embeds glyph outlines in SVGs, so readers do not need the fonts installed.
+The fonts are licensed under the SIL Open Font License 1.1 ([OFL-IBMPlexSans.txt](OFL-IBMPlexSans.txt)). The renderers embed glyph outlines in the SVGs, so readers do not need the fonts installed.

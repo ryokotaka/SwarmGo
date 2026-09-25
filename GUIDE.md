@@ -31,7 +31,11 @@ Can people still use your API when traffic spikes? `swarmgo resilience` keeps or
 
 In the local example, adding admission control to the API reduced ordinary-request latency during the spike from **3.51 s to 92 ms** (worst one-second p99). Both runs sent the full load schedule. This is the API's before/after result, measured with SwarmGo.
 
-![Ordinary API traffic before and after admission control: latency rises above three seconds without it and stays near 90 milliseconds with it](assets/resilience.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/resilience-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/resilience.svg">
+  <img alt="Ordinary API traffic before and after admission control: latency rises above three seconds without it and stays near 90 milliseconds with it" src="assets/resilience.svg">
+</picture>
 
 Try the local before/after example from the repository root:
 
