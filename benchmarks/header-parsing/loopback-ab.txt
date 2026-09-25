@@ -1,0 +1,16 @@
+old rps=127459 ok=800000 fail=0 cpu_ns_per_req=7637 p50=836µs p99=5.139ms
+new rps=108446 ok=800000 fail=0 cpu_ns_per_req=8744 p50=962µs p99=5.911ms
+old rps=119527 ok=800000 fail=0 cpu_ns_per_req=8197 p50=894µs p99=5.223ms
+new rps=112651 ok=800000 fail=0 cpu_ns_per_req=8366 p50=906µs p99=5.675ms
+old rps=108589 ok=800000 fail=0 cpu_ns_per_req=9052 p50=992µs p99=5.395ms
+new rps=109230 ok=800000 fail=0 cpu_ns_per_req=8732 p50=975µs p99=5.859ms
+old rps=110924 ok=800000 fail=0 cpu_ns_per_req=8811 p50=965µs p99=5.299ms
+new rps=116703 ok=800000 fail=0 cpu_ns_per_req=8120 p50=892µs p99=5.607ms
+old rps=110283 ok=800000 fail=0 cpu_ns_per_req=8918 p50=979µs p99=5.311ms
+new rps=114835 ok=800000 fail=0 cpu_ns_per_req=8242 p50=905µs p99=5.627ms
+old rps=118798 ok=800000 fail=0 cpu_ns_per_req=8212 p50=887µs p99=5.375ms
+new rps=119901 ok=800000 fail=0 cpu_ns_per_req=7891 p50=878µs p99=5.555ms
+old rps=111408 ok=800000 fail=0 cpu_ns_per_req=8732 p50=944µs p99=5.367ms
+new rps=103134 ok=800000 fail=0 cpu_ns_per_req=9299 p50=1.037ms p99=5.727ms
+old rps=100762 ok=800000 fail=0 cpu_ns_per_req=9782 p50=1.104ms p99=5.279ms
+new rps=118302 ok=800000 fail=0 cpu_ns_per_req=8113 p50=902µs p99=5.395ms
