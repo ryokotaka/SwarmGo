@@ -373,8 +373,8 @@ func (l *directLane) execute() MyResult {
 	return l.executeAttempt(time.Now(), true)
 }
 
-func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResult) {
-	defer func() { result.MyDuration = time.Since(start) }()
+// deadline combines the run's deadline with the per-request client timeout.
+func (l *directLane) deadline(start time.Time) time.Time {
 	deadline, _ := l.ctx.Deadline()
 	if l.plan.timeout > 0 {
 		d := start.Add(l.plan.timeout)
@@ -382,6 +382,72 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 			deadline = d
 		}
 	}
+	return deadline
+}
+
+// send writes the prepared request bytes on the lane's connection.
+func (l *directLane) send(deadline time.Time, wire []byte) error {
+	if err := l.conn.SetDeadline(deadline); err != nil {
+		return err
+	}
+	for len(wire) > 0 {
+		n, err := l.conn.Write(wire)
+		wire = wire[n:]
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return io.ErrShortWrite
+		}
+	}
+	return nil
+}
+
+// readFinalHeader reads past informational responses to the final header.
+func (l *directLane) readFinalHeader() error {
+	for interim := 0; ; interim++ {
+		if err := l.readHeader(false); err != nil {
+			return err
+		}
+		code := l.head.status
+		if code < 100 || code >= 200 || code == 101 {
+			return nil
+		}
+		if interim >= 100 {
+			return errors.New("too many informational responses")
+		}
+	}
+}
+
+// finishResponse reads the body of the response whose header was just read,
+// closes the connection when the response or request requires it, and
+// classifies the status. The caller has already set MyStatusCode.
+func (l *directLane) finishResponse(result *MyResult) {
+	if err := l.drainBody(); err != nil {
+		l.closeConn()
+		result.MyErr = fmt.Errorf("read response body: %w", l.canceledOr(err))
+		return
+	}
+	result.ResponseComplete = true
+	if l.head.close || (l.head.length == -2 && l.plan.template.Method != http.MethodHead && result.MyStatusCode != 204 && result.MyStatusCode != 304) || result.MyStatusCode == 101 || l.plan.closeAfter {
+		l.closeConn()
+	}
+	if result.MyStatusCode >= 400 {
+		result.MyErr = fmt.Errorf("HTTP %d %s", result.MyStatusCode, http.StatusText(result.MyStatusCode))
+	}
+}
+
+// canceledOr reports the run's cancellation in place of the I/O error it caused.
+func (l *directLane) canceledOr(err error) error {
+	if l.ctx.Err() != nil {
+		return l.ctx.Err()
+	}
+	return err
+}
+
+func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResult) {
+	defer func() { result.MyDuration = time.Since(start) }()
+	deadline := l.deadline(start)
 	if err := l.ctx.Err(); err != nil {
 		result.MyErr = err
 		return
@@ -393,37 +459,9 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 			return
 		}
 	}
-	err := l.conn.SetDeadline(deadline)
+	err := l.send(deadline, l.plan.wire)
 	if err == nil {
-		remaining := l.plan.wire
-		for len(remaining) > 0 {
-			var n int
-			n, err = l.conn.Write(remaining)
-			remaining = remaining[n:]
-			if err != nil {
-				break
-			}
-			if n == 0 {
-				err = io.ErrShortWrite
-				break
-			}
-		}
-	}
-	if err == nil {
-		for interim := 0; ; interim++ {
-			err = l.readHeader(false)
-			if err != nil {
-				break
-			}
-			code := l.head.status
-			if code < 100 || code >= 200 || code == 101 {
-				break
-			}
-			if interim >= 100 {
-				err = errors.New("too many informational responses")
-				break
-			}
-		}
+		err = l.readFinalHeader()
 	}
 	if err != nil {
 		// A server can close an idle keep-alive socket without advertising it.
@@ -433,10 +471,7 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 		if again {
 			return l.executeAttempt(start, false)
 		}
-		if l.ctx.Err() != nil {
-			err = l.ctx.Err()
-		}
-		result.MyErr = err
+		result.MyErr = l.canceledOr(err)
 		return
 	}
 	result.MyStatusCode = l.head.status
@@ -464,21 +499,7 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 		fallback := &MyRunner{MyClient: &c}
 		return fallback.executeRequest(ctx, l.plan.template)
 	}
-	if err = l.drainBody(); err != nil {
-		l.closeConn()
-		if l.ctx.Err() != nil {
-			err = l.ctx.Err()
-		}
-		result.MyErr = fmt.Errorf("read response body: %w", err)
-		return
-	}
-	result.ResponseComplete = true
-	if l.head.close || (l.head.length == -2 && l.plan.template.Method != http.MethodHead && result.MyStatusCode != 204 && result.MyStatusCode != 304) || result.MyStatusCode == 101 || l.plan.closeAfter {
-		l.closeConn()
-	}
-	if result.MyStatusCode >= 400 {
-		result.MyErr = fmt.Errorf("HTTP %d %s", result.MyStatusCode, http.StatusText(result.MyStatusCode))
-	}
+	l.finishResponse(&result)
 	return
 }
 
