@@ -8,7 +8,7 @@
 [![Checks](https://github.com/ryokotaka/SwarmGo/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/ryokotaka/SwarmGo/actions/workflows/go.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-64748b)](LICENSE)
 
-[Quick start](#quick-start) · [Benchmarks](#performance-records) · [Design](#how-it-works) · [Usage guide](GUIDE.md)
+[Quick start](#quick-start) · [Benchmarks](#performance-records) · [Design](#how-it-works) · [Usage guide](GUIDE.md) · [日本語ガイド](GUIDE_ja.md)
 
 </div>
 
@@ -25,6 +25,13 @@ SwarmGo is an HTTP load-testing tool for finding slow responses and failures bef
 </a>
 
 Apple M4 · local Docker · 1 KiB request and response. Concurrency: k6 64 VUs; others 256 connections. [Setup and data](benchmarks/throughput/repeated/).
+
+| Strength | What it means |
+| :--- | :--- |
+| **Fast workers** | 577k POSTs/s median from one machine: within 7% of wrk and 4.7× k6 in the same recording. |
+| **Distributed** | Start workers on as many machines as you need; one controller starts them together and collects their results. |
+| **Overload you can trust** | `swarmgo resilience` keeps ordinary requests running during a timed spike and records requests it could not start on schedule, so a struggling target cannot hide its latency. |
+| **CI-ready** | `swarmgo run` writes a JSON report and exits non-zero on failed requests, timeouts or a lost worker. |
 
 ## In action
 
@@ -84,7 +91,11 @@ The report has request counts, controller-wide RPS, and each worker's P50/P90/P9
 
 `swarmgo resilience` sends a timed load spike while continuing ordinary requests. It measures their latency, failures and recovery time.
 
-In the included API example, limiting how many load requests are admitted reduced ordinary-request latency from **3.51 s to 92 ms** during the spike (worst one-second p99). Run the before/after comparison locally:
+In the included API example, limiting how many load requests are admitted reduced ordinary-request latency from **3.51 s to 92 ms** during the spike (worst one-second p99).
+
+<a href="examples/resilience/"><img alt="Ordinary API traffic before and after admission control: latency rises above three seconds without it and stays near 90 milliseconds with it" src="assets/resilience.svg"></a>
+
+Run the before/after comparison locally:
 
 ```sh
 python3 examples/resilience/demo.py
