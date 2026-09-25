@@ -51,6 +51,35 @@ Press **s** to run again, **q** to stop. Clean up with `docker compose down`.
 
 For POST bodies, custom headers, scripted runs and additional workers, see the [usage guide](GUIDE.md). Request counts and concurrency are configured per worker.
 
+### Without Docker
+
+Install with Go 1.25.7 or later:
+
+```sh
+go install github.com/ryokotaka/SwarmGo/cmd/swarmgo@latest
+```
+
+| Command | What it does |
+| :--- | :--- |
+| `swarmgo master` | Controller with the live dashboard. Press **s** to start a run. |
+| `swarmgo worker` | Connects to a controller (`-addr`, default `localhost:50051`) and sends the traffic. |
+| `swarmgo run` | Waits for workers, runs once, writes a JSON report and exits. No keypress needed. |
+| `swarmgo resilience` | Sends a timed load spike and measures ordinary requests alongside it. |
+
+`swarmgo <command> -h` lists every option.
+
+### In CI
+
+`swarmgo run` exits with status 0 only when every planned request succeeded, so it can gate a pipeline:
+
+```sh
+swarmgo run -url http://127.0.0.1:8080/health -workers 1 -n 1000 -c 20 -output report.json &
+swarmgo worker
+wait $!    # non-zero on failed requests, timeouts or a lost worker
+```
+
+The report has request counts, controller-wide RPS, and each worker's P50/P90/P99 and error reasons. [Report fields](GUIDE.md#run-once-and-save-the-result)
+
 ## Traffic spikes and recovery
 
 `swarmgo resilience` sends a timed load spike while continuing ordinary requests. It measures their latency, failures and recovery time.

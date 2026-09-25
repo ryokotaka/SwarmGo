@@ -255,3 +255,16 @@ func TestValidateRequestOptions(t *testing.T) {
 		}
 	}
 }
+
+func TestSanitizeErrorGroupsPerConnectionErrors(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"write tcp 127.0.0.1:64719->127.0.0.1:8080: write: broken pipe", "broken pipe"},
+		{"read tcp 127.0.0.1:64720->127.0.0.1:8080: read: connection reset by peer", "connection reset by peer"},
+		{"dial tcp 127.0.0.1:8080: connect: connection refused", "connection refused"},
+		{"HTTP 503 Service Unavailable", "HTTP 503 Service Unavailable"},
+	} {
+		if got := sanitizeError(tc.in); got != tc.want {
+			t.Errorf("sanitizeError(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
