@@ -8,7 +8,7 @@
 [![Checks](https://github.com/ryokotaka/SwarmGo/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/ryokotaka/SwarmGo/actions/workflows/go.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-64748b)](LICENSE)
 
-[Quick start](#quick-start) · [Benchmarks](#performance-records) · [Design](#how-it-works) · [Usage guide](GUIDE.md) · [日本語ガイド](GUIDE_ja.md)
+[Quick start](#quick-start) · [Benchmarks](#performance-records) · [Design](#how-it-works) · [Usage guide](GUIDE.md)
 
 </div>
 
