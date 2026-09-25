@@ -102,6 +102,8 @@ The opening comparison has no request-rate cap. Rates are counted at the target,
 | Earlier four-tool comparison, 60 seconds | **518k POSTs/s**, 4.3× k6 | [Original recording](benchmarks/throughput/) |
 | 200k POSTs/s requested, 5 minutes | **59.7 million successful requests**, 89.7 MiB peak | [Sustained-load trial](benchmarks/arrival/recorded-endurance/) |
 
+<sub>These recordings predate the response-header fast path described in [How it works](#how-it-works), which cuts the worker's per-request CPU outside the kernel by about 60% in a micro-benchmark. They have not been re-recorded yet.</sub>
+
 <details>
 <summary>See all six runs per tool</summary>
 
@@ -152,7 +154,7 @@ The performance work is concentrated in the workers:
 
 During a run, workers report success/failure counts and RPS averaged since the start. Final reports add latency percentiles and error reasons. Timed spikes and ordinary-traffic probes use a [separate local runner](internal/resilience/resilience.go). [Metric definitions](GUIDE.md#measurement-details)
 
-Tests cover cancellation, connection reuse, TLS verification and incomplete runs:
+Tests cover cancellation, connection reuse, TLS verification, incomplete runs, and agreement between the header fast path and fasthttp's parser:
 
 ```sh
 go test -race ./...

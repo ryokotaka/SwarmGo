@@ -148,6 +148,7 @@ Useful entry points in the code:
 
 - [runner.go](./internal/worker/runner.go): request validation and standard HTTP execution.
 - [direct.go](./internal/worker/direct.go): prebuilt HTTP/1.1 requests, connection reuse, verified TLS and cancellation.
+- [direct_head.go](./internal/worker/direct_head.go): in-place parsing of common response headers, with fallback to fasthttp.
 - [aggregate.go](./internal/worker/aggregate.go): concurrent execution, counters and bounded latency histograms.
 - [client.go](./internal/worker/client.go): worker commands and ordered progress reports.
 - [server.go](./internal/master/server.go): connected workers and run state.
@@ -156,6 +157,8 @@ Useful entry points in the code:
 - [swarm.proto](./proto/swarm.proto): the messages exchanged between controller and workers.
 
 Most HTTP/1.1 requests reuse prebuilt request bytes and a connection owned by one execution lane. HEAD, CONNECT, upgrades, `Expect` requests and custom client policies use the standard Go client. Redirects follow Go’s method and credential rules; a redirected lane then keeps using the standard client.
+
+Response headers in the common form (HTTP/1.1, a final non-redirect status, framing by one `Content-Length` or `Transfer-Encoding: chunked`) are read in place without copying or allocating. Only status, framing, `Content-Encoding` and `Connection` are interpreted, but every field is checked for valid bytes. Anything else — HTTP/1.0, informational responses, redirects, folded lines, duplicate or conflicting framing, `Trailer`, or a header split across reads — goes to fasthttp's full parser on the same unconsumed bytes.
 
 ## Measurement details
 
@@ -188,6 +191,13 @@ go build ./...
 ```
 
 The tests use local HTTP and gRPC servers. They cover concurrent GET/POST requests, body replay, cancellation, result ordering, elapsed-time calculations, and recovery when dashboard notifications are dropped. The same checks run in GitHub Actions.
+
+The header fast path has a differential test and a fuzz target: every header it accepts must be read identically by fasthttp, including the number of bytes consumed. A micro-benchmark measures the per-request cost of the HTTP/1.1 path with the network replaced by a canned response:
+
+```bash
+go test ./internal/worker -run '^$' -fuzz FuzzParseHead -fuzztime 60s
+go test ./internal/worker -run '^$' -bench DirectRequest -benchmem
+```
 
 Generated protocol files are checked in, so building does not require `protoc`. To change the schema, regenerate with protoc 33.4, protoc-gen-go v1.36.11, and protoc-gen-go-grpc v1.6.1:
 
