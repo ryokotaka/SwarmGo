@@ -86,6 +86,8 @@ type directPlan struct {
 	tlsConfig      *tls.Config
 	timeout        time.Duration
 	gzip           bool
+	replayable     bool // Idempotent: may be resent when a reused socket was closed.
+	closeAfter     bool // The request itself asks to close the connection.
 	maxHeaderBytes int
 	fallback       *http.Client
 }
@@ -135,6 +137,12 @@ func (r *MyRunner) directPlan(template *http.Request) (*directPlan, error) {
 	}
 	p := &directPlan{transport: t, template: template, wire: wire.Bytes(), address: net.JoinHostPort(host, port), timeout: r.MyClient.Timeout, gzip: automaticGzip}
 	p.key = req.URL.Scheme + "://" + p.address
+	// Decided once per run instead of once per request.
+	switch template.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		p.replayable = true
+	}
+	p.closeAfter = template.Close || strings.EqualFold(template.Header.Get("Connection"), "close")
 	p.maxHeaderBytes = int(t.base.MaxResponseHeaderBytes)
 	if p.maxHeaderBytes <= 0 {
 		p.maxHeaderBytes = 10 << 20
@@ -160,7 +168,8 @@ type directLane struct {
 	ctx      context.Context
 	conn     net.Conn
 	reader   *bufio.Reader
-	header   fasthttp.ResponseHeader
+	header   fasthttp.ResponseHeader // Only valid when the full parser read the last header.
+	head     responseHead
 	unzip    *gzip.Reader
 	mu       sync.Mutex
 	watched  net.Conn
@@ -253,12 +262,32 @@ func (l *directLane) connect(deadline time.Time) error {
 }
 
 func (l *directLane) readHeader(trailer bool) error {
+	if trailer && l.fastEmptyTrailer() {
+		return nil
+	}
+	if !trailer {
+		if done, err := l.fastHead(); done {
+			return err
+		}
+	}
 	for {
 		var err error
 		if trailer {
 			err = l.header.ReadTrailer(l.reader)
 		} else {
 			err = l.header.Read(l.reader)
+			if err == nil {
+				l.head = responseHead{
+					status: l.header.StatusCode(), length: l.header.ContentLength(),
+					gzip:  bytes.EqualFold(l.header.Peek("Content-Encoding"), []byte("gzip")),
+					close: l.header.ConnectionClose(),
+				}
+			}
+		}
+		// Checked only on error: errors.As moves its target to the heap, which
+		// would otherwise cost an allocation on every response.
+		if err == nil {
+			return nil
 		}
 		var small *fasthttp.ErrSmallBuffer
 		if !errors.As(err, &small) {
@@ -276,16 +305,16 @@ func (l *directLane) readHeader(trailer bool) error {
 }
 
 func (l *directLane) drainBody() error {
-	code := l.header.StatusCode()
+	code := l.head.status
 	if l.plan.template.Method == http.MethodHead || code == 204 || code == 304 {
 		return nil
 	}
-	length := l.header.ContentLength()
+	length := l.head.length
 	if code == 101 {
 		length = -2
 	}
 	// Most API responses have a known length and need no allocation or copy.
-	decompress := l.plan.gzip && bytes.EqualFold(l.header.Peek("Content-Encoding"), []byte("gzip"))
+	decompress := l.plan.gzip && l.head.gzip
 	if length >= 0 && !decompress {
 		_, err := l.reader.Discard(length)
 		if err == io.EOF {
@@ -386,7 +415,7 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 			if err != nil {
 				break
 			}
-			code := l.header.StatusCode()
+			code := l.head.status
 			if code < 100 || code >= 200 || code == 101 {
 				break
 			}
@@ -399,8 +428,7 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 	if err != nil {
 		// A server can close an idle keep-alive socket without advertising it.
 		// Only replay idempotent requests when no response header was received.
-		replayable := l.plan.template.Method == http.MethodGet || l.plan.template.Method == http.MethodHead || l.plan.template.Method == http.MethodOptions || l.plan.template.Method == http.MethodTrace
-		again := retry && reused && replayable && err == io.EOF && l.ctx.Err() == nil
+		again := retry && reused && l.plan.replayable && err == io.EOF && l.ctx.Err() == nil
 		l.closeConn()
 		if again {
 			return l.executeAttempt(start, false)
@@ -411,8 +439,9 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 		result.MyErr = err
 		return
 	}
-	result.MyStatusCode = l.header.StatusCode()
+	result.MyStatusCode = l.head.status
 
+	// parseHead leaves redirects to the full parser, so l.header is current here.
 	if isRedirect(result.MyStatusCode) && len(l.header.Peek("Location")) > 0 {
 		// Give Client.Do the already received response so it applies Go's
 		// redirect method/auth rules without sending the original POST twice.
@@ -444,7 +473,7 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 		return
 	}
 	result.ResponseComplete = true
-	if l.header.ConnectionClose() || (l.header.ContentLength() == -2 && l.plan.template.Method != http.MethodHead && result.MyStatusCode != 204 && result.MyStatusCode != 304) || result.MyStatusCode == 101 || l.plan.template.Close || strings.EqualFold(l.plan.template.Header.Get("Connection"), "close") {
+	if l.head.close || (l.head.length == -2 && l.plan.template.Method != http.MethodHead && result.MyStatusCode != 204 && result.MyStatusCode != 304) || result.MyStatusCode == 101 || l.plan.closeAfter {
 		l.closeConn()
 	}
 	if result.MyStatusCode >= 400 {

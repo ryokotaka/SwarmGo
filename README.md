@@ -146,6 +146,7 @@ sequenceDiagram
 The performance work is concentrated in the workers:
 
 - **Reuse work between requests.** A fixed number of goroutines reuse prepared HTTP/1.1 request bytes and their own connections. Each request avoids starting a goroutine or rebuilding the same wire data. [HTTP implementation](internal/worker/direct.go)
+- **Parse only what framing needs.** Common HTTP/1.1 responses are parsed in place, reading just status, length, chunking, encoding and connection reuse, with no allocation. Anything unusual (HTTP/1.0, 1xx, redirects, folded or duplicate framing headers) falls back to fasthttp's full parser; a fuzz test checks the two agree. [Header fast path](internal/worker/direct_head.go)
 - **Keep latency storage bounded.** Results are aggregated in small batches. Successful-request latencies go into HDR histograms instead of a growing list of samples, so latency storage stays bounded as the request count increases. [Execution and aggregation](internal/worker/aggregate.go)
 - **Preserve HTTP behavior.** Workers consume response bodies and retain deadlines, cancellation and TLS certificate verification. Redirects and other special cases use Go's standard client. [HTTP tests](internal/worker/direct_test.go)
 
