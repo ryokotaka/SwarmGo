@@ -33,7 +33,7 @@ Six 60-second runs per tool on one Apple M4 machine, generator and target in loc
 
 ## In action
 
-This recorded run completed **10 million requests in 16.1 seconds**, with **zero failures**.
+This recorded run completed **10 million requests in 15.4 seconds**, with **zero failures**.
 
 ![SwarmGo completing ten million POST requests against a local API](assets/demo.gif)
 
