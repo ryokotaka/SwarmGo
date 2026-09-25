@@ -133,6 +133,7 @@ The controller and workers talk over gRPC. Workers send HTTP traffic straight to
 flowchart LR
     C["Controller<br/>master / run"]
     subgraph W ["Workers, on one or more machines"]
+        direction LR
         W1[Worker]
         W2[Worker]
         W3[Worker]
