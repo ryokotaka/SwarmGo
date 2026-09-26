@@ -3,6 +3,7 @@ from pathlib import Path
 import argparse
 import hashlib
 import json
+import re
 import signal
 import subprocess
 import sys
@@ -20,7 +21,16 @@ p.add_argument('--seconds', type=int, default=30)
 p.add_argument('--concurrency', type=int, default=256)
 p.add_argument('--out', required=True)
 p.add_argument('--gomaxprocs', type=int, help='Set GOMAXPROCS for the generator process (Go tools only); unset by default')
+p.add_argument('--client-cpus', help='Docker cpuset for the generator container, e.g. 0-3; unset shares all CPUs')
+p.add_argument('--target-cpus', help='Docker cpuset for the target container, e.g. 4-9; unset shares all CPUs')
+p.add_argument('--wrk-threads', type=int, default=8, help='wrk threads (default 8)')
 a = p.parse_args()
+cpuset = re.compile(r'^\d+(-\d+)?(,\d+(-\d+)?)*$')
+for value in [a.client_cpus, a.target_cpus]:
+    if value is not None and not cpuset.match(value):
+        p.error('Use a Docker cpuset such as 0-3 or 0,2,4.')
+if not 1 <= a.wrk_threads <= a.concurrency:
+    p.error('Use 1..concurrency wrk threads.')
 if a.gomaxprocs is not None and not 1 <= a.gomaxprocs <= 256:
     p.error('Use 1..256 for --gomaxprocs.')
 if not 5 <= a.seconds <= 300 or not 8 <= a.concurrency <= 4096 or a.concurrency % 8:
@@ -37,9 +47,11 @@ records = []
 proc = None
 manifest = {
     'requested_rps': None, 'measurement_seconds': a.seconds, 'warmup_seconds': 5,
-    'native_duration_seconds': duration, 'concurrency': a.concurrency, 'wrk_threads': 8,
+    'native_duration_seconds': duration, 'concurrency': a.concurrency, 'wrk_threads': a.wrk_threads,
     'generator_memory_bytes': 6 * 1024**3, 'target_memory_bytes': 512 * 1024**2,
     'cpu_limits': None, 'extra_swap': False, 'image': IMAGE,
+    # Pinning isolates the generator's own capacity; unset, both share the host.
+    'cpusets': {'client': a.client_cpus, 'target': a.target_cpus},
     'target': 'fasthttp HTTP/1.1; 1 KiB POST and response; no delay; no probe stream',
     'swarmgo_source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT.parents[1], text=True).strip(),
     'swarmgo_product_sha256': product_hash(),
@@ -68,13 +80,13 @@ try:
         target, client = network+'-target', network+'-client'
         trial = out/tool
         trial.mkdir()
-        for name, memory, image, command in [
-            (target, '512m', IMAGE, ['/bench/bin/target']),
-            (client, '6g', 'swarmgo-wrk-local:4.2.0' if tool == 'wrk' else IMAGE, ['sleep', 'infinity']),
+        for name, memory, image, command, cpus in [
+            (target, '512m', IMAGE, ['/bench/bin/target'], a.target_cpus),
+            (client, '6g', 'swarmgo-wrk-local:4.2.0' if tool == 'wrk' else IMAGE, ['sleep', 'infinity'], a.client_cpus),
         ]:
             created.append(name)
             D.run('run', '--pull=never', '-d', '--name', name, '--network', network,
-                  '--memory', memory, '--memory-swap', memory,
+                  '--memory', memory, '--memory-swap', memory, *(['--cpuset-cpus', cpus] if cpus else []),
                   '-v', str(ROOT)+':/bench:ro', '-v', str(trial)+':/results', image, *command)
         for _ in range(100):
             try:
@@ -93,7 +105,7 @@ try:
         if tool == 'swarmgo':
             command = ['sh', '/bench/swarm.sh']
         elif tool == 'wrk':
-            command = ['wrk', '-t8', f'-c{a.concurrency}', f'-d{duration}s', '--timeout', '30s', '-s', '/bench/wrk.lua', url]
+            command = ['wrk', f'-t{a.wrk_threads}', f'-c{a.concurrency}', f'-d{duration}s', '--timeout', '30s', '-s', '/bench/wrk.lua', url]
         elif tool == 'oha':
             command = ['/bench/bin/oha', '--no-tui', '--output-format', 'json', '-o', '/results/native.json',
                        '--http-version', '1.1', '-w', '-t', '30s', '-m', 'POST', '-D', '/bench/body.json',
