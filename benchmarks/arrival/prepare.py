@@ -40,6 +40,7 @@ def product_hash():
     files = [REPO / "go.mod", REPO / "go.sum"]
     for folder in ["cmd", "internal", "proto"]:
         files.extend(p for p in (REPO / folder).rglob("*.go") if not p.name.endswith("_test.go"))
+        files.extend((REPO / folder).rglob("*.pgo"))  # Profile-guided optimization changes the binary.
     h = hashlib.sha256()
     for path in sorted(files):
         h.update(path.relative_to(REPO).as_posix().encode() + b"\0")

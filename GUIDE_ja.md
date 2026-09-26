@@ -201,6 +201,8 @@ go test ./internal/worker -run '^$' -fuzz FuzzParseHead -fuzztime 60s
 go test ./internal/worker -run '^$' -bench DirectRequest -benchmem
 ```
 
+`cmd/swarmgo/default.pgo` は、ワーカーのリクエスト処理の CPU プロファイルです。`go build` と `go install` は、これを使ってプロファイルに基づく最適化（PGO）を自動で行います。[記録方法と更新手順](benchmarks/header-parsing/#follow-up-profile-guided-optimization)
+
 生成済みのプロトコルファイルを含めているため、ビルドに `protoc` は不要です。スキーマを変えた場合は、protoc 33.4、protoc-gen-go v1.36.11、protoc-gen-go-grpc v1.6.1 で再生成します。
 
 ```bash

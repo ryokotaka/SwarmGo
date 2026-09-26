@@ -1,0 +1,25 @@
+goos: linux
+goarch: amd64
+pkg: github.com/ryokotaka/SwarmGo/internal/worker
+cpu: Intel(R) Xeon(R) Processor @ 2.10GHz
+                           │ pgo-off │      pgo-on       │
+                           │          sec/op           │    sec/op     vs base               │
+DirectRequestContentLength                330.2n ±  7%   284.2n ± 18%  -13.90% (p=0.000 n=8)
+DirectRequestChunked                      450.3n ± 15%   422.9n ±  7%        ~ (p=0.328 n=8)
+geomean                                   385.6n         346.7n        -10.07%
+
+                           │ pgo-off │      pgo-on      │
+                           │           B/op            │    B/op     vs base                │
+DirectRequestContentLength                0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=8) ¹
+DirectRequestChunked                      48.00 ± 0%     48.00 ± 0%       ~ (p=1.000 n=8) ¹
+geomean                                              ²               +0.00%               ²
+¹ all samples are equal
+² summaries must be >0 to compute geomean
+
+                           │ pgo-off │      pgo-on      │
+                           │         allocs/op         │ allocs/op   vs base                │
+DirectRequestContentLength                0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=8) ¹
+DirectRequestChunked                      1.000 ± 0%     1.000 ± 0%       ~ (p=1.000 n=8) ¹
+geomean                                              ²               +0.00%               ²
+¹ all samples are equal
+² summaries must be >0 to compute geomean

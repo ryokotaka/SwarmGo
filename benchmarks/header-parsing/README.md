@@ -70,3 +70,27 @@ In a CPU profile with one generator CPU, `SetDeadline` accounted for 0.73% of CP
 | Median requests/s | 144,342 | 151,574 | +5% |
 
 Raw lines: [timeout-watchdog-ab.txt](timeout-watchdog-ab.txt). The expected effect from the profile is 1–2%. The larger measured change falls within this VM's run-to-run spread. The tests in [direct_test.go](../../internal/worker/direct_test.go) check that slow headers and slow bodies time out near the limit, that a timed-out GET is not replayed, and that the lane reconnects afterwards.
+
+## Follow-up: profile-guided optimization
+
+`cmd/swarmgo/default.pgo` is a CPU profile of the worker sending 1 KiB POSTs over loopback. `go build` and `go install` use it automatically. The compiler then inlines hot calls more aggressively and can devirtualize interface calls such as `net.Conn` reads and writes. The source code is unchanged.
+
+The profile merges two loopback runs of [loopback/main.go](loopback/main.go), 1.5 million requests each: one with one generator CPU pinned, one with two unpinned CPUs. A/B against the same commit built without the profile, on this VM:
+
+| | PGO off | PGO on | Change |
+| --- | ---: | ---: | ---: |
+| Micro-benchmark, `Content-Length` | 330.2 ns | 284.2 ns | −14% (p=0.000, n=8) |
+| Micro-benchmark, chunked | 450.3 ns | 422.9 ns | no significant change (p=0.328) |
+| Loopback median CPU per request | 6.58 µs | 6.36 µs | −3% |
+| Loopback median requests/s | 149,489 | 154,497 | +3% |
+
+Loopback: eight alternating runs each, one pinned generator CPU, 800,000 POSTs at 128 connections. Raw data: [pgo-ab.txt](pgo-ab.txt) and [pgo-benchstat.txt](pgo-benchstat.txt). This VM reported a 2.10 GHz Xeon in this session, so these absolute figures are not comparable with the sections above.
+
+To refresh the profile after changing the request path:
+
+```sh
+taskset -c 1-3 go run ./benchmarks/throughput/target.go &
+GOMAXPROCS=1 taskset -c 0 go run ./benchmarks/header-parsing/loopback -n 1500000 -c 256 -cpuprofile one.prof
+GOMAXPROCS=2 go run ./benchmarks/header-parsing/loopback -n 1500000 -c 256 -cpuprofile two.prof
+go tool pprof -proto one.prof two.prof > cmd/swarmgo/default.pgo
+```
