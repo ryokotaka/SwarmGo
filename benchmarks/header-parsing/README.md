@@ -57,3 +57,16 @@ The prototype showed no measurable improvement. The extra read and the scheduler
 ## Correctness
 
 [direct_head_test.go](../../internal/worker/direct_head_test.go) requires every header accepted by the fast path to be read identically by fasthttp, including the number of bytes consumed. It covers table cases and a fuzz target (`FuzzParseHead`). The fuzz target ran for more than five minutes during development without a mismatch. It passed another 90 seconds on the final code. One earlier difference was found this way: fasthttp treats only an exact `Connection: close` as closing. The fast path now sends any other `Connection` value to fasthttp.
+
+## Follow-up: timeout watchdog instead of socket deadlines
+
+The worker used to call `SetDeadline` before every request, which modifies runtime timers on the hot path. A per-run watchdog now enforces the client timeout ([direct_watch.go](../../internal/worker/direct_watch.go)). Each request stores its start time in its lane, and the watchdog closes the socket of any lane past its timeout. It checks every 1% of the timeout, between 1 ms and 50 ms.
+
+In a CPU profile with one generator CPU, `SetDeadline` accounted for 0.73% of CPU time. An earlier two-CPU profile showed about 1.5%. The watchdog did not appear in the profile. A loopback A/B against the previous commit (`1401778`), eight alternating runs each, used the same setup as above:
+
+| | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Median CPU per request | 6.86 µs | 6.52 µs | −5% |
+| Median requests/s | 144,342 | 151,574 | +5% |
+
+Raw lines: [timeout-watchdog-ab.txt](timeout-watchdog-ab.txt). The expected effect from the profile is 1–2%. The larger measured change falls within this VM's run-to-run spread. The tests in [direct_test.go](../../internal/worker/direct_test.go) check that slow headers and slow bodies time out near the limit, that a timed-out GET is not replayed, and that the lane reconnects afterwards.

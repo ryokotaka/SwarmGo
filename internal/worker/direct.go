@@ -14,6 +14,7 @@ import (
 	"net/http/httputil"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -90,6 +91,7 @@ type directPlan struct {
 	closeAfter     bool // The request itself asks to close the connection.
 	maxHeaderBytes int
 	fallback       *http.Client
+	watch          laneWatch // Enforces timeout for this plan's lanes.
 }
 
 func (r *MyRunner) directPlan(template *http.Request) (*directPlan, error) {
@@ -175,10 +177,14 @@ type directLane struct {
 	watched  net.Conn
 	canceled bool
 	stop     func() bool
+	started  atomic.Int64 // Current request's start token; 0 when idle.
 }
 
 func (p *directPlan) lane(ctx context.Context) *directLane {
 	l := &directLane{plan: p, ctx: ctx}
+	if p.timeout > 0 {
+		p.register(l)
+	}
 	idle := p.transport.take(p.key)
 	l.conn, l.reader, l.watched = idle.conn, idle.reader, idle.conn
 	l.stop = context.AfterFunc(ctx, func() {
@@ -206,6 +212,9 @@ func (l *directLane) closeConn() {
 }
 
 func (l *directLane) finish() {
+	if l.plan.timeout > 0 {
+		l.plan.unregister(l)
+	}
 	stopped := l.stop()
 	l.mu.Lock()
 	c := l.conn
@@ -370,7 +379,20 @@ func (l *directLane) execute() MyResult {
 	if l.standard {
 		return (&MyRunner{MyClient: l.plan.fallback}).executeRequest(l.ctx, l.plan.template)
 	}
-	return l.executeAttempt(time.Now(), true)
+	start := time.Now()
+	token := l.begin(start)
+	result := l.executeAttempt(start, true)
+	if !l.end(token) {
+		// The watchdog closed the socket. The response may still have completed
+		// in time if this lane was descheduled before end; otherwise the request
+		// timed out, as it would have with a socket deadline.
+		l.closeConn()
+		if l.ctx.Err() == nil && !(result.ResponseComplete && result.MyDuration < l.plan.timeout) {
+			result.MyErr = errRequestTimeout
+			result.ResponseComplete = false
+		}
+	}
+	return result
 }
 
 // deadline combines the run's deadline with the per-request client timeout.
@@ -385,11 +407,9 @@ func (l *directLane) deadline(start time.Time) time.Time {
 	return deadline
 }
 
-// send writes the prepared request bytes on the lane's connection.
-func (l *directLane) send(deadline time.Time, wire []byte) error {
-	if err := l.conn.SetDeadline(deadline); err != nil {
-		return err
-	}
+// send writes the prepared request bytes on the lane's connection. The run's
+// cancellation and the timeout watchdog interrupt it by closing the socket.
+func (l *directLane) send(wire []byte) error {
 	for len(wire) > 0 {
 		n, err := l.conn.Write(wire)
 		wire = wire[n:]
@@ -437,10 +457,14 @@ func (l *directLane) finishResponse(result *MyResult) {
 	}
 }
 
-// canceledOr reports the run's cancellation in place of the I/O error it caused.
+// canceledOr reports the run's cancellation or the request timeout in place
+// of the I/O error that closing the socket caused.
 func (l *directLane) canceledOr(err error) error {
 	if l.ctx.Err() != nil {
 		return l.ctx.Err()
+	}
+	if l.timedOut() {
+		return errRequestTimeout
 	}
 	return err
 }
@@ -459,14 +483,14 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 			return
 		}
 	}
-	err := l.send(deadline, l.plan.wire)
+	err := l.send(l.plan.wire)
 	if err == nil {
 		err = l.readFinalHeader()
 	}
 	if err != nil {
 		// A server can close an idle keep-alive socket without advertising it.
 		// Only replay idempotent requests when no response header was received.
-		again := retry && reused && l.plan.replayable && err == io.EOF && l.ctx.Err() == nil
+		again := retry && reused && l.plan.replayable && err == io.EOF && l.ctx.Err() == nil && !l.timedOut()
 		l.closeConn()
 		if again {
 			return l.executeAttempt(start, false)

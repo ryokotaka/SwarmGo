@@ -331,3 +331,86 @@ func TestDirectRedirectSharesWholeRequestTimeout(t *testing.T) {
 		t.Fatalf("redirect restarted the timeout instead of sharing the original deadline: %+v", summary)
 	}
 }
+
+func TestDirectTimeoutFailsSlowResponsesWithoutReplay(t *testing.T) {
+	for _, stall := range []string{"header", "body"} {
+		t.Run(stall, func(t *testing.T) {
+			var requests atomic.Int32
+			srv := directTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				// The first request only opens a reusable connection.
+				if requests.Add(1) == 1 {
+					io.WriteString(w, "ok")
+					return
+				}
+				if stall == "body" {
+					w.Header().Set("Content-Length", "4")
+					io.WriteString(w, "ok")
+					w.(http.Flusher).Flush()
+				}
+				select {
+				case <-time.After(5 * time.Second):
+				case <-r.Context().Done():
+				}
+			})
+			runner := directTestRunner(t)
+			runner.MyClient.Timeout = 200 * time.Millisecond
+			started := time.Now()
+			summary := directTestRun(t, runner, srv.URL, 2, RequestOptions{})
+			elapsed := time.Since(started)
+			if summary.MySuccess != 1 || summary.MyFailed != 1 || summary.MyErrorReasons["timeout"] != 1 {
+				t.Fatalf("summary=%+v; want one success and one timeout", summary)
+			}
+			// A reused GET that times out must not be replayed as if the idle
+			// connection had been closed by the server.
+			if requests.Load() != 2 {
+				t.Fatalf("server saw %d requests; want 2", requests.Load())
+			}
+			if limit := 200*time.Millisecond + watchInterval(200*time.Millisecond) + time.Second; elapsed > limit {
+				t.Fatalf("run took %v; timeout should fire near 200ms", elapsed)
+			}
+		})
+	}
+}
+
+func TestDirectTimeoutClosesOnlyTheLateConnection(t *testing.T) {
+	var requests atomic.Int32
+	srv := directTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) == 1 {
+			select {
+			case <-time.After(5 * time.Second):
+			case <-r.Context().Done():
+			}
+			return
+		}
+		io.WriteString(w, "ok")
+	})
+	runner := directTestRunner(t)
+	runner.MyClient.Timeout = 200 * time.Millisecond
+	summary := directTestRun(t, runner, srv.URL, 4, RequestOptions{})
+	if summary.MyFailed != 1 || summary.MySuccess != 3 {
+		t.Fatalf("summary=%+v; want the lane to reconnect after one timeout", summary)
+	}
+}
+
+func TestDirectWatchdogStopsWithLastLane(t *testing.T) {
+	template, err := requestTemplate("http://127.0.0.1:1/", RequestOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := NewMyRunnerWithConcurrency(2).directPlan(template)
+	if err != nil || plan == nil {
+		t.Fatalf("direct plan unavailable: %v", err)
+	}
+	first, second := plan.lane(context.Background()), plan.lane(context.Background())
+	if plan.watch.stop == nil {
+		t.Fatal("watchdog did not start with the first lane")
+	}
+	first.finish()
+	if plan.watch.stop == nil {
+		t.Fatal("watchdog stopped while a lane was still running")
+	}
+	second.finish()
+	if plan.watch.stop != nil {
+		t.Fatal("watchdog still running after the last lane finished")
+	}
+}
