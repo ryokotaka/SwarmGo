@@ -203,6 +203,8 @@ go test ./internal/worker -run '^$' -fuzz FuzzParseHead -fuzztime 60s
 go test ./internal/worker -run '^$' -bench DirectRequest -benchmem
 ```
 
+`cmd/swarmgo/default.pgo` is a CPU profile of the worker's request path. `go build` and `go install` use it automatically for profile-guided optimization. [How it was recorded and how to refresh it](benchmarks/header-parsing/#follow-up-profile-guided-optimization).
+
 Generated protocol files are checked in, so building does not require `protoc`. To change the schema, regenerate with protoc 33.4, protoc-gen-go v1.36.11, and protoc-gen-go-grpc v1.6.1:
 
 ```bash
