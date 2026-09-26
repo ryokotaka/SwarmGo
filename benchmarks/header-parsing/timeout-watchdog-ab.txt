@@ -1,0 +1,16 @@
+head  syscr_per_req=2.00 rps=142483 ok=800000 fail=0 cpu_ns_per_req=6944 p50=856µs p99=2.293ms
+watch syscr_per_req=2.00 rps=150160 ok=800000 fail=0 cpu_ns_per_req=6581 p50=817µs p99=2.085ms
+head  syscr_per_req=2.00 rps=139533 ok=800000 fail=0 cpu_ns_per_req=7059 p50=862µs p99=2.621ms
+watch syscr_per_req=2.00 rps=149943 ok=800000 fail=0 cpu_ns_per_req=6576 p50=814µs p99=2.165ms
+head  syscr_per_req=2.00 rps=145968 ok=800000 fail=0 cpu_ns_per_req=6776 p50=830µs p99=2.371ms
+watch syscr_per_req=2.00 rps=142632 ok=800000 fail=0 cpu_ns_per_req=6934 p50=859µs p99=2.285ms
+head  syscr_per_req=2.00 rps=147337 ok=800000 fail=0 cpu_ns_per_req=6719 p50=830µs p99=2.079ms
+watch syscr_per_req=2.00 rps=161997 ok=800000 fail=0 cpu_ns_per_req=6088 p50=751µs p99=2.039ms
+head  syscr_per_req=2.00 rps=157313 ok=800000 fail=0 cpu_ns_per_req=6298 p50=785µs p99=1.919ms
+watch syscr_per_req=2.00 rps=152988 ok=800000 fail=0 cpu_ns_per_req=6460 p50=793µs p99=2.209ms
+head  syscr_per_req=2.00 rps=146282 ok=800000 fail=0 cpu_ns_per_req=6760 p50=834µs p99=2.171ms
+watch syscr_per_req=2.00 rps=154770 ok=800000 fail=0 cpu_ns_per_req=6376 p50=782µs p99=2.227ms
+head  syscr_per_req=2.00 rps=142167 ok=800000 fail=0 cpu_ns_per_req=6940 p50=864µs p99=2.227ms
+watch syscr_per_req=2.00 rps=169220 ok=800000 fail=0 cpu_ns_per_req=5852 p50=724µs p99=1.83ms
+head  syscr_per_req=2.00 rps=142716 ok=800000 fail=0 cpu_ns_per_req=6941 p50=866µs p99=2.141ms
+watch syscr_per_req=2.00 rps=143170 ok=800000 fail=0 cpu_ns_per_req=6752 p50=834µs p99=2.355ms
