@@ -1,0 +1,6 @@
+Waiting for 1 workers on [::]:50051
+2026/09/26 16:09:27 Worker connected: worker-38b77498c1dee72e (Arch: arm64)
+2026/09/26 16:10:37 Worker worker-38b77498c1dee72e finished task.
+2026/09/26 16:10:37 Worker disconnected: worker-38b77498c1dee72e
+Wrote /results/native.json (46494059/2147483647 requests completed, 3 failed)
+run: running requests: context deadline exceeded
