@@ -1,0 +1,1693 @@
+{
+  "description": "Apple M4 follow-up: SwarmGo GOMAXPROCS and build variants on a shared host (phase 1), and every generator with generator and target pinned to separate CPUs (phase 2).",
+  "sources": {
+    "head": "claude/nice-albattani-rglt0t at ef9e13f (timeout watchdog and PGO)",
+    "main": "origin/main at f3712ec (neither)"
+  },
+  "metrics": {
+    "target_rps": "results[0].target_rps; counted only when completed_observation and target_valid are true",
+    "generator_cpu_us_per_request": "delta generator.usage_usec / delta server.requests between the first and last samples",
+    "target_cpu_us_per_request": "delta target_container.usage_usec / delta server.requests over the same samples",
+    "generator_cores": "delta generator.usage_usec / elapsed target snapshot time over the same samples",
+    "target_cores": "delta target_container.usage_usec / elapsed target snapshot time over the same samples",
+    "total_cores": "generator_cores + target_cores"
+  },
+  "settings": {
+    "measurement_seconds": 60,
+    "warmup_seconds": 5,
+    "phase2_cpusets": {
+      "generator": "0-3",
+      "target": "4-9"
+    }
+  },
+  "summary": {
+    "phase1": {
+      "wrk": {
+        "n": 4,
+        "target_rps_median": 679227.1523277863,
+        "generator_cpu_us_per_request_median": 6.637616509879314,
+        "target_cpu_us_per_request_median": 7.244856639316705,
+        "generator_cores_median": 4.50288914454514,
+        "target_cores_median": 4.915864697434278,
+        "total_cores_median": 9.418753841979418,
+        "target_rps_all": [
+          685232.2842029553,
+          676862.3465606151,
+          678929.2403141096,
+          679525.064341463
+        ],
+        "generator_cpu_us_per_request_all": [
+          6.599127118093083,
+          6.640188193390249,
+          6.666145280928339,
+          6.63504482636838
+        ],
+        "target_cpu_us_per_request_all": [
+          7.17636131983026,
+          7.330927907415308,
+          7.217911914557321,
+          7.2718013640760875
+        ],
+        "generator_cores_all": [
+          4.509809015327124,
+          4.480203258568,
+          4.514425142369252,
+          4.495969273763156
+        ],
+        "target_cores_all": [
+          4.90428785478032,
+          4.94625244685424,
+          4.888090740492585,
+          4.927441540088236
+        ],
+        "total_cores_all": [
+          9.414096870107445,
+          9.42645570542224,
+          9.402515882861836,
+          9.423410813851392
+        ],
+        "runs": [
+          1,
+          12,
+          17,
+          22
+        ]
+      },
+      "head": {
+        "n": 4,
+        "target_rps_median": 652703.4303427199,
+        "generator_cpu_us_per_request_median": 6.513638484800587,
+        "target_cpu_us_per_request_median": 7.4254305185432985,
+        "generator_cores_median": 4.228329410768296,
+        "target_cores_median": 4.830207857660451,
+        "total_cores_median": 9.064464179111113,
+        "target_rps_all": [
+          654937.8502299554,
+          653281.5035873353,
+          652125.3570981043,
+          651013.1414686155
+        ],
+        "generator_cpu_us_per_request_all": [
+          6.472814439190733,
+          6.5233752559969975,
+          6.503901713604176,
+          6.524227025020044
+        ],
+        "target_cpu_us_per_request_all": [
+          7.418635137268481,
+          7.411424256521678,
+          7.449444458015308,
+          7.432225899818116
+        ],
+        "generator_cores_all": [
+          4.226767356489115,
+          4.245096727683381,
+          4.223415915217941,
+          4.229891465047477
+        ],
+        "target_cores_all": [
+          4.8443911257604295,
+          4.822996014204444,
+          4.837419701116459,
+          4.818579853120435
+        ],
+        "total_cores_all": [
+          9.071158482249544,
+          9.068092741887826,
+          9.0608356163344,
+          9.048471318167913
+        ],
+        "runs": [
+          2,
+          7,
+          18,
+          23
+        ]
+      },
+      "head-p8": {
+        "n": 4,
+        "target_rps_median": 653640.9255936302,
+        "generator_cpu_us_per_request_median": 6.368579779466567,
+        "target_cpu_us_per_request_median": 7.572011224870068,
+        "generator_cores_median": 4.147171711287849,
+        "target_cores_median": 4.930688966772918,
+        "total_cores_median": 9.081209576934743,
+        "target_rps_all": [
+          653768.8409337428,
+          655429.7718044859,
+          653513.0102535177,
+          652526.4144949914
+        ],
+        "generator_cpu_us_per_request_all": [
+          6.381719909618089,
+          6.357365942151116,
+          6.353962805036363,
+          6.379793616782019
+        ],
+        "target_cpu_us_per_request_all": [
+          7.574519072960756,
+          7.56950337677938,
+          7.539423410353298,
+          7.585776678104165
+        ],
+        "generator_cores_all": [
+          4.156021398577391,
+          4.149323600829438,
+          4.1351931439935035,
+          4.145019821746261
+        ],
+        "target_cores_all": [
+          4.932818079921246,
+          4.940461079892044,
+          4.906697277397527,
+          4.928559853624589
+        ],
+        "total_cores_all": [
+          9.088839478498636,
+          9.08978468072148,
+          9.04189042139103,
+          9.07357967537085
+        ],
+        "runs": [
+          3,
+          8,
+          13,
+          24
+        ]
+      },
+      "head-p6": {
+        "n": 4,
+        "target_rps_median": 657756.9389868893,
+        "generator_cpu_us_per_request_median": 6.013195390869688,
+        "target_cpu_us_per_request_median": 7.678439125581272,
+        "generator_cores_median": 3.9500793720977496,
+        "target_cores_median": 5.035602949525508,
+        "total_cores_median": 8.992212347289959,
+        "target_rps_all": [
+          656154.7719955025,
+          663187.9336959565,
+          658077.7052692788,
+          657436.1727044998
+        ],
+        "generator_cpu_us_per_request_all": [
+          6.023344376583071,
+          6.003046405156305,
+          5.9533964916066475,
+          6.092602751492762
+        ],
+        "target_cpu_us_per_request_all": [
+          7.72159017008111,
+          7.630023937574185,
+          7.681360250581765,
+          7.675518000580778
+        ],
+        "generator_cores_all": [
+          3.9349252855159538,
+          3.9652334586795455,
+          3.899476900019723,
+          3.987879786438113
+        ],
+        "target_cores_all": [
+          5.044353851452835,
+          5.039912098931583,
+          5.031293800119432,
+          5.023968299501945
+        ],
+        "total_cores_all": [
+          8.97927913696879,
+          9.005145557611128,
+          8.930770700139155,
+          9.011848085940057
+        ],
+        "runs": [
+          4,
+          9,
+          14,
+          19
+        ]
+      },
+      "head-p4": {
+        "n": 4,
+        "target_rps_median": 667792.5015334752,
+        "generator_cpu_us_per_request_median": 5.367745700174159,
+        "target_cpu_us_per_request_median": 8.171200523493706,
+        "generator_cores_median": 3.5572393707159584,
+        "target_cores_median": 5.431905286707403,
+        "total_cores_median": 8.992842471049851,
+        "target_rps_all": [
+          661169.0603734251,
+          674392.0750147573,
+          667714.2102652211,
+          667870.7928017293
+        ],
+        "generator_cpu_us_per_request_all": [
+          5.378111912167374,
+          5.357400807201992,
+          5.300760619431571,
+          5.378090593146326
+        ],
+        "target_cpu_us_per_request_all": [
+          8.211014278212847,
+          8.131386768774565,
+          8.125000880324363,
+          8.224823702619181
+        ],
+        "generator_cores_all": [
+          3.5400719112033237,
+          3.5966983973287534,
+          3.5172478861771945,
+          3.5744068302285927
+        ],
+        "target_cores_all": [
+          5.404792887077822,
+          5.459017686336984,
+          5.3912342441476335,
+          5.466413313589964
+        ],
+        "total_cores_all": [
+          8.944864798281147,
+          9.055716083665738,
+          8.908482130324828,
+          9.040820143818555
+        ],
+        "runs": [
+          5,
+          10,
+          15,
+          20
+        ]
+      },
+      "main": {
+        "n": 4,
+        "target_rps_median": 639972.4443444608,
+        "generator_cpu_us_per_request_median": 6.7277423540690275,
+        "target_cpu_us_per_request_median": 7.5072886785802915,
+        "generator_cores_median": 4.292712773968207,
+        "target_cores_median": 4.787963431332303,
+        "total_cores_median": 9.08067620530051,
+        "target_rps_all": [
+          640704.5479375886,
+          639240.340751333,
+          641928.1194161765,
+          637670.0507560938
+        ],
+        "generator_cpu_us_per_request_all": [
+          6.720175921367779,
+          6.741382499703257,
+          6.724168254900212,
+          6.731316453237843
+        ],
+        "target_cpu_us_per_request_all": [
+          7.510681385543337,
+          7.503895971617245,
+          7.437222656156492,
+          7.577088923615396
+        ],
+        "generator_cores_all": [
+          4.291910865677229,
+          4.293514682259184,
+          4.300198155302935,
+          4.276233284959572
+        ],
+        "target_cores_all": [
+          4.796775474992659,
+          4.779151387671947,
+          4.756206259900609,
+          4.8135309167759
+        ],
+        "total_cores_all": [
+          9.088686340669888,
+          9.072666069931131,
+          9.056404415203545,
+          9.089764201735472
+        ],
+        "runs": [
+          6,
+          11,
+          16,
+          21
+        ]
+      }
+    },
+    "phase2": {
+      "pin-head": {
+        "n": 4,
+        "target_rps_median": 677356.7513675997,
+        "generator_cpu_us_per_request_median": 5.473029317530134,
+        "target_cpu_us_per_request_median": 7.908358078921832,
+        "generator_cores_median": 3.6869426208987024,
+        "target_cores_median": 5.316811289732268,
+        "total_cores_median": 9.000158678948628,
+        "target_rps_all": [
+          676140.8863718269,
+          678572.6163633725,
+          680506.9382465157,
+          675070.2545990156
+        ],
+        "generator_cpu_us_per_request_all": [
+          5.456058077208437,
+          5.475935208782019,
+          5.470123426278248,
+          5.478306169707214
+        ],
+        "target_cpu_us_per_request_all": [
+          7.919195252352634,
+          7.860960743866488,
+          7.931683054550838,
+          7.897520905491031
+        ],
+        "generator_cores_all": [
+          3.671461095779411,
+          3.695233682653309,
+          3.704410101118439,
+          3.678651559144096
+        ],
+        "target_cores_all": [
+          5.328942043404676,
+          5.30468053605986,
+          5.3713974139956635,
+          5.303140549720381
+        ],
+        "total_cores_all": [
+          9.000403139184087,
+          8.999914218713169,
+          9.075807515114102,
+          8.981792108864477
+        ],
+        "runs": [
+          1,
+          10,
+          14,
+          18
+        ]
+      },
+      "pin-wrk4": {
+        "n": 4,
+        "target_rps_median": 743663.6946685326,
+        "generator_cpu_us_per_request_median": 5.319410881919829,
+        "target_cpu_us_per_request_median": 7.575197419614229,
+        "generator_cores_median": 3.9413785418899696,
+        "target_cores_median": 5.618852169892966,
+        "total_cores_median": 9.56010304887862,
+        "target_rps_all": [
+          737524.2930020579,
+          746538.8236563844,
+          741453.7221365902,
+          745873.6672004749
+        ],
+        "generator_cpu_us_per_request_all": [
+          5.3548322221829885,
+          5.291410149097343,
+          5.331450544386481,
+          5.307371219453177
+        ],
+        "target_cpu_us_per_request_all": [
+          7.596786487426057,
+          7.567205450795482,
+          7.578000709635336,
+          7.572394129593121
+        ],
+        "generator_cores_all": [
+          3.93915214294805,
+          3.9386371221018384,
+          3.94360494083189,
+          3.9476287227251126
+        ],
+        "target_cores_all": [
+          5.588391294034557,
+          5.632615023078257,
+          5.605349011745258,
+          5.632355328040674
+        ],
+        "total_cores_all": [
+          9.527543436982608,
+          9.571252145180095,
+          9.548953952577147,
+          9.579984050765786
+        ],
+        "runs": [
+          2,
+          6,
+          15,
+          19
+        ]
+      },
+      "pin-wrk8": {
+        "n": 4,
+        "target_rps_median": 726302.0783815079,
+        "generator_cpu_us_per_request_median": 5.455851083497442,
+        "target_cpu_us_per_request_median": 7.80917602682065,
+        "generator_cores_median": 3.950641860560709,
+        "target_cores_median": 5.660003540175491,
+        "total_cores_median": 9.612187101480814,
+        "target_rps_all": [
+          726760.7177165386,
+          729595.4843318859,
+          725190.9871099917,
+          725843.4390464773
+        ],
+        "generator_cpu_us_per_request_all": [
+          5.452233747357675,
+          5.4343320064871445,
+          5.465674085374824,
+          5.459468419637209
+        ],
+        "target_cpu_us_per_request_all": [
+          7.809985504825695,
+          7.78089661777391,
+          7.808366548815603,
+          7.835101299173071
+        ],
+        "generator_cores_all": [
+          3.9507657527377185,
+          3.9536013698729264,
+          3.949510892554792,
+          3.9505179683837
+        ],
+        "target_cores_all": [
+          5.659226051487039,
+          5.660781028863942,
+          5.642346809541389,
+          5.669546206212243
+        ],
+        "total_cores_all": [
+          9.609991804224757,
+          9.614382398736868,
+          9.591857702096181,
+          9.620064174595942
+        ],
+        "runs": [
+          3,
+          7,
+          11,
+          20
+        ]
+      },
+      "pin-oha": {
+        "n": 4,
+        "target_rps_median": 609573.8864545042,
+        "generator_cpu_us_per_request_median": 6.5255976365805894,
+        "target_cpu_us_per_request_median": 8.941918654494248,
+        "generator_cores_median": 3.9620497751484107,
+        "target_cores_median": 5.423428968853283,
+        "total_cores_median": 9.385478744001695,
+        "target_rps_all": [
+          603993.225702884,
+          610384.3192612329,
+          608763.4536477756,
+          612060.4955429964
+        ],
+        "generator_cpu_us_per_request_all": [
+          6.578953995680339,
+          6.518008652184572,
+          6.533186620976607,
+          6.493725820605099
+        ],
+        "target_cpu_us_per_request_all": [
+          8.999800468980894,
+          8.927846490992042,
+          8.955990817996456,
+          8.861585999993506
+        ],
+        "generator_cores_all": [
+          3.96156709625599,
+          3.962532454040832,
+          3.9635512360707814,
+          3.9608711199643634
+        ],
+        "target_cores_all": [
+          5.4192981793448425,
+          5.427559758361724,
+          5.433417187706497,
+          5.405155843365149
+        ],
+        "total_cores_all": [
+          9.380865275600833,
+          9.390092212402555,
+          9.396968423777277,
+          9.366026963329512
+        ],
+        "runs": [
+          4,
+          8,
+          12,
+          16
+        ]
+      },
+      "pin-k6": {
+        "n": 4,
+        "target_rps_median": 147293.200424798,
+        "generator_cpu_us_per_request_median": 26.91892869636501,
+        "target_cpu_us_per_request_median": 19.79074464562433,
+        "generator_cores_median": 3.9605195122663748,
+        "target_cores_median": 2.912280827628429,
+        "total_cores_median": 6.8734995864324855,
+        "target_rps_all": [
+          147612.14825223383,
+          147230.39167984726,
+          147356.00916974878,
+          146659.90346581195
+        ],
+        "generator_cpu_us_per_request_all": [
+          26.81484511861657,
+          26.92789071182738,
+          26.90996668090264,
+          27.025482198169783
+        ],
+        "target_cpu_us_per_request_all": [
+          19.692450388063587,
+          19.786094830829565,
+          19.79539446041909,
+          19.944233194639256
+        ],
+        "generator_cores_all": [
+          3.953931702907741,
+          3.9615586311455524,
+          3.9608788864625604,
+          3.960160138070189
+        ],
+        "target_cores_all": [
+          2.9037126096710253,
+          2.910876889414484,
+          2.913684765842374,
+          2.9225142664479633
+        ],
+        "total_cores_all": [
+          6.857644312578767,
+          6.872435520560036,
+          6.874563652304935,
+          6.882674404518153
+        ],
+        "runs": [
+          5,
+          9,
+          13,
+          17
+        ]
+      }
+    }
+  },
+  "runs": [
+    {
+      "phase": 1,
+      "run": 1,
+      "variant": "wrk",
+      "record": "phase1/tune-01-wrk/results.json",
+      "target_rps": 685232.2842029553,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.599127118093083,
+      "generator_cores": 4.509809015327124,
+      "target_cores": 4.90428785478032,
+      "total_cores": 9.414096870107445,
+      "target_cpu_us_per_request": 7.17636131983026,
+      "cpu_window_seconds": [
+        5.076679363,
+        60.0824435
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 2,
+      "variant": "head",
+      "record": "phase1/tune-02-head/results.json",
+      "target_rps": 654937.8502299554,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.472814439190733,
+      "generator_cores": 4.226767356489115,
+      "target_cores": 4.8443911257604295,
+      "total_cores": 9.071158482249544,
+      "target_cpu_us_per_request": 7.418635137268481,
+      "cpu_window_seconds": [
+        5.088409086,
+        60.070556292
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 3,
+      "variant": "head-p8",
+      "record": "phase1/tune-03-head-p8/results.json",
+      "target_rps": 653768.8409337428,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 8,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.381719909618089,
+      "generator_cores": 4.156021398577391,
+      "target_cores": 4.932818079921246,
+      "total_cores": 9.088839478498636,
+      "target_cpu_us_per_request": 7.574519072960756,
+      "cpu_window_seconds": [
+        5.086669878,
+        60.077330917
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 4,
+      "variant": "head-p6",
+      "record": "phase1/tune-04-head-p6/results.json",
+      "target_rps": 656154.7719955025,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 6,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.023344376583071,
+      "generator_cores": 3.9349252855159538,
+      "target_cores": 5.044353851452835,
+      "total_cores": 8.97927913696879,
+      "target_cpu_us_per_request": 7.72159017008111,
+      "cpu_window_seconds": [
+        5.069865238,
+        60.078016167
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 5,
+      "variant": "head-p4",
+      "record": "phase1/tune-05-head-p4/results.json",
+      "target_rps": 661169.0603734251,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 4,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.378111912167374,
+      "generator_cores": 3.5400719112033237,
+      "target_cores": 5.404792887077822,
+      "total_cores": 8.944864798281147,
+      "target_cpu_us_per_request": 8.211014278212847,
+      "cpu_window_seconds": [
+        5.064246961,
+        60.09248675
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 6,
+      "variant": "main",
+      "record": "phase1/tune-06-main/results.json",
+      "target_rps": 640704.5479375886,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.720175921367779,
+      "generator_cores": 4.291910865677229,
+      "target_cores": 4.796775474992659,
+      "total_cores": 9.088686340669888,
+      "target_cpu_us_per_request": 7.510681385543337,
+      "cpu_window_seconds": [
+        5.088881253,
+        60.085752667
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 7,
+      "variant": "head",
+      "record": "phase1/tune-07-head/results.json",
+      "target_rps": 653281.5035873353,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.5233752559969975,
+      "generator_cores": 4.245096727683381,
+      "target_cores": 4.822996014204444,
+      "total_cores": 9.068092741887826,
+      "target_cpu_us_per_request": 7.411424256521678,
+      "cpu_window_seconds": [
+        5.103703919,
+        60.094851583
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 8,
+      "variant": "head-p8",
+      "record": "phase1/tune-08-head-p8/results.json",
+      "target_rps": 655429.7718044859,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 8,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.357365942151116,
+      "generator_cores": 4.149323600829438,
+      "target_cores": 4.940461079892044,
+      "total_cores": 9.08978468072148,
+      "target_cpu_us_per_request": 7.56950337677938,
+      "cpu_window_seconds": [
+        5.085770502,
+        60.084617291
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 9,
+      "variant": "head-p6",
+      "record": "phase1/tune-09-head-p6/results.json",
+      "target_rps": 663187.9336959565,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 6,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.003046405156305,
+      "generator_cores": 3.9652334586795455,
+      "target_cores": 5.039912098931583,
+      "total_cores": 9.005145557611128,
+      "target_cpu_us_per_request": 7.630023937574185,
+      "cpu_window_seconds": [
+        5.098414211,
+        60.09520375
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 10,
+      "variant": "head-p4",
+      "record": "phase1/tune-10-head-p4/results.json",
+      "target_rps": 674392.0750147573,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 4,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.357400807201992,
+      "generator_cores": 3.5966983973287534,
+      "target_cores": 5.459017686336984,
+      "total_cores": 9.055716083665738,
+      "target_cpu_us_per_request": 8.131386768774565,
+      "cpu_window_seconds": [
+        5.094725044,
+        60.080351625
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 11,
+      "variant": "main",
+      "record": "phase1/tune-11-main/results.json",
+      "target_rps": 639240.340751333,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.741382499703257,
+      "generator_cores": 4.293514682259184,
+      "target_cores": 4.779151387671947,
+      "total_cores": 9.072666069931131,
+      "target_cpu_us_per_request": 7.503895971617245,
+      "cpu_window_seconds": [
+        5.076765252,
+        60.078919542
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 12,
+      "variant": "wrk",
+      "record": "phase1/tune-12-wrk/results.json",
+      "target_rps": 676862.3465606151,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.640188193390249,
+      "generator_cores": 4.480203258568,
+      "target_cores": 4.94625244685424,
+      "total_cores": 9.42645570542224,
+      "target_cpu_us_per_request": 7.330927907415308,
+      "cpu_window_seconds": [
+        5.105047571,
+        60.088344708
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 13,
+      "variant": "head-p8",
+      "record": "phase1/tune-13-head-p8/results.json",
+      "target_rps": 653513.0102535177,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 8,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.353962805036363,
+      "generator_cores": 4.1351931439935035,
+      "target_cores": 4.906697277397527,
+      "total_cores": 9.04189042139103,
+      "target_cpu_us_per_request": 7.539423410353298,
+      "cpu_window_seconds": [
+        5.079901294,
+        60.065296917
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 14,
+      "variant": "head-p6",
+      "record": "phase1/tune-14-head-p6/results.json",
+      "target_rps": 658077.7052692788,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 6,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.9533964916066475,
+      "generator_cores": 3.899476900019723,
+      "target_cores": 5.031293800119432,
+      "total_cores": 8.930770700139155,
+      "target_cpu_us_per_request": 7.681360250581765,
+      "cpu_window_seconds": [
+        5.090751044,
+        60.106268125
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 15,
+      "variant": "head-p4",
+      "record": "phase1/tune-15-head-p4/results.json",
+      "target_rps": 667714.2102652211,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 4,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.300760619431571,
+      "generator_cores": 3.5172478861771945,
+      "target_cores": 5.3912342441476335,
+      "total_cores": 8.908482130324828,
+      "target_cpu_us_per_request": 8.125000880324363,
+      "cpu_window_seconds": [
+        5.087481253,
+        60.0840545
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 16,
+      "variant": "main",
+      "record": "phase1/tune-16-main/results.json",
+      "target_rps": 641928.1194161765,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.724168254900212,
+      "generator_cores": 4.300198155302935,
+      "target_cores": 4.756206259900609,
+      "total_cores": 9.056404415203545,
+      "target_cpu_us_per_request": 7.437222656156492,
+      "cpu_window_seconds": [
+        5.079913877,
+        60.081541583
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 17,
+      "variant": "wrk",
+      "record": "phase1/tune-17-wrk/results.json",
+      "target_rps": 678929.2403141096,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.666145280928339,
+      "generator_cores": 4.514425142369252,
+      "target_cores": 4.888090740492585,
+      "total_cores": 9.402515882861836,
+      "target_cpu_us_per_request": 7.217911914557321,
+      "cpu_window_seconds": [
+        5.093138628,
+        60.089325334
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 18,
+      "variant": "head",
+      "record": "phase1/tune-18-head/results.json",
+      "target_rps": 652125.3570981043,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.503901713604176,
+      "generator_cores": 4.223415915217941,
+      "target_cores": 4.837419701116459,
+      "total_cores": 9.0608356163344,
+      "target_cpu_us_per_request": 7.449444458015308,
+      "cpu_window_seconds": [
+        5.103286503,
+        60.075928
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 19,
+      "variant": "head-p6",
+      "record": "phase1/tune-19-head-p6/results.json",
+      "target_rps": 657436.1727044998,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 6,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.092602751492762,
+      "generator_cores": 3.987879786438113,
+      "target_cores": 5.023968299501945,
+      "total_cores": 9.011848085940057,
+      "target_cpu_us_per_request": 7.675518000580778,
+      "cpu_window_seconds": [
+        5.08657071,
+        60.081351833
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 20,
+      "variant": "head-p4",
+      "record": "phase1/tune-20-head-p4/results.json",
+      "target_rps": 667870.7928017293,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 4,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.378090593146326,
+      "generator_cores": 3.5744068302285927,
+      "target_cores": 5.466413313589964,
+      "total_cores": 9.040820143818555,
+      "target_cpu_us_per_request": 8.224823702619181,
+      "cpu_window_seconds": [
+        5.131388196,
+        60.099139583
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 21,
+      "variant": "main",
+      "record": "phase1/tune-21-main/results.json",
+      "target_rps": 637670.0507560938,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.731316453237843,
+      "generator_cores": 4.276233284959572,
+      "target_cores": 4.8135309167759,
+      "total_cores": 9.089764201735472,
+      "target_cpu_us_per_request": 7.577088923615396,
+      "cpu_window_seconds": [
+        5.071030753,
+        60.105647042
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 22,
+      "variant": "wrk",
+      "record": "phase1/tune-22-wrk/results.json",
+      "target_rps": 679525.064341463,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.63504482636838,
+      "generator_cores": 4.495969273763156,
+      "target_cores": 4.927441540088236,
+      "total_cores": 9.423410813851392,
+      "target_cpu_us_per_request": 7.2718013640760875,
+      "cpu_window_seconds": [
+        5.094275378,
+        60.077074625
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 23,
+      "variant": "head",
+      "record": "phase1/tune-23-head/results.json",
+      "target_rps": 651013.1414686155,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.524227025020044,
+      "generator_cores": 4.229891465047477,
+      "target_cores": 4.818579853120435,
+      "total_cores": 9.048471318167913,
+      "target_cpu_us_per_request": 7.432225899818116,
+      "cpu_window_seconds": [
+        5.069919586,
+        60.087750167
+      ]
+    },
+    {
+      "phase": 1,
+      "run": 24,
+      "variant": "head-p8",
+      "record": "phase1/tune-24-head-p8/results.json",
+      "target_rps": 652526.4144949914,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": 8,
+      "cpusets": {
+        "client": null,
+        "target": null
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.379793616782019,
+      "generator_cores": 4.145019821746261,
+      "target_cores": 4.928559853624589,
+      "total_cores": 9.07357967537085,
+      "target_cpu_us_per_request": 7.585776678104165,
+      "cpu_window_seconds": [
+        5.091232961,
+        60.08649325
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 1,
+      "variant": "pin-head",
+      "record": "phase2/pin-01-head/results.json",
+      "target_rps": 676140.8863718269,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.456058077208437,
+      "generator_cores": 3.671461095779411,
+      "target_cores": 5.328942043404676,
+      "total_cores": 9.000403139184087,
+      "target_cpu_us_per_request": 7.919195252352634,
+      "cpu_window_seconds": [
+        5.099401586,
+        60.104952709
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 2,
+      "variant": "pin-wrk4",
+      "record": "phase2/pin-02-wrk4/results.json",
+      "target_rps": 737524.2930020579,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 4,
+      "generator_cpu_us_per_request": 5.3548322221829885,
+      "generator_cores": 3.93915214294805,
+      "target_cores": 5.588391294034557,
+      "total_cores": 9.527543436982608,
+      "target_cpu_us_per_request": 7.596786487426057,
+      "cpu_window_seconds": [
+        5.078339378,
+        60.092623959
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 3,
+      "variant": "pin-wrk8",
+      "record": "phase2/pin-03-wrk8/results.json",
+      "target_rps": 726760.7177165386,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.452233747357675,
+      "generator_cores": 3.9507657527377185,
+      "target_cores": 5.659226051487039,
+      "total_cores": 9.609991804224757,
+      "target_cpu_us_per_request": 7.809985504825695,
+      "cpu_window_seconds": [
+        5.108885044,
+        60.078659916
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 4,
+      "variant": "pin-oha",
+      "record": "phase2/pin-04-oha/results.json",
+      "target_rps": 603993.225702884,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 137,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.578953995680339,
+      "generator_cores": 3.96156709625599,
+      "target_cores": 5.4192981793448425,
+      "total_cores": 9.380865275600833,
+      "target_cpu_us_per_request": 8.999800468980894,
+      "cpu_window_seconds": [
+        5.083165279,
+        60.10645725
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 5,
+      "variant": "pin-k6",
+      "record": "phase2/pin-05-k6/results.json",
+      "target_rps": 147612.14825223383,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 26.81484511861657,
+      "generator_cores": 3.953931702907741,
+      "target_cores": 2.9037126096710253,
+      "total_cores": 6.857644312578767,
+      "target_cpu_us_per_request": 19.692450388063587,
+      "cpu_window_seconds": [
+        5.068609878,
+        60.063985959
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 6,
+      "variant": "pin-wrk4",
+      "record": "phase2/pin-06-wrk4/results.json",
+      "target_rps": 746538.8236563844,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 4,
+      "generator_cpu_us_per_request": 5.291410149097343,
+      "generator_cores": 3.9386371221018384,
+      "target_cores": 5.632615023078257,
+      "total_cores": 9.571252145180095,
+      "target_cpu_us_per_request": 7.567205450795482,
+      "cpu_window_seconds": [
+        5.096870086,
+        60.076630416
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 7,
+      "variant": "pin-wrk8",
+      "record": "phase2/pin-07-wrk8/results.json",
+      "target_rps": 729595.4843318859,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.4343320064871445,
+      "generator_cores": 3.9536013698729264,
+      "target_cores": 5.660781028863942,
+      "total_cores": 9.614382398736868,
+      "target_cpu_us_per_request": 7.78089661777391,
+      "cpu_window_seconds": [
+        5.087230294,
+        60.104382417
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 8,
+      "variant": "pin-oha",
+      "record": "phase2/pin-08-oha/results.json",
+      "target_rps": 610384.3192612329,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 137,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.518008652184572,
+      "generator_cores": 3.962532454040832,
+      "target_cores": 5.427559758361724,
+      "total_cores": 9.390092212402555,
+      "target_cpu_us_per_request": 8.927846490992042,
+      "cpu_window_seconds": [
+        5.081264502,
+        60.100538042
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 9,
+      "variant": "pin-k6",
+      "record": "phase2/pin-09-k6/results.json",
+      "target_rps": 147230.39167984726,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 26.92789071182738,
+      "generator_cores": 3.9615586311455524,
+      "target_cores": 2.910876889414484,
+      "total_cores": 6.872435520560036,
+      "target_cpu_us_per_request": 19.786094830829565,
+      "cpu_window_seconds": [
+        5.060052572,
+        60.073738167
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 10,
+      "variant": "pin-head",
+      "record": "phase2/pin-10-head/results.json",
+      "target_rps": 678572.6163633725,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.475935208782019,
+      "generator_cores": 3.695233682653309,
+      "target_cores": 5.30468053605986,
+      "total_cores": 8.999914218713169,
+      "target_cpu_us_per_request": 7.860960743866488,
+      "cpu_window_seconds": [
+        5.090877169,
+        60.106967208
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 11,
+      "variant": "pin-wrk8",
+      "record": "phase2/pin-11-wrk8/results.json",
+      "target_rps": 725190.9871099917,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.465674085374824,
+      "generator_cores": 3.949510892554792,
+      "target_cores": 5.642346809541389,
+      "total_cores": 9.591857702096181,
+      "target_cpu_us_per_request": 7.808366548815603,
+      "cpu_window_seconds": [
+        5.117507544,
+        60.101000667
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 12,
+      "variant": "pin-oha",
+      "record": "phase2/pin-12-oha/results.json",
+      "target_rps": 608763.4536477756,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 137,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.533186620976607,
+      "generator_cores": 3.9635512360707814,
+      "target_cores": 5.433417187706497,
+      "total_cores": 9.396968423777277,
+      "target_cpu_us_per_request": 8.955990817996456,
+      "cpu_window_seconds": [
+        5.083140961,
+        60.087557459
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 13,
+      "variant": "pin-k6",
+      "record": "phase2/pin-13-k6/results.json",
+      "target_rps": 147356.00916974878,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 26.90996668090264,
+      "generator_cores": 3.9608788864625604,
+      "target_cores": 2.913684765842374,
+      "total_cores": 6.874563652304935,
+      "target_cpu_us_per_request": 19.79539446041909,
+      "cpu_window_seconds": [
+        5.061563045,
+        60.071116542
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 14,
+      "variant": "pin-head",
+      "record": "phase2/pin-14-head/results.json",
+      "target_rps": 680506.9382465157,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.470123426278248,
+      "generator_cores": 3.704410101118439,
+      "target_cores": 5.3713974139956635,
+      "total_cores": 9.075807515114102,
+      "target_cpu_us_per_request": 7.931683054550838,
+      "cpu_window_seconds": [
+        5.08924703,
+        60.105303416
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 15,
+      "variant": "pin-wrk4",
+      "record": "phase2/pin-15-wrk4/results.json",
+      "target_rps": 741453.7221365902,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 4,
+      "generator_cpu_us_per_request": 5.331450544386481,
+      "generator_cores": 3.94360494083189,
+      "target_cores": 5.605349011745258,
+      "total_cores": 9.548953952577147,
+      "target_cpu_us_per_request": 7.578000709635336,
+      "cpu_window_seconds": [
+        5.111500669,
+        60.100177084
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 16,
+      "variant": "pin-oha",
+      "record": "phase2/pin-16-oha/results.json",
+      "target_rps": 612060.4955429964,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 137,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 6.493725820605099,
+      "generator_cores": 3.9608711199643634,
+      "target_cores": 5.405155843365149,
+      "total_cores": 9.366026963329512,
+      "target_cpu_us_per_request": 8.861585999993506,
+      "cpu_window_seconds": [
+        5.070452878,
+        60.105156709
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 17,
+      "variant": "pin-k6",
+      "record": "phase2/pin-17-k6/results.json",
+      "target_rps": 146659.90346581195,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 27.025482198169783,
+      "generator_cores": 3.960160138070189,
+      "target_cores": 2.9225142664479633,
+      "total_cores": 6.882674404518153,
+      "target_cpu_us_per_request": 19.944233194639256,
+      "cpu_window_seconds": [
+        5.061441905,
+        60.063615152
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 18,
+      "variant": "pin-head",
+      "record": "phase2/pin-18-head/results.json",
+      "target_rps": 675070.2545990156,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 1,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.478306169707214,
+      "generator_cores": 3.678651559144096,
+      "target_cores": 5.303140549720381,
+      "total_cores": 8.981792108864477,
+      "target_cpu_us_per_request": 7.897520905491031,
+      "cpu_window_seconds": [
+        5.093521086,
+        60.089565084
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 19,
+      "variant": "pin-wrk4",
+      "record": "phase2/pin-19-wrk4/results.json",
+      "target_rps": 745873.6672004749,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 4,
+      "generator_cpu_us_per_request": 5.307371219453177,
+      "generator_cores": 3.9476287227251126,
+      "target_cores": 5.632355328040674,
+      "total_cores": 9.579984050765786,
+      "target_cpu_us_per_request": 7.572394129593121,
+      "cpu_window_seconds": [
+        5.085016321,
+        60.124490208
+      ]
+    },
+    {
+      "phase": 2,
+      "run": 20,
+      "variant": "pin-wrk8",
+      "record": "phase2/pin-20-wrk8/results.json",
+      "target_rps": 725843.4390464773,
+      "completed_observation": true,
+      "target_valid": true,
+      "exit_code": 0,
+      "gomaxprocs": null,
+      "cpusets": {
+        "client": "0-3",
+        "target": "4-9"
+      },
+      "wrk_threads": 8,
+      "generator_cpu_us_per_request": 5.459468419637209,
+      "generator_cores": 3.9505179683837,
+      "target_cores": 5.669546206212243,
+      "total_cores": 9.620064174595942,
+      "target_cpu_us_per_request": 7.835101299173071,
+      "cpu_window_seconds": [
+        5.080759794,
+        60.0755475
+      ]
+    }
+  ],
+  "incomplete": []
+}

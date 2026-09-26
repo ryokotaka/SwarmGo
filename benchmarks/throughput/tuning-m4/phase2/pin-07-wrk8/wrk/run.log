@@ -1,0 +1,9 @@
+Running 1m test @ http://172.18.0.2:8080/work
+  8 threads and 256 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   644.68us    1.04ms  24.08ms   87.20%
+    Req/Sec    91.82k    14.94k  200.42k    78.83%
+  51181875 requests in 1.17m, 54.05GB read
+  Socket errors: connect 0, read 0, write 0, timeout 107
+Requests/sec: 730198.09
+Transfer/sec:    789.68MB
