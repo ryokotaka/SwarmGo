@@ -19,7 +19,10 @@ p.add_argument('--tools', nargs='+', choices=['swarmgo', 'wrk', 'oha', 'k6'], de
 p.add_argument('--seconds', type=int, default=30)
 p.add_argument('--concurrency', type=int, default=256)
 p.add_argument('--out', required=True)
+p.add_argument('--gomaxprocs', type=int, help='Set GOMAXPROCS for the generator process (Go tools only); unset by default')
 a = p.parse_args()
+if a.gomaxprocs is not None and not 1 <= a.gomaxprocs <= 256:
+    p.error('Use 1..256 for --gomaxprocs.')
 if not 5 <= a.seconds <= 300 or not 8 <= a.concurrency <= 4096 or a.concurrency % 8:
     p.error('Use 5..300 seconds and 8..4096 concurrency divisible by 8.')
 if Path(a.out).name != a.out or a.out in ['.', '..']:
@@ -44,7 +47,7 @@ manifest = {
                for f in [ROOT/'target.go', ROOT/'body.json', ROOT/'swarm.sh', ROOT/'wrk.lua', ROOT/'k6.js', *sorted((ROOT/'bin').iterdir())]},
     'docker': {k: D.info.get(k) for k in ['ServerVersion', 'KernelVersion', 'NCPU', 'MemTotal', 'Architecture']},
     'versions': {'wrk': '4.2.0', 'oha': '1.16.0', 'k6': '2.3.0'},
-    'internal_network': True, 'published_ports': [], 'tool_order': a.tools,
+    'internal_network': True, 'published_ports': [], 'tool_order': a.tools, 'gomaxprocs': a.gomaxprocs,
     'note': 'All rates use target-validated POST counter deltas and target snapshot-clock deltas. Native stop/report phases are outside the measurement. SwarmGo is deliberately deadline-stopped and its incomplete report is retained, not called a successful fixed-count run.',
 }
 
@@ -85,6 +88,8 @@ try:
         url = f'http://{address}:8080/work'
         env = {'TARGET': url, 'DURATION': str(duration), 'CONCURRENCY': str(a.concurrency),
                'SUMMARY': '/results/native.json', 'K6_NO_USAGE_REPORT': 'true'}
+        if a.gomaxprocs is not None:
+            env['GOMAXPROCS'] = str(a.gomaxprocs)
         if tool == 'swarmgo':
             command = ['sh', '/bench/swarm.sh']
         elif tool == 'wrk':
@@ -125,7 +130,9 @@ try:
                           'measurement_seconds': (observed['snapshot_unix_ns']-base['snapshot_unix_ns'])/1e9,
                           'interval_seconds': elapsed,
                           'target_rps': (observed['requests']-previous['requests'])/elapsed,
-                          'server': observed, 'generator': resources(D, client)}
+                          'server': observed, 'generator': resources(D, client),
+                          # Target CPU shows whether the shared host was saturated.
+                          'target_container': resources(D, target)}
                 record['samples'].append(sample)
                 previous = observed
                 save()
