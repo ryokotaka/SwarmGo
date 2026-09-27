@@ -4,8 +4,12 @@
 #   (luaL_reg, now luaL_Reg) is renamed in src/script.c;
 # - src/hdr_histogram.c includes the x86-only <x86intrin.h> without using any
 #   intrinsic, so that line is removed. It also includes <zlib.h> (header only;
-#   no zlib function is linked), hence zlib1g-dev.
-# The rate-control and latency code is unchanged.
+#   no zlib function is linked), hence zlib1g-dev;
+# - src/wrk.c stores getopt_long's result in a char and compares it with -1.
+#   char is unsigned on ARM64, so -1 is never seen and every command line ends
+#   in the usage text; the variable becomes an int.
+# Each edit is checked, so the build fails if one does not apply. The
+# rate-control and latency code is unchanged.
 FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251 AS build
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev zlib1g-dev ca-certificates
 WORKDIR /src
@@ -14,6 +18,10 @@ COPY luajit-src/ /luajit/
 RUN rm -rf deps/luajit && cp -r /luajit deps/luajit \
  && sed -i 's/\bluaL_reg\b/luaL_Reg/g' src/script.c \
  && sed -i '/#include <x86intrin.h>/d' src/hdr_histogram.c \
+ && sed -i 's/^    char c, \*\*header = headers;$/    int c;\n    char **header = headers;/' src/wrk.c \
+ && ! grep -qw 'luaL_reg' src/script.c \
+ && ! grep -q 'x86intrin' src/hdr_histogram.c \
+ && grep -qx '    int c;' src/wrk.c \
  && make -j4
 FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
 RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*

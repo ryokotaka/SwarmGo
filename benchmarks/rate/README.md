@@ -33,13 +33,16 @@ The verdict uses only the target's own counter. Each tool's native report is kep
 | k6 | v2.3.0 | official release, from the throughput preparation |
 | oha | v1.16.0 | official release, from the throughput preparation |
 
-wrk2 does not build for ARM64 as published. [Dockerfile.wrk2](Dockerfile.wrk2) makes three build-only changes:
+wrk2 does not build or run correctly on ARM64 as published. [Dockerfile.wrk2](Dockerfile.wrk2) makes four changes:
 
 - its bundled LuaJIT 2.0.3 is replaced by LuaJIT 2.1 at a pinned commit;
 - the one type LuaJIT 2.1 removed is renamed (`luaL_reg` → `luaL_Reg`, three lines in `src/script.c`);
-- an unused x86-only `#include <x86intrin.h>` is removed from `src/hdr_histogram.c`.
+- an unused x86-only `#include <x86intrin.h>` is removed from `src/hdr_histogram.c`;
+- in `src/wrk.c`, the variable holding `getopt_long`'s result becomes an `int`. It was a `char` compared with `-1`; `char` is unsigned on ARM64, so every command line ended in the usage text.
 
-wrk2's rate control and latency code are unchanged. The first M4 build stopped at that include. After the fix, the patched sources and LuaJIT 2.1 were cross-compiled for aarch64, and the unpatched `hdr_histogram.c` reproduces the failure.
+The Dockerfile checks that each edit applied. wrk2's rate control and latency code are unchanged.
+
+The first M4 build stopped at the include, and the first M4 smoke test found the `char` problem. Both were then reproduced away from ARM64: the unpatched `hdr_histogram.c` fails with an aarch64 cross compiler, and wrk2 built with `-funsigned-char` on x86 prints only its usage text. With all four changes, every source cross-compiles for aarch64, LuaJIT 2.1 cross-builds, and the `-funsigned-char` build held 20,000 POSTs/s against the local target with zero errors.
 
 ## Reproduce
 
