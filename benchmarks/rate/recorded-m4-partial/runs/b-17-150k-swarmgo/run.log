@@ -1,0 +1,1 @@
+Ordinary requests: 1/s throughout. Load: 150000/s for 1m10s after 1s baseline; observe recovery for 2s.
