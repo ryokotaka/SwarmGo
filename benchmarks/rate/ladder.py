@@ -89,7 +89,7 @@ p.add_argument('--tolerance', type=float, default=0.001,
                help='Allowed shortfall of the delivered rate, as a fraction (default 0.001 = 99.9%% delivered)')
 p.add_argument('--out', help='New directory name under results/')
 p.add_argument('--profile', choices=['cpu', 'trace'],
-               help='SwarmGo only: record a CPU profile of the whole run, or a 2-second execution trace '
+               help='SwarmGo only: record a CPU profile of the whole run, or a 1-second execution trace '
                     '20 seconds in, to results/<out>/. Profiling costs CPU, so profiled runs are diagnostics, not results.')
 a = p.parse_args()
 if a.profile and a.tool != 'swarmgo':
@@ -223,7 +223,7 @@ try:
     if a.profile == 'cpu':
         env['SWARMGO_CPUPROFILE'] = '/results/cpu.pprof'
     elif a.profile == 'trace':
-        env.update({'SWARMGO_TRACE': '/results/exec.trace', 'SWARMGO_TRACE_AFTER': '20', 'SWARMGO_TRACE_SECONDS': '2'})
+        env.update({'SWARMGO_TRACE': '/results/exec.trace', 'SWARMGO_TRACE_AFTER': '20', 'SWARMGO_TRACE_SECONDS': '1'})
     record.update({'command': command, 'environment': env})
     if a.tool == 'wrk2':
         record['image_id'] = D.run('image', 'inspect', WRK2_IMAGE, '--format', '{{.Id}}')
