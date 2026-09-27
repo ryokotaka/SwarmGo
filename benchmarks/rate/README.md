@@ -33,16 +33,21 @@ The verdict uses only the target's own counter. Each tool's native report is kep
 | k6 | v2.3.0 | official release, from the throughput preparation |
 | oha | v1.16.0 | official release, from the throughput preparation |
 
-wrk2 does not build or run correctly on ARM64 as published. [Dockerfile.wrk2](Dockerfile.wrk2) makes four changes:
+wrk2 does not build or run correctly on ARM64 as published. [Dockerfile.wrk2](Dockerfile.wrk2) makes five changes:
 
 - its bundled LuaJIT 2.0.3 is replaced by LuaJIT 2.1 at a pinned commit;
 - the one type LuaJIT 2.1 removed is renamed (`luaL_reg` → `luaL_Reg`, three lines in `src/script.c`);
 - an unused x86-only `#include <x86intrin.h>` is removed from `src/hdr_histogram.c`;
-- in `src/wrk.c`, the variable holding `getopt_long`'s result becomes an `int`. It was a `char` compared with `-1`; `char` is unsigned on ARM64, so every command line ended in the usage text.
+- in `src/wrk.c`, the variable holding `getopt_long`'s result becomes an `int`. It was a `char` compared with `-1`; `char` is unsigned on ARM64, so every command line ended in the usage text;
+- `time_us()` in `src/wrk.c` reads `CLOCK_MONOTONIC` instead of `gettimeofday`. wrk2 schedules requests and measures latency with this clock. A wall clock can step backwards when the Docker VM syncs its time with the host; a backward step during a request makes its latency negative, and wrk2 then aborts in its histogram. wrk2 uses these times only as differences, so a monotonic clock keeps its meaning.
 
-The Dockerfile checks that each edit applied. wrk2's rate control and latency code are unchanged.
+The Dockerfile checks that each edit applied. wrk2's rate-control and latency logic are unchanged.
 
 The first M4 build stopped at the include, and the first M4 smoke test found the `char` problem. Both were then reproduced away from ARM64: the unpatched `hdr_histogram.c` fails with an aarch64 cross compiler, and wrk2 built with `-funsigned-char` on x86 prints only its usage text. With all four changes, every source cross-compiles for aarch64, LuaJIT 2.1 cross-builds, and the `-funsigned-char` build held 20,000 POSTs/s against the local target with zero errors.
+
+The first M4 ladder run then aborted wrk2 once, 36 seconds into its 100,000/s run, with a negative latency. Its send schedule and latency start use the same formula and counts, so a negative value requires the clock to move backwards between a request and its response. With the monotonic clock, wrk2 delivered the same rate as the wall-clock build in an A/B on this VM (42.6k/s for both, the VM's limit at 50,000/s requested).
+
+The Go generators and oha already time with monotonic clocks. The harness does too: the target's `/stats` reports `monotonic_ns`, rates use it, and each sample records `wall_clock_step_seconds`, how far the wall clock moved beyond it. `max_wall_clock_step_seconds` in each result shows whether the wall clock stepped during the window.
 
 ## Reproduce
 

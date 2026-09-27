@@ -26,6 +26,9 @@ func main() {
 }
 func server() {
 	var requests, failures, first, last, bodyBytes, active, peak atomic.Int64
+	// monotonic_ns cannot step when the VM adjusts its wall clock, so rates
+	// computed from it are immune to clock syncs during a measurement.
+	started := time.Now()
 	s := &fasthttp.Server{NoDefaultServerHeader: true, Handler: func(ctx *fasthttp.RequestCtx) {
 		switch string(ctx.Path()) {
 		case "/reset":
@@ -39,7 +42,7 @@ func server() {
 			ctx.SetBodyString("ok")
 			return
 		case "/stats":
-			b, _ := json.Marshal(map[string]any{"snapshot_unix_ns": time.Now().UnixNano(), "requests": requests.Load(), "invalid": failures.Load(), "body_bytes": bodyBytes.Load(), "active_requests": active.Load(), "peak_active_requests": peak.Load(), "elapsed_seconds": float64(last.Load()-first.Load()) / 1e9})
+			b, _ := json.Marshal(map[string]any{"snapshot_unix_ns": time.Now().UnixNano(), "monotonic_ns": time.Since(started).Nanoseconds(), "requests": requests.Load(), "invalid": failures.Load(), "body_bytes": bodyBytes.Load(), "active_requests": active.Load(), "peak_active_requests": peak.Load(), "elapsed_seconds": float64(last.Load()-first.Load()) / 1e9})
 			ctx.SetBody(b)
 			return
 		case "/work":
