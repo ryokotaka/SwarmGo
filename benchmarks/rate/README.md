@@ -39,7 +39,7 @@ wrk2 does not build for ARM64 as published. [Dockerfile.wrk2](Dockerfile.wrk2) m
 - the one type LuaJIT 2.1 removed is renamed (`luaL_reg` → `luaL_Reg`, three lines in `src/script.c`);
 - an unused x86-only `#include <x86intrin.h>` is removed from `src/hdr_histogram.c`.
 
-wrk2's rate control and latency code are unchanged. The patched sources and LuaJIT 2.1 were cross-compiled for aarch64 before the first M4 build, and the unpatched `hdr_histogram.c` reproduces the ARM64 failure.
+wrk2's rate control and latency code are unchanged. The first M4 build stopped at that include. After the fix, the patched sources and LuaJIT 2.1 were cross-compiled for aarch64, and the unpatched `hdr_histogram.c` reproduces the failure.
 
 ## Reproduce
 
