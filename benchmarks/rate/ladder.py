@@ -88,7 +88,12 @@ p.add_argument('--target-cpus', default='4-9', help='Docker cpuset for the targe
 p.add_argument('--tolerance', type=float, default=0.001,
                help='Allowed shortfall of the delivered rate, as a fraction (default 0.001 = 99.9%% delivered)')
 p.add_argument('--out', help='New directory name under results/')
+p.add_argument('--profile', choices=['cpu', 'trace'],
+               help='SwarmGo only: record a CPU profile of the whole run, or a 2-second execution trace '
+                    '20 seconds in, to results/<out>/. Profiling costs CPU, so profiled runs are diagnostics, not results.')
 a = p.parse_args()
+if a.profile and a.tool != 'swarmgo':
+    p.error('--profile applies to --tool swarmgo only')
 if a.prepare:
     prepare(Docker())
     sys.exit(0)
@@ -126,7 +131,7 @@ created, proc = [], None
 manifest = {
     'tool': a.tool, 'requested_rps': a.rate, 'measured_seconds': a.seconds, 'warmup_seconds': a.warmup,
     'native_duration_seconds': duration, 'concurrency': a.concurrency, 'tolerance': a.tolerance,
-    'cpusets': {'client': a.client_cpus, 'target': a.target_cpus}, 'wrk2_threads': threads,
+    'cpusets': {'client': a.client_cpus, 'target': a.target_cpus}, 'wrk2_threads': threads, 'profile': a.profile,
     'generator_memory_bytes': 6 * 1024**3, 'target_memory_bytes': 512 * 1024**2, 'image': IMAGE,
     'target': 'fasthttp HTTP/1.1; validates 1 KiB POST body; 1 KiB response; no delay',
     'swarmgo_source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT.parents[1], text=True).strip(),
@@ -215,6 +220,10 @@ try:
                    '-H', headers[0], '-H', headers[1], url]
     env = {'TARGET': url, 'RATE': str(a.rate), 'SECONDS': str(duration), 'CONCURRENCY': str(a.concurrency),
            'SUMMARY': '/results/native.json', 'K6_NO_USAGE_REPORT': 'true'}
+    if a.profile == 'cpu':
+        env['SWARMGO_CPUPROFILE'] = '/results/cpu.pprof'
+    elif a.profile == 'trace':
+        env.update({'SWARMGO_TRACE': '/results/exec.trace', 'SWARMGO_TRACE_AFTER': '20', 'SWARMGO_TRACE_SECONDS': '2'})
     record.update({'command': command, 'environment': env})
     if a.tool == 'wrk2':
         record['image_id'] = D.run('image', 'inspect', WRK2_IMAGE, '--format', '{{.Id}}')

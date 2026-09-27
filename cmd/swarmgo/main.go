@@ -34,9 +34,15 @@ func main() {
 	case "worker":
 		runWorker()
 	case "run":
-		os.Exit(runCommand(os.Args[2:]))
+		stop := startDiagnostics()
+		code := runCommand(os.Args[2:])
+		stop()
+		os.Exit(code)
 	case "resilience":
-		os.Exit(resilienceCommand(os.Args[2:]))
+		stop := startDiagnostics()
+		code := resilienceCommand(os.Args[2:])
+		stop()
+		os.Exit(code)
 	case "help", "-h", "-help", "--help":
 		printHelp()
 	case "version", "-version", "--version":

@@ -77,11 +77,6 @@ type paceState struct {
 	rate           int64
 }
 
-type paceJob struct {
-	ticket int64
-	due    time.Time
-}
-
 type paceMiss int
 
 const (
@@ -92,11 +87,13 @@ const (
 
 // RunPaced starts at t=0, then at k/Rate while t < Duration: the plan contains
 // ceil(Rate*Duration) requests. It never queues behind occupied execution lanes.
-// Dispatch handles at most min(MaxStartDelay, 1 ms) of planned work per batch.
-// After a late wake, adjacent batches may catch up within MaxStartDelay; older
-// due slots are missed. The delay histogram retains this scheduling jitter.
-// MaxStartDelay also applies when a lane actually starts, including the last
-// batch: it can begin just beyond Duration but creates no new scheduled slots.
+// Each lane claims the next slot itself, at most min(MaxStartDelay, 1 ms) before
+// it is due, and sends it when due. A slot that comes due more than that
+// quantum before any lane is free is missed as busy; one whose free lane starts
+// later than MaxStartDelay, for example after an expired start, is missed as
+// late. The delay histogram retains the start jitter of the rest.
+// MaxStartDelay also applies to the last slot: it can begin just beyond
+// Duration but creates no new scheduled slots.
 // The function waits until the scheduled end and all started responses finish.
 // Cancellation returns the conserved partial summary together with ctx.Err().
 func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOptions) (*PaceSummary, error) {
@@ -117,17 +114,15 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 		concurrency = min(concurrency, plan.transport.base.MaxConnsPerHost)
 	}
 	state := newPaceState(options, planned)
-	ready := make(chan chan paceJob, concurrency)
-	queues := make([]chan paceJob, concurrency)
-	var wg sync.WaitGroup
 	startAt := options.StartAt
 	if startAt.IsZero() {
 		startAt = time.Now()
 	}
 	endAt := startAt.Add(options.Duration)
-	for i := range queues {
-		jobs := make(chan paceJob, 1)
-		queues[i] = jobs
+	sched := &paceSched{planned: planned, rate: int64(options.Rate), lanes: concurrency, done: make(chan struct{})}
+	quantum := min(options.MaxStartDelay, time.Millisecond)
+	var wg sync.WaitGroup
+	for range concurrency {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -136,12 +131,82 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 				lane = plan.lane(ctx)
 				defer lane.finish()
 			}
-			for job := range jobs {
+			me := &paceIdle{ctx: ctx, wake: make(chan struct{}, 1)}
+			timer := time.NewTimer(time.Hour)
+			timer.Stop()
+			defer timer.Stop()
+			free, sleeper := true, false
+			sched.Lock()
+			for {
+				if ctx.Err() != nil && sched.next < planned {
+					state.miss(sched.next, planned, paceCanceled)
+					sched.next = planned
+				}
+				if sched.next >= planned {
+					sched.finish()
+					sched.Unlock()
+					return
+				}
+				ticket := sched.next
+				dueOffset := paceOffset(ticket, sched.rate)
+				overdue := time.Since(startAt) - dueOffset
+				switch {
+				case overdue > quantum && !free && sched.running == sched.lanes:
+					// Every lane, this one included, was sending when these
+					// slots came due. They are missed rather than started late.
+					end := min(planned, paceDueIndex(time.Since(startAt)-quantum, sched.rate)+1)
+					state.miss(ticket, end, paceBusy)
+					sched.next = end
+					continue
+				case overdue > options.MaxStartDelay:
+					end := max(ticket+1, min(planned, paceCeilCount(time.Since(startAt)-options.MaxStartDelay, sched.rate)))
+					state.miss(ticket, end, paceLate)
+					sched.next = end
+					continue
+				case free && !sleeper && sched.sleeper && overdue <= quantum:
+					// Another free lane already waits for this slot; park until
+					// promoted. It takes over here only if that lane runs late.
+					sched.park(me)
+					sleeper = sched.waiter == me
+					continue
+				case overdue < -quantum:
+					if !free {
+						sched.running--
+					}
+					// This lane waits for the next slot on its own timer. A lane
+					// that has just finished replaces an earlier waiter, so the
+					// most recently used connection sends next.
+					sched.sleeper, sched.waiter, sleeper, free = true, me, true, true
+					sched.Unlock()
+					paceWait(ctx, timer, startAt.Add(dueOffset-quantum))
+					sched.Lock()
+					// A finished lane may have taken over while this one slept.
+					sleeper = sched.waiter == me
+					continue
+				}
+				// Slots are claimed in order up to one quantum early. A lane
+				// holding an early slot is sending by the time any later slot
+				// comes due, so claiming early does not change which slots find
+				// every lane busy. Each lane then waits on its own timer.
+				if !free {
+					sched.running--
+				}
+				sched.next++
+				sched.running++
+				if sleeper {
+					sched.sleeper, sched.waiter, sleeper = false, nil, false
+				}
+				if !sched.sleeper && sched.next < planned {
+					sched.promote()
+				}
+				sched.Unlock()
+				due := startAt.Add(dueOffset)
+				paceWait(ctx, timer, due)
 				now := time.Now()
 				if ctx.Err() != nil {
-					state.miss(job.ticket, job.ticket+1, paceCanceled)
-				} else if now.Sub(job.due) > options.MaxStartDelay {
-					state.miss(job.ticket, job.ticket+1, paceLate)
+					state.miss(ticket, ticket+1, paceCanceled)
+				} else if now.Sub(due) > options.MaxStartDelay {
+					state.miss(ticket, ticket+1, paceLate)
 				} else {
 					var result MyResult
 					if lane != nil {
@@ -156,89 +221,93 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 							result.MyErr = fmt.Errorf("HTTP status %d; expected %d", result.MyStatusCode, options.ExpectedStatus)
 						}
 					}
-					state.complete(job.ticket, result, time.Since(startAt).Seconds(), now.Sub(job.due))
+					state.complete(ticket, result, time.Since(startAt).Seconds(), now.Sub(due))
 				}
-				ready <- jobs
+				free = false
+				sched.Lock()
 			}
 		}()
 	}
-
+	wg.Wait()
 	timer := time.NewTimer(time.Hour)
 	timer.Stop()
 	defer timer.Stop()
-	quantum := min(options.MaxStartDelay, time.Millisecond)
-	batchLimit := paceCeilCount(quantum, int64(options.Rate))
-	lastDue := paceOffset(planned-1, int64(options.Rate))
-	var next int64
-	unused := 0
-	for next < planned {
-		if ctx.Err() != nil {
-			state.miss(next, planned, paceCanceled)
-			break
-		}
-		offset := paceOffset(next, int64(options.Rate))
-		wakeOffset := min(lastDue, (offset+quantum-1)/quantum*quantum)
-		if !paceWait(ctx, timer, startAt.Add(wakeOffset)) {
-			state.miss(next, planned, paceCanceled)
-			break
-		}
-		now := time.Now()
-		// Only expire slots outside the user's lateness budget. Normal timer
-		// jitter must not drop valid slots simply because a quantum elapsed.
-		elapsed := max(0, now.Sub(startAt))
-		latest := planned - 1
-		if elapsed < options.Duration {
-			latest = min(latest, paceDueIndex(elapsed, int64(options.Rate)))
-		}
-		first := next
-		if elapsed > options.MaxStartDelay {
-			cutoff := elapsed - options.MaxStartDelay
-			if cutoff >= options.Duration {
-				first = planned
-			} else {
-				first = max(first, paceCeilCount(cutoff, int64(options.Rate)))
-			}
-		}
-		state.miss(next, first, paceLate)
-		next = first
-		batchEnd := min(latest, first+min(batchLimit-1, planned-first))
-		for next <= batchEnd {
-			if ctx.Err() != nil {
-				break
-			}
-			due := startAt.Add(paceOffset(next, int64(options.Rate)))
-			if time.Since(due) > options.MaxStartDelay {
-				state.miss(next, next+1, paceLate)
-				next++
-				continue
-			}
-			// Reuse an available lane before opening another connection. The
-			// configured concurrency is a ceiling, not a target pool size.
-			var jobs chan paceJob
-			select {
-			case jobs = <-ready:
-			default:
-				if unused < len(queues) {
-					jobs = queues[unused]
-					unused++
-				}
-			}
-			if jobs != nil {
-				jobs <- paceJob{ticket: next, due: due}
-				next++
-			} else {
-				state.miss(next, latest+1, paceBusy)
-				next = latest + 1
-			}
-		}
-	}
 	paceWait(ctx, timer, endAt)
-	for _, jobs := range queues {
-		close(jobs)
-	}
-	wg.Wait()
 	summary := state.summary(max(0, time.Since(startAt).Seconds()), ctx.Err() != nil)
 	return summary, ctx.Err()
+}
+
+// paceSched hands out slots to lanes in order. A lane that finishes a request
+// takes the next slot itself, so under load no request passes through another
+// goroutine before it is sent. When no slot is due, one free lane waits for the
+// next one on its own timer and the others park; the waiter wakes one parked
+// lane to take over waiting as soon as it claims a slot.
+type paceSched struct {
+	sync.Mutex
+	next, planned, rate int64
+	// sleeper reports whether a free lane is waiting for next, or has been
+	// promoted to and will; waiter is that lane.
+	sleeper bool
+	waiter  *paceIdle
+	// running counts lanes sending a request; lanes is their total.
+	running, lanes int
+	idle           []*paceIdle
+	done           chan struct{}
+	finished       bool
+}
+
+type paceIdle struct {
+	ctx      context.Context
+	wake     chan struct{}
+	promoted bool
+}
+
+// promote wakes the most recently parked lane to wait for the next slot. The
+// most recent lane is the one most likely to hold a warm connection, so a low
+// rate keeps using few connections. Called with the lock held.
+func (s *paceSched) promote() {
+	if len(s.idle) == 0 {
+		return
+	}
+	l := s.idle[len(s.idle)-1]
+	s.idle = s.idle[:len(s.idle)-1]
+	l.promoted = true
+	s.sleeper, s.waiter = true, l
+	l.wake <- struct{}{}
+}
+
+// park waits, with the lock released, until l is promoted or the run ends.
+// Called with the lock held; returns with it held.
+func (s *paceSched) park(l *paceIdle) {
+	s.idle = append(s.idle, l)
+	s.Unlock()
+	select {
+	case <-l.wake:
+	case <-s.done:
+	case <-l.ctx.Done():
+	}
+	s.Lock()
+	if !l.promoted {
+		s.removeIdle(l)
+	}
+	l.promoted = false
+}
+
+func (s *paceSched) removeIdle(l *paceIdle) {
+	for i, x := range s.idle {
+		if x == l {
+			s.idle = append(s.idle[:i], s.idle[i+1:]...)
+			return
+		}
+	}
+}
+
+// finish releases parked lanes once every slot has an outcome. Called with the lock held.
+func (s *paceSched) finish() {
+	if !s.finished {
+		s.finished = true
+		close(s.done)
+	}
 }
 
 func validatePaceOptions(o PaceOptions) (int64, error) {
