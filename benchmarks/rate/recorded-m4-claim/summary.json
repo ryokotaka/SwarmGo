@@ -1,0 +1,403 @@
+{
+  "description": "Apple M4 check of SwarmGo's rebuilt constant-rate engine (a9997b6, recorded with 310fbf5), with wrk2 at 600k before and after as a baseline.",
+  "source": "claude/nice-albattani-rglt0t; SwarmGo built at 9dd8960, which contains a9997b6 and 310fbf5",
+  "settings": {
+    "generator_cpus": "0-3",
+    "target_cpus": "4-9",
+    "in_flight": 1024,
+    "warmup_seconds": 5,
+    "measured_seconds": 60,
+    "tolerance": 0.001
+  },
+  "swarmgo_confirmed_max_rate": 300000,
+  "swarmgo_first_false_rate": 400000,
+  "wrk2_600k": [
+    true,
+    true
+  ],
+  "excluded_files": [],
+  "runs": [
+    {
+      "order": 1,
+      "record": "runs/c-01-600k-wrk2/results.json",
+      "step": "A",
+      "tool": "wrk2",
+      "rate": 600000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 600012.4650543842,
+      "delivered_ratio": 1.0000207750906402,
+      "min_interval_ratio": 0.9991834934488659,
+      "held": true,
+      "exit_code": 0,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 6.201009490630546,
+      "generator_cores": 3.7206613087240075,
+      "target_cores": 5.149573917595086,
+      "max_wall_clock_step_seconds": 0.00021331900000021164,
+      "swarmgo_load": null,
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 2,
+      "record": "runs/c-02-200k-swarmgo/results.json",
+      "step": "B",
+      "tool": "swarmgo",
+      "rate": 200000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 199997.9602138166,
+      "delivered_ratio": 0.9999898010690831,
+      "min_interval_ratio": 0.9997504969184614,
+      "held": true,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.51439698017444,
+      "generator_cores": 1.70289952072137,
+      "target_cores": 2.111057437010129,
+      "max_wall_clock_step_seconds": 0.00016748699999968863,
+      "swarmgo_load": {
+        "planned": 14000000,
+        "started": 13997533,
+        "busy_missed": 2467,
+        "late_missed": 0
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 3,
+      "record": "runs/c-03-300k-swarmgo/results.json",
+      "step": "B",
+      "tool": "swarmgo",
+      "rate": 300000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 299930.5540932003,
+      "delivered_ratio": 0.999768513644001,
+      "min_interval_ratio": 0.9989875947888188,
+      "held": true,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.551578698774637,
+      "generator_cores": 2.5648683256369917,
+      "target_cores": 3.067942009042956,
+      "max_wall_clock_step_seconds": 0.0002534020000002357,
+      "swarmgo_load": {
+        "planned": 21000000,
+        "started": 20961951,
+        "busy_missed": 38049,
+        "late_missed": 0
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 4,
+      "record": "runs/c-04-400k-swarmgo/results.json",
+      "step": "B",
+      "tool": "swarmgo",
+      "rate": 400000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 399457.2800987126,
+      "delivered_ratio": 0.9986432002467814,
+      "min_interval_ratio": 0.9970675485413469,
+      "held": false,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.553937554361546,
+      "generator_cores": 3.416865458604362,
+      "target_cores": 4.336002263460226,
+      "max_wall_clock_step_seconds": 0.0003901950000004817,
+      "swarmgo_load": {
+        "planned": 28000000,
+        "started": 27937881,
+        "busy_missed": 62119,
+        "late_missed": 0
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 5,
+      "record": "runs/c-05-500k-swarmgo/results.json",
+      "step": "B",
+      "tool": "swarmgo",
+      "rate": 500000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 497374.34676967567,
+      "delivered_ratio": 0.9947486935393514,
+      "min_interval_ratio": 0.9806705641174757,
+      "held": false,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 7.638396819412441,
+      "generator_cores": 3.7989534357539716,
+      "target_cores": 4.762079356006375,
+      "max_wall_clock_step_seconds": 0.0003761109999995682,
+      "swarmgo_load": {
+        "planned": 35000000,
+        "started": 34752019,
+        "busy_missed": 243794,
+        "late_missed": 4187
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 6,
+      "record": "runs/c-06-300k-swarmgo/results.json",
+      "step": "C",
+      "tool": "swarmgo",
+      "rate": 300000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 299947.16835311946,
+      "delivered_ratio": 0.9998238945103982,
+      "min_interval_ratio": 0.9995209454352566,
+      "held": true,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.574146551239176,
+      "generator_cores": 2.5718042948454167,
+      "target_cores": 3.060402369650211,
+      "max_wall_clock_step_seconds": 0.000598402999999692,
+      "swarmgo_load": {
+        "planned": 21000000,
+        "started": 20969212,
+        "busy_missed": 30788,
+        "late_missed": 0
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 7,
+      "record": "runs/c-07-300k-swarmgo/results.json",
+      "step": "C",
+      "tool": "swarmgo",
+      "rate": 300000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 299875.9078326867,
+      "delivered_ratio": 0.9995863594422889,
+      "min_interval_ratio": 0.997824505984549,
+      "held": true,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.582840018207996,
+      "generator_cores": 2.573660745127051,
+      "target_cores": 3.0666935471759755,
+      "max_wall_clock_step_seconds": 0.0007129450000000759,
+      "swarmgo_load": {
+        "planned": 21000000,
+        "started": 20980919,
+        "busy_missed": 19081,
+        "late_missed": 0
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 8,
+      "record": "runs/c-08-350k-swarmgo/results.json",
+      "step": "C",
+      "tool": "swarmgo",
+      "rate": 350000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 349693.99368157965,
+      "delivered_ratio": 0.9991256962330847,
+      "min_interval_ratio": 0.9986127775702129,
+      "held": true,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.826848941465741,
+      "generator_cores": 3.086641384664691,
+      "target_cores": 3.665716566322533,
+      "max_wall_clock_step_seconds": 0.00042794400000012445,
+      "swarmgo_load": {
+        "planned": 24500000,
+        "started": 24442625,
+        "busy_missed": 57375,
+        "late_missed": 0
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 9,
+      "record": "runs/c-09-350k-swarmgo/results.json",
+      "step": "C",
+      "tool": "swarmgo",
+      "rate": 350000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 349726.4127670247,
+      "delivered_ratio": 0.9992183221914992,
+      "min_interval_ratio": 0.9984374331396778,
+      "held": true,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.92784253653108,
+      "generator_cores": 3.1222357826622367,
+      "target_cores": 3.674560897466951,
+      "max_wall_clock_step_seconds": 0.0005512359999997329,
+      "swarmgo_load": {
+        "planned": 24500000,
+        "started": 24457092,
+        "busy_missed": 42908,
+        "late_missed": 0
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 10,
+      "record": "runs/c-10-350k-swarmgo/results.json",
+      "step": "C",
+      "tool": "swarmgo",
+      "rate": 350000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 349514.39784673986,
+      "delivered_ratio": 0.9986125652763996,
+      "min_interval_ratio": 0.9950449538412178,
+      "held": false,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.716731166926062,
+      "generator_cores": 3.04762489254262,
+      "target_cores": 3.6868566940363316,
+      "max_wall_clock_step_seconds": 0.0002600689999994188,
+      "swarmgo_load": {
+        "planned": 24500000,
+        "started": 24423712,
+        "busy_missed": 76288,
+        "late_missed": 0
+      },
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 11,
+      "record": "runs/c-diag-400k-cpu/results.json",
+      "step": "D",
+      "tool": "swarmgo",
+      "rate": 400000,
+      "profile": "cpu",
+      "counts_toward_result": false,
+      "delivered_rps": 399268.93669628387,
+      "delivered_ratio": 0.9981723417407097,
+      "min_interval_ratio": 0.9965496635804595,
+      "held": false,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.641530991626597,
+      "generator_cores": 3.4501308656278487,
+      "target_cores": 4.372585798179503,
+      "max_wall_clock_step_seconds": 0.0005346120000000454,
+      "swarmgo_load": {
+        "planned": 28000000,
+        "started": 27923649,
+        "busy_missed": 76351,
+        "late_missed": 0
+      },
+      "files": [
+        "cpu.pprof",
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 12,
+      "record": "runs/c-diag-400k-trace/results.json",
+      "step": "D",
+      "tool": "swarmgo",
+      "rate": 400000,
+      "profile": "trace",
+      "counts_toward_result": false,
+      "delivered_rps": 399436.42158076,
+      "delivered_ratio": 0.9985910539519,
+      "min_interval_ratio": 0.9977298631315442,
+      "held": false,
+      "exit_code": 2,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 8.813123290916854,
+      "generator_cores": 3.5201720245978128,
+      "target_cores": 4.365807752313271,
+      "max_wall_clock_step_seconds": 0.005160652999999904,
+      "swarmgo_load": {
+        "planned": 28000000,
+        "started": 27908498,
+        "busy_missed": 91502,
+        "late_missed": 0
+      },
+      "files": [
+        "exec.trace",
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    },
+    {
+      "order": 13,
+      "record": "runs/c-13-600k-wrk2/results.json",
+      "step": "E",
+      "tool": "wrk2",
+      "rate": 600000,
+      "profile": null,
+      "counts_toward_result": true,
+      "delivered_rps": 599986.3288465944,
+      "delivered_ratio": 0.9999772147443241,
+      "min_interval_ratio": 0.9984980794373589,
+      "held": true,
+      "exit_code": 0,
+      "invalid_in_window": 0,
+      "generator_cpu_us_per_request": 6.40493991335862,
+      "generator_cores": 3.8429142923682984,
+      "target_cores": 5.29292692431015,
+      "max_wall_clock_step_seconds": 0.0010511529999996938,
+      "swarmgo_load": null,
+      "files": [
+        "native.json",
+        "results.json",
+        "run.log"
+      ]
+    }
+  ]
+}
