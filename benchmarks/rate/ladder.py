@@ -151,6 +151,16 @@ def stats():
     return json.loads(D.run('exec', target, '/bench/bin/target', '-mode', 'stats'))
 
 
+def seconds_between(earlier, later):
+    """Elapsed target time on its monotonic clock, which a wall-clock sync cannot step."""
+    return (later['monotonic_ns'] - earlier['monotonic_ns']) / 1e9
+
+
+def wall_step(earlier, later):
+    """How far the target's wall clock moved beyond its monotonic clock."""
+    return (later['snapshot_unix_ns'] - earlier['snapshot_unix_ns']) / 1e9 - seconds_between(earlier, later)
+
+
 def interrupted(signum, frame):
     raise KeyboardInterrupt
 
@@ -170,7 +180,8 @@ try:
               image, *command)
     for _ in range(100):
         try:
-            stats()
+            if 'monotonic_ns' not in stats():
+                raise RuntimeError('Rebuild benchmarks/throughput/bin/target: its /stats lacks monotonic_ns.')
             break
         except subprocess.SubprocessError:
             time.sleep(.05)
@@ -226,23 +237,24 @@ try:
         while True:
             time.sleep(min(5, max(0, end_at - time.monotonic())))
             observed = stats()
-            elapsed = (observed['snapshot_unix_ns'] - previous['snapshot_unix_ns']) / 1e9
+            elapsed = seconds_between(previous, observed)
             record['samples'].append({
-                'measurement_seconds': (observed['snapshot_unix_ns'] - base['snapshot_unix_ns']) / 1e9,
-                'interval_seconds': elapsed,
+                'measurement_seconds': seconds_between(base, observed),
+                'interval_seconds': elapsed, 'wall_clock_step_seconds': wall_step(previous, observed),
                 'target_rps': (observed['requests'] - previous['requests']) / elapsed,
                 'server': observed, 'generator': resources(D, client), 'target_container': resources(D, target)})
             previous = observed
             save()
             if time.monotonic() >= end_at or proc.poll() is not None:
                 break
-        window = (observed['snapshot_unix_ns'] - base['snapshot_unix_ns']) / 1e9
+        window = seconds_between(base, observed)
         delivered = (observed['requests'] - base['requests']) / window
         invalid = observed['invalid'] - base['invalid']
         record.update({
             'measurement_seconds': window, 'target_posts': observed['requests'] - base['requests'],
             'delivered_rps': delivered, 'delivered_ratio': delivered / a.rate, 'invalid_in_window': invalid,
             'min_interval_ratio': min(s['target_rps'] for s in record['samples']) / a.rate,
+            'max_wall_clock_step_seconds': max(abs(s['wall_clock_step_seconds']) for s in record['samples']),
             'completed_observation': window >= a.seconds and proc.poll() is None,
         })
         record['held'] = (record['completed_observation'] and invalid == 0
