@@ -24,6 +24,7 @@ p.add_argument('--gomaxprocs', type=int, help='Set GOMAXPROCS for the generator 
 p.add_argument('--client-cpus', help='Docker cpuset for the generator container, e.g. 0-3; unset shares all CPUs')
 p.add_argument('--target-cpus', help='Docker cpuset for the target container, e.g. 4-9; unset shares all CPUs')
 p.add_argument('--wrk-threads', type=int, default=8, help='wrk threads (default 8)')
+p.add_argument('--swarmgo-workers', type=int, default=1, help='SwarmGo worker processes sharing --concurrency (default 1)')
 a = p.parse_args()
 cpuset = re.compile(r'^\d+(-\d+)?(,\d+(-\d+)?)*$')
 for value in [a.client_cpus, a.target_cpus]:
@@ -31,6 +32,8 @@ for value in [a.client_cpus, a.target_cpus]:
         p.error('Use a Docker cpuset such as 0-3 or 0,2,4.')
 if not 1 <= a.wrk_threads <= a.concurrency:
     p.error('Use 1..concurrency wrk threads.')
+if not 1 <= a.swarmgo_workers <= 64 or a.concurrency % a.swarmgo_workers:
+    p.error('Use 1..64 SwarmGo workers that divide --concurrency evenly.')
 if a.gomaxprocs is not None and not 1 <= a.gomaxprocs <= 256:
     p.error('Use 1..256 for --gomaxprocs.')
 if not 5 <= a.seconds <= 300 or not 8 <= a.concurrency <= 4096 or a.concurrency % 8:
@@ -48,6 +51,7 @@ proc = None
 manifest = {
     'requested_rps': None, 'measurement_seconds': a.seconds, 'warmup_seconds': 5,
     'native_duration_seconds': duration, 'concurrency': a.concurrency, 'wrk_threads': a.wrk_threads,
+    'swarmgo_workers': a.swarmgo_workers,
     'generator_memory_bytes': 6 * 1024**3, 'target_memory_bytes': 512 * 1024**2,
     'cpu_limits': None, 'extra_swap': False, 'image': IMAGE,
     # Pinning isolates the generator's own capacity; unset, both share the host.
@@ -102,6 +106,8 @@ try:
                'SUMMARY': '/results/native.json', 'K6_NO_USAGE_REPORT': 'true'}
         if a.gomaxprocs is not None:
             env['GOMAXPROCS'] = str(a.gomaxprocs)
+        if tool == 'swarmgo':
+            env['WORKERS'] = str(a.swarmgo_workers)
         if tool == 'swarmgo':
             command = ['sh', '/bench/swarm.sh']
         elif tool == 'wrk':
