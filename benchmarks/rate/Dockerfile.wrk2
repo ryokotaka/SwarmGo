@@ -1,14 +1,19 @@
-# wrk2 (giltene/wrk2) at a pinned commit. Its bundled LuaJIT 2.0.3 has no
-# ARM64 support, so it is replaced by LuaJIT 2.1 at a pinned commit, and the
-# one type LuaJIT 2.1 removed (luaL_reg, now luaL_Reg) is renamed in
-# src/script.c. The measurement code is unchanged.
+# wrk2 (giltene/wrk2) at a pinned commit, made to build on ARM64:
+# - its bundled LuaJIT 2.0.3 has no ARM64 support, so it is replaced by
+#   LuaJIT 2.1 at a pinned commit, and the one type LuaJIT 2.1 removed
+#   (luaL_reg, now luaL_Reg) is renamed in src/script.c;
+# - src/hdr_histogram.c includes the x86-only <x86intrin.h> without using any
+#   intrinsic, so that line is removed. It also includes <zlib.h> (header only;
+#   no zlib function is linked), hence zlib1g-dev.
+# The rate-control and latency code is unchanged.
 FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251 AS build
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev zlib1g-dev ca-certificates
 WORKDIR /src
 COPY wrk2-src/ ./
 COPY luajit-src/ /luajit/
 RUN rm -rf deps/luajit && cp -r /luajit deps/luajit \
  && sed -i 's/\bluaL_reg\b/luaL_Reg/g' src/script.c \
+ && sed -i '/#include <x86intrin.h>/d' src/hdr_histogram.c \
  && make -j4
 FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
 RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
