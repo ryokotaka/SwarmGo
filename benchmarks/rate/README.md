@@ -33,7 +33,13 @@ The verdict uses only the target's own counter. Each tool's native report is kep
 | k6 | v2.3.0 | official release, from the throughput preparation |
 | oha | v1.16.0 | official release, from the throughput preparation |
 
-wrk2's bundled LuaJIT 2.0.3 cannot build for ARM64. [Dockerfile.wrk2](Dockerfile.wrk2) replaces it with LuaJIT 2.1 at a pinned commit, and renames the one type LuaJIT 2.1 removed (`luaL_reg` → `luaL_Reg`, three lines in `src/script.c`). wrk2's rate control and latency code are unchanged.
+wrk2 does not build for ARM64 as published. [Dockerfile.wrk2](Dockerfile.wrk2) makes three build-only changes:
+
+- its bundled LuaJIT 2.0.3 is replaced by LuaJIT 2.1 at a pinned commit;
+- the one type LuaJIT 2.1 removed is renamed (`luaL_reg` → `luaL_Reg`, three lines in `src/script.c`);
+- an unused x86-only `#include <x86intrin.h>` is removed from `src/hdr_histogram.c`.
+
+wrk2's rate control and latency code are unchanged. The patched sources and LuaJIT 2.1 were cross-compiled for aarch64 before the first M4 build, and the unpatched `hdr_histogram.c` reproduces the ARM64 failure.
 
 ## Reproduce
 
