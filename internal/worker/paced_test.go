@@ -350,3 +350,78 @@ func TestPacedWindowKeepsLateCompletionAndReleasesHistograms(t *testing.T) {
 		}
 	}
 }
+
+func TestPacedNeverSendsBeforeDue(t *testing.T) {
+	var mu sync.Mutex
+	var arrivals []time.Time
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		arrivals = append(arrivals, time.Now())
+		mu.Unlock()
+		w.WriteHeader(204)
+	}))
+	t.Cleanup(func() { srv.CloseClientConnections(); srv.Close() })
+	start := time.Now().Add(50 * time.Millisecond)
+	o := PaceOptions{Rate: 2000, Duration: 300 * time.Millisecond, Concurrency: 64, MaxStartDelay: 50 * time.Millisecond, StartAt: start}
+	s, err := pacedTestRunner(t, 64).RunPaced(context.Background(), srv.URL, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkPaceConservation(t, s)
+	mu.Lock()
+	defer mu.Unlock()
+	// Lanes claim slots up to a quantum early but must not send early: by any
+	// moment, no more requests have arrived than slots have come due.
+	for _, at := range arrivals {
+		arrived := int64(0)
+		for _, other := range arrivals {
+			if !other.After(at) {
+				arrived++
+			}
+		}
+		if due := paceDueIndex(at.Sub(start), int64(o.Rate)) + 1; arrived > due {
+			t.Fatalf("%d requests arrived by %v, but only %d slots were due", arrived, at.Sub(start), due)
+		}
+	}
+	if s.Started < s.Planned*9/10 {
+		t.Fatalf("idle lanes missed slots: %+v", s)
+	}
+}
+
+func TestPacedUnevenLatencyConservesSlots(t *testing.T) {
+	var n atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if n.Add(1)%7 == 0 {
+			time.Sleep(15 * time.Millisecond)
+		}
+		w.WriteHeader(204)
+	}))
+	t.Cleanup(func() { srv.CloseClientConnections(); srv.Close() })
+	for _, concurrency := range []int{1, 3, 16} {
+		o := PaceOptions{Rate: 3000, Duration: 200 * time.Millisecond, Concurrency: concurrency, MaxStartDelay: 5 * time.Millisecond}
+		s, err := pacedTestRunner(t, concurrency).RunPaced(context.Background(), srv.URL, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		checkPaceConservation(t, s)
+		if s.Planned != 600 || s.Started == 0 || (concurrency == 1 && s.BusyMissed == 0) {
+			t.Fatalf("concurrency %d: %+v", concurrency, s)
+		}
+	}
+}
+
+func TestPacedCancelWhileLanesWaitAndPark(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) }))
+	t.Cleanup(func() { srv.CloseClientConnections(); srv.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Millisecond)
+	defer cancel()
+	o := PaceOptions{Rate: 20, Duration: time.Second, Concurrency: 8, MaxStartDelay: 50 * time.Millisecond}
+	s, err := pacedTestRunner(t, 8).RunPaced(ctx, srv.URL, o)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v", err)
+	}
+	checkPaceConservation(t, s)
+	if s.Planned != 20 || s.CanceledMissed == 0 || s.Started == 0 || !s.Canceled {
+		t.Fatalf("cancel did not release waiting lanes: %+v", s)
+	}
+}
