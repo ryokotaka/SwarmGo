@@ -60,4 +60,4 @@ python3 benchmarks/rate/ladder.py --tool wrk2 --rate 200000 --out wrk2-200k
 
 Each run uses one tool at one rate and needs a new `--out` name. `results/<out>/results.json` holds the settings, file hashes, five-second target and container CPU samples, the verdict and the tool's native report.
 
-`--profile cpu` or `--profile trace` (SwarmGo only) also writes a CPU profile of the run, or a two-second Go execution trace from 20 seconds in, to the same directory. Profiling costs CPU, so a profiled run is a diagnostic, not a result.
+`--profile cpu` or `--profile trace` (SwarmGo only) also writes a CPU profile of the run, or a one-second Go execution trace from 20 seconds in, to the same directory. Profiling costs CPU, so a profiled run is a diagnostic, not a result.
