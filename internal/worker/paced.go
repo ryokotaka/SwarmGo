@@ -87,9 +87,10 @@ const (
 
 // RunPaced starts at t=0, then at k/Rate while t < Duration: the plan contains
 // ceil(Rate*Duration) requests. It never queues behind occupied execution lanes.
-// Each lane claims the next slot itself, at most min(MaxStartDelay, 1 ms) before
-// it is due, and sends it when due. A slot that comes due more than that
-// quantum before any lane is free is missed as busy; one whose free lane starts
+// Each lane claims the next slot itself, at most min(MaxStartDelay, 1 ms, 250 µs)
+// before it is due, and sends it when due. A slot that comes due more than the
+// quantum min(MaxStartDelay, 1 ms) before any lane is free is missed as busy;
+// one whose free lane starts
 // later than MaxStartDelay, for example after an expired start, is missed as
 // late. The delay histogram retains the start jitter of the rest.
 // MaxStartDelay also applies to the last slot: it can begin just beyond
@@ -121,6 +122,12 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 	endAt := startAt.Add(options.Duration)
 	sched := &paceSched{planned: planned, rate: int64(options.Rate), lanes: concurrency, done: make(chan struct{})}
 	quantum := min(options.MaxStartDelay, time.Millisecond)
+	// A lane holds its slot from the claim until the response ends, so the
+	// claim window costs lane capacity: at high rates, a full quantum of idle
+	// holding per request fills every lane. Claims therefore come at most
+	// ahead early, while quantum still bounds how late a slot may start when
+	// every lane is busy before it counts as missed.
+	ahead := min(quantum, 250*time.Microsecond)
 	var wg sync.WaitGroup
 	for range concurrency {
 		wg.Add(1)
@@ -169,7 +176,7 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 					sched.park(me)
 					sleeper = sched.waiter == me
 					continue
-				case overdue < -quantum:
+				case overdue < -ahead:
 					if !free {
 						sched.running--
 					}
@@ -178,13 +185,13 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 					// most recently used connection sends next.
 					sched.sleeper, sched.waiter, sleeper, free = true, me, true, true
 					sched.Unlock()
-					paceWait(ctx, timer, startAt.Add(dueOffset-quantum))
+					paceWait(ctx, timer, startAt.Add(dueOffset-ahead))
 					sched.Lock()
 					// A finished lane may have taken over while this one slept.
 					sleeper = sched.waiter == me
 					continue
 				}
-				// Slots are claimed in order up to one quantum early. A lane
+				// Slots are claimed in order up to ahead early. A lane
 				// holding an early slot is sending by the time any later slot
 				// comes due, so claiming early does not change which slots find
 				// every lane busy. Each lane then waits on its own timer.
@@ -366,6 +373,13 @@ func paceWait(ctx context.Context, timer *time.Timer, until time.Time) bool {
 	delay := time.Until(until)
 	if delay <= 0 {
 		return true
+	}
+	if delay <= time.Millisecond {
+		// Lanes claim slots at most a quarter millisecond early, so under load nearly
+		// every wait is this short. Sleeping skips the timer channel and the
+		// select; cancellation is checked when the sleep ends.
+		time.Sleep(delay)
+		return ctx.Err() == nil
 	}
 	timer.Reset(delay)
 	select {
