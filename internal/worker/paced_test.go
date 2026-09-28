@@ -125,6 +125,32 @@ func TestPacedWaitsForDurationAndReusesConnection(t *testing.T) {
 	}
 }
 
+func TestPacedCatchUpStartsBusySlotsLate(t *testing.T) {
+	// Each response takes 30 ms against 20 ms slots on one lane, so every slot
+	// after the first comes due while the lane is busy. Without catch-up those
+	// slots are missed as busy; with it they start late, 10 ms later per slot,
+	// which stays within MaxStartDelay for this 10-slot plan.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(30 * time.Millisecond)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(func() { srv.CloseClientConnections(); srv.Close() })
+	for _, catchUp := range []bool{false, true} {
+		o := PaceOptions{Rate: 50, Duration: 200 * time.Millisecond, Concurrency: 1, MaxStartDelay: 150 * time.Millisecond, CatchUp: catchUp}
+		s, err := pacedTestRunner(t, 1).RunPaced(context.Background(), srv.URL, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		checkPaceConservation(t, s)
+		if !catchUp && (s.BusyMissed == 0 || s.Started == s.Planned) {
+			t.Fatalf("without catch-up, busy slots were not missed: %+v", s)
+		}
+		if catchUp && (s.Planned != 10 || s.Started != 10 || s.Missed != 0 || s.StartDelayP99US < 50000) {
+			t.Fatalf("catch-up did not start busy slots late: %+v", s)
+		}
+	}
+}
+
 func TestPacedBusyLanesDoNotQueueAndDrainStartedBody(t *testing.T) {
 	entered := make(chan struct{}, 1)
 	release := make(chan struct{})

@@ -21,6 +21,10 @@ type PaceOptions struct {
 	Request        RequestOptions
 	StartAt        time.Time
 	ExpectedStatus int // Zero retains the usual HTTP status < 400 rule.
+	// CatchUp starts a slot that comes due while every lane is busy as soon
+	// as a lane frees, provided that is within MaxStartDelay, instead of
+	// missing it as busy. Later slots are still missed as late.
+	CatchUp bool
 }
 
 // PaceWindow attributes every result to its planned start, even if its response
@@ -86,13 +90,16 @@ const (
 )
 
 // RunPaced starts at t=0, then at k/Rate while t < Duration: the plan contains
-// ceil(Rate*Duration) requests. It never queues behind occupied execution lanes.
+// ceil(Rate*Duration) requests. Unless CatchUp is set, it never waits for an
+// occupied execution lane.
 // Each lane claims the next slot itself, at most min(MaxStartDelay, 1 ms, 250 µs)
 // before it is due, and sends it when due. A slot that comes due more than the
 // quantum min(MaxStartDelay, 1 ms) before any lane is free is missed as busy;
 // one whose free lane starts
 // later than MaxStartDelay, for example after an expired start, is missed as
-// late. The delay histogram retains the start jitter of the rest.
+// late. With CatchUp, busy slots are not missed: the next free lane starts the
+// oldest due slot, and only slots later than MaxStartDelay are missed as late.
+// The delay histogram retains the start jitter of the rest.
 // MaxStartDelay also applies to the last slot: it can begin just beyond
 // Duration but creates no new scheduled slots.
 // The function waits until the scheduled end and all started responses finish.
@@ -158,7 +165,7 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 				dueOffset := paceOffset(ticket, sched.rate)
 				overdue := time.Since(startAt) - dueOffset
 				switch {
-				case overdue > quantum && !free && sched.running == sched.lanes:
+				case !options.CatchUp && overdue > quantum && !free && sched.running == sched.lanes:
 					// Every lane, this one included, was sending when these
 					// slots came due. They are missed rather than started late.
 					end := min(planned, paceDueIndex(time.Since(startAt)-quantum, sched.rate)+1)

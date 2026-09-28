@@ -91,9 +91,14 @@ p.add_argument('--out', help='New directory name under results/')
 p.add_argument('--profile', choices=['cpu', 'trace'],
                help='SwarmGo only: record a CPU profile of the whole run, or a 1-second execution trace '
                     '20 seconds in, to results/<out>/. Profiling costs CPU, so profiled runs are diagnostics, not results.')
+p.add_argument('--catch-up', action='store_true',
+               help='SwarmGo only: pass -catch-up, so due requests start late (up to -max-start-delay) '
+                    'when every connection is busy instead of being missed.')
 a = p.parse_args()
 if a.profile and a.tool != 'swarmgo':
     p.error('--profile applies to --tool swarmgo only')
+if a.catch_up and a.tool != 'swarmgo':
+    p.error('--catch-up applies to --tool swarmgo only')
 if a.prepare:
     prepare(Docker())
     sys.exit(0)
@@ -131,7 +136,7 @@ created, proc = [], None
 manifest = {
     'tool': a.tool, 'requested_rps': a.rate, 'measured_seconds': a.seconds, 'warmup_seconds': a.warmup,
     'native_duration_seconds': duration, 'concurrency': a.concurrency, 'tolerance': a.tolerance,
-    'cpusets': {'client': a.client_cpus, 'target': a.target_cpus}, 'wrk2_threads': threads, 'profile': a.profile,
+    'cpusets': {'client': a.client_cpus, 'target': a.target_cpus}, 'wrk2_threads': threads, 'profile': a.profile, 'swarmgo_catch_up': a.catch_up,
     'generator_memory_bytes': 6 * 1024**3, 'target_memory_bytes': 512 * 1024**2, 'image': IMAGE,
     'target': 'fasthttp HTTP/1.1; validates 1 KiB POST body; 1 KiB response; no delay',
     'swarmgo_source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT.parents[1], text=True).strip(),
@@ -202,7 +207,7 @@ try:
                    '-header', headers[0], '-header', headers[1], '-rate', str(a.rate), '-c', str(a.concurrency),
                    '-probe-url', f'http://{address}:8080/stats', '-probe-rate', '1', '-probe-c', '1',
                    '-baseline', '1s', '-spike', f'{duration}s', '-recovery', '2s', '-recovery-window', '1s',
-                   '-output', '/results/native.json']
+                   '-output', '/results/native.json'] + (['-catch-up'] if a.catch_up else [])
     elif a.tool == 'wrk2':
         command = ['wrk2', f'-t{threads}', f'-c{a.concurrency}', f'-d{duration}s', f'-R{a.rate}', '--latency',
                    '-s', '/bench/wrk.lua', url]
