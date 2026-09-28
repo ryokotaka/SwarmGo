@@ -33,6 +33,7 @@ func parseResilienceOptions(args []string, output io.Writer) (resilience.Config,
 	f.DurationVar(&c.RecoveryWindow, "recovery-window", 2*time.Second, "Consecutive healthy seconds required for recovery")
 	f.DurationVar(&c.RequestTimeout, "request-timeout", 5*time.Second, "Deadline for each complete response")
 	f.DurationVar(&c.MaxStartDelay, "max-start-delay", 50*time.Millisecond, "Latest allowed request start; later requests are missed")
+	f.BoolVar(&c.CatchUp, "catch-up", false, "When every load connection is busy, start due load requests late, up to -max-start-delay, instead of missing them")
 	f.DurationVar(&c.MaxP99, "max-p99", 500*time.Millisecond, "Maximum ordinary-request p99 in each one-second cohort")
 	f.Float64Var(&c.MaxErrorRate, "max-error-rate", .01, "Maximum ordinary-request failure fraction in each second")
 	path := f.String("output", "resilience.json", "JSON result file")

@@ -60,4 +60,6 @@ python3 benchmarks/rate/ladder.py --tool wrk2 --rate 200000 --out wrk2-200k
 
 Each run uses one tool at one rate and needs a new `--out` name. `results/<out>/results.json` holds the settings, file hashes, five-second target and container CPU samples, the verdict and the tool's native report.
 
+By default SwarmGo misses a request that comes due while all 1,024 connections are busy rather than sending it late. `--catch-up` passes SwarmGo's `-catch-up`, which starts such requests as soon as a connection frees, within `-max-start-delay` (50 ms by default). wrk2 likewise sends late requests, without such a limit. The setting is recorded in the manifest as `swarmgo_catch_up`.
+
 `--profile cpu` or `--profile trace` (SwarmGo only) also writes a CPU profile of the run, or a one-second Go execution trace from 20 seconds in, to the same directory. Profiling costs CPU, so a profiled run is a diagnostic, not a result.

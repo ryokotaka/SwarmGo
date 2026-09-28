@@ -19,6 +19,8 @@ type Config struct {
 	Baseline, Spike, Recovery, RecoveryWindow      time.Duration
 	RequestTimeout, MaxStartDelay, MaxP99          time.Duration
 	MaxErrorRate                                   float64
+	// CatchUp applies worker.PaceOptions.CatchUp to the load stream only.
+	CatchUp bool
 }
 
 func (c Config) Validate() error {
@@ -85,6 +87,7 @@ type Settings struct {
 	MaxStartDelayUS       int64   `json:"max_start_delay_us"`
 	MaxP99US              int64   `json:"max_p99_us"`
 	MaxErrorRate          float64 `json:"max_error_rate"`
+	LoadCatchUp           bool    `json:"load_catch_up"`
 }
 
 type Phase struct {
@@ -150,7 +153,7 @@ func Run(ctx context.Context, c Config) (*Report, error) {
 	go func() {
 		sum, err := loadRunner.RunPaced(ctx, c.URL, worker.PaceOptions{
 			Rate: c.Rate, Duration: c.Spike, Concurrency: c.Concurrency,
-			Request: c.Request, MaxStartDelay: c.MaxStartDelay, StartAt: start.Add(c.Baseline),
+			Request: c.Request, MaxStartDelay: c.MaxStartDelay, StartAt: start.Add(c.Baseline), CatchUp: c.CatchUp,
 		})
 		loadDone <- outcome{sum, err, time.Now()}
 	}()
@@ -186,7 +189,7 @@ func Assess(c Config, load, probe *worker.PaceSummary) *Report {
 		TargetURL: reportURL(c.URL), ProbeURL: reportURL(c.ProbeURL), LoadMethod: c.Request.Method, ProbeMethod: c.ProbeRequest.Method,
 		LoadRate: c.Rate, LoadConcurrency: c.Concurrency, ProbeRate: c.ProbeRate, ProbeConcurrency: c.ProbeConcurrency, ProbeStatus: c.ProbeStatus,
 		BaselineSeconds: c.Baseline.Seconds(), SpikeSeconds: c.Spike.Seconds(), RecoverySeconds: c.Recovery.Seconds(), RecoveryWindowSeconds: c.RecoveryWindow.Seconds(),
-		RequestTimeoutSeconds: c.RequestTimeout.Seconds(), MaxStartDelayUS: c.MaxStartDelay.Microseconds(), MaxP99US: c.MaxP99.Microseconds(), MaxErrorRate: c.MaxErrorRate,
+		RequestTimeoutSeconds: c.RequestTimeout.Seconds(), MaxStartDelayUS: c.MaxStartDelay.Microseconds(), MaxP99US: c.MaxP99.Microseconds(), MaxErrorRate: c.MaxErrorRate, LoadCatchUp: c.CatchUp,
 	}
 	if report.Settings.LoadMethod == "" {
 		report.Settings.LoadMethod = "GET"

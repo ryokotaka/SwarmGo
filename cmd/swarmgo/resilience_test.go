@@ -58,3 +58,18 @@ func TestProbeOptionsAreIndependent(t *testing.T) {
 		t.Fatalf("requests mixed: %+v", c)
 	}
 }
+
+func TestCatchUpIsOffByDefault(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want bool
+	}{{nil, false}, {[]string{"-catch-up"}, true}} {
+		c, _, err := parseResilienceOptions(tc.args, &bytes.Buffer{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.CatchUp != tc.want {
+			t.Fatalf("args %v: CatchUp=%v", tc.args, c.CatchUp)
+		}
+	}
+}
