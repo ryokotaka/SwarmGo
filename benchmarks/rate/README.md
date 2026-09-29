@@ -4,6 +4,21 @@ Can a load generator deliver a requested request rate? This harness asks each to
 
 It compares the generators built for constant-rate (open-model) load: SwarmGo's `resilience` runner, [wrk2](https://github.com/giltene/wrk2), [vegeta](https://github.com/tsenart/vegeta), k6's `constant-arrival-rate` executor and oha's `-q`. wrk is not included: it has no rate control.
 
+## Result on Apple M4
+
+Highest rate held in three 60-second runs, all tools in one session ([full record](recorded-m4-final/)):
+
+| Tool | Confirmed rate |
+| --- | ---: |
+| wrk2 | 650k |
+| SwarmGo, `--catch-up` | 550k |
+| oha | 450k |
+| SwarmGo, default | 400k |
+| vegeta | 100k |
+| k6 | none (not 100k) |
+
+The other `recorded-m4-*` directories track SwarmGo's constant-rate engine across separate sessions; use the full record above to compare tools.
+
 ## Verdict
 
 A run **held** its rate when, over the measured window:
