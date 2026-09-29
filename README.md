@@ -23,6 +23,7 @@ SwarmGo is an HTTP load-testing tool. You start a controller and one or more wor
 </a>
 
 - A single worker sent 640k POSTs per second in this test, about 6% behind wrk and four times k6.
+- At a fixed request rate, `swarmgo resilience -catch-up` held 550k POSTs per second, second to wrk2 (650k) and ahead of oha (450k), vegeta and k6.
 - Workers can run on as many machines as you like. The controller starts them together and combines their results.
 - `swarmgo resilience` sends a timed traffic spike and measures ordinary requests while it runs.
 - `swarmgo run` writes a JSON report and exits non-zero on failed requests, timeouts or a lost worker, so it can gate a CI pipeline.
@@ -79,7 +80,7 @@ The report contains request counts, overall RPS, and each worker's P50/P90/P99 l
 
 ## Traffic spikes and recovery
 
-`swarmgo resilience` sends a timed load spike and keeps sending ordinary requests alongside it, recording their latency, failures and recovery time. Requests it could not start on schedule are counted too, so a slow target cannot hide its latency by holding up the load.
+`swarmgo resilience` sends a timed load spike and keeps sending ordinary requests alongside it, recording their latency, failures and recovery time. Requests it could not start on schedule are counted too, so a slow target cannot hide its latency by holding up the load. By default a load request that comes due while every connection is busy is counted as missed; with `-catch-up` it is sent as soon as a connection frees, up to `-max-start-delay` late.
 
 In the included example API, limiting how many spike requests are admitted brought the worst one-second p99 of ordinary requests during the spike down from 3.51 s to 92 ms.
 
@@ -106,6 +107,7 @@ Rates are counted at the target, which validates every POST body. Each recording
 | Test | SwarmGo | Details |
 | :--- | :--- | :--- |
 | Uncapped 1 KiB POSTs, six 60-second runs | 640k POSTs/s median | [M4 re-measurement](benchmarks/throughput/rerun-m4/) |
+| Fixed rate of 1 KiB POSTs, highest rate held in three 60-second runs | 550k POSTs/s with `-catch-up`, 400k by default; wrk2 650k, oha 450k | [Constant-rate comparison](benchmarks/rate/recorded-m4-final/) |
 | 200k POSTs/s requested for 5 minutes | 59.7 million successful requests, 89.7 MiB peak memory | [Sustained-load trial](benchmarks/arrival/recorded-endurance/) |
 
 In the same session, the build before the [response-header fast path](#how-it-works) reached 628k POSTs/s. The five-minute trial predates it. Earlier throughput recordings are in [benchmarks/throughput](benchmarks/throughput/).
@@ -120,6 +122,8 @@ In the same session, the build before the [response-header fast path](#how-it-wo
 </picture>
 
 Throughput: MacBook Air with Apple M4, Docker with 10 CPUs and about 7.65 GiB, HTTP/1.1, 1 KiB request and response bodies, no rate cap. Each run had 5 seconds of warmup and 60 seconds of measurement, and all tools were measured in one session in rotating order. SwarmGo, wrk and oha used 256 connections and k6 used 64 VUs, the settings chosen in an earlier screen. Each generator had 6 GiB of memory.
+
+Fixed rate: the generator on 4 CPUs and the target on the other 6, 1,024 requests in flight for every tool, 60 seconds measured per run, all tools in one session. A rate counts as held when the target receives at least 99.9% of it with no invalid requests.
 
 Five-minute trial: a different target, 200k requests per second requested, one run per tool. SwarmGo had no HTTP failures and missed 0.48% of scheduled starts. oha hit its 6 GiB memory limit and stopped after 169 seconds.
 
