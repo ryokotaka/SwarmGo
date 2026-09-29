@@ -1,0 +1,949 @@
+{
+  "manifest": {
+    "tool": "k6",
+    "requested_rps": 100000,
+    "measured_seconds": 60,
+    "warmup_seconds": 5,
+    "native_duration_seconds": 70,
+    "concurrency": 1024,
+    "tolerance": 0.001,
+    "cpusets": {
+      "client": "0-3",
+      "target": "4-9"
+    },
+    "wrk2_threads": 4,
+    "profile": null,
+    "swarmgo_catch_up": false,
+    "generator_memory_bytes": 6442450944,
+    "target_memory_bytes": 536870912,
+    "image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "target": "fasthttp HTTP/1.1; validates 1 KiB POST body; 1 KiB response; no delay",
+    "swarmgo_source": "786d7ee665e0f54d47126fd80dd5e47a0f2f0549",
+    "swarmgo_product_sha256": "47ab4d59c919e11e36f7ee62b23e2ed794f2a9d77cc3630d755c8d7847b132e3",
+    "sha256": {
+      "throughput/target.go": "1bddeed67e0e218bd1616b08e6dcbc3268fe32e773d4e132b982048426eb91ef",
+      "throughput/body.json": "c0c5e27e598be0bc8b4d21ba2822ff62f9f13fcadf6687e8bc9f45d709243dbc",
+      "throughput/wrk.lua": "bd8135f36d8b8080b561e88d6600b51625f9e06b1a05478d0e173780ba22557f",
+      "rate/rate.k6.js": "5be52925c1cf038ff3f4fff37723debba3cccf0ec8b8501c65e8014b66824da3",
+      "rate/Dockerfile.wrk2": "f3f02f77b246ce4e87de9017d4ddfb8e2cda806f73c703507bb3554310da119f",
+      "throughput/bin/k6": "c458464bcc5e9f6e4ae9b6985286ff337cfb139a64dfe2c731a1f5d551cd601f",
+      "throughput/bin/oha": "99a790eb8c3e0feaca974bd6b32f0f8d4426a0c5b289f39e833e5b2c7529cd39",
+      "throughput/bin/swarmgo": "a3aeb166bd63481a57a34d9c911ca581911d9a540d16776aba63cf139df0d2f3",
+      "throughput/bin/target": "00e5ae4c3dd06ca4bad6f3bc19d863b8675789cf0d7a73ddde8a4603e6035b43",
+      "rate/bin/vegeta": "2355df87f054ddbee28bee0b31c741836fa35619f329f664af29fa80910420c4"
+    },
+    "versions": {
+      "wrk2": "44a94c17d8e6a0bac8559b53da76848e430cb7a7",
+      "luajit": "c6ffc141a8762b41703f9287d63d93622a13dd8f",
+      "vegeta": "12.13.0",
+      "k6": "2.3.0",
+      "oha": "1.16.0"
+    },
+    "docker": {
+      "ServerVersion": "29.2.0",
+      "KernelVersion": "6.12.67-linuxkit",
+      "NCPU": 10,
+      "MemTotal": 8217317376,
+      "Architecture": "aarch64"
+    },
+    "internal_network": true,
+    "published_ports": [],
+    "verdict_rule": "held = target-validated POSTs per second over the measured window >= requested * (1 - tolerance), with zero invalid requests in the window"
+  },
+  "result": {
+    "samples": [
+      {
+        "measurement_seconds": 5.065140461,
+        "interval_seconds": 5.065140461,
+        "wall_clock_step_seconds": 0.0006457360000000634,
+        "target_rps": 85679.16395240909,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 893237248,
+          "elapsed_seconds": 10.306910157,
+          "invalid": 0,
+          "monotonic_ns": 10698606714,
+          "peak_active_requests": 4,
+          "requests": 872302,
+          "snapshot_unix_ns": 1790700041905052125
+        },
+        "generator": {
+          "memory_peak_bytes": 563863552,
+          "usage_usec": 38227430,
+          "user_usec": 32449483,
+          "system_usec": 5777947,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 41525248,
+          "usage_usec": 19240785,
+          "user_usec": 6582885,
+          "system_usec": 12657899,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 10.245377338,
+        "interval_seconds": 5.180236877,
+        "wall_clock_step_seconds": 4.1700000075195476e-07,
+        "target_rps": 87945.0130982881,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 1359747072,
+          "elapsed_seconds": 15.487135326,
+          "invalid": 0,
+          "monotonic_ns": 15878843591,
+          "peak_active_requests": 4,
+          "requests": 1327878,
+          "snapshot_unix_ns": 1790700047085289419
+        },
+        "generator": {
+          "memory_peak_bytes": 722608128,
+          "usage_usec": 56911300,
+          "user_usec": 48116159,
+          "system_usec": 8795141,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 41525248,
+          "usage_usec": 29099407,
+          "user_usec": 10079184,
+          "system_usec": 19020222,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 15.452267341,
+        "interval_seconds": 5.206890003,
+        "wall_clock_step_seconds": -1.1249999998241833e-06,
+        "target_rps": 89750.31155464184,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 1838282752,
+          "elapsed_seconds": 20.694044537,
+          "invalid": 0,
+          "monotonic_ns": 21085733594,
+          "peak_active_requests": 4,
+          "requests": 1795198,
+          "snapshot_unix_ns": 1790700052292178297
+        },
+        "generator": {
+          "memory_peak_bytes": 780333056,
+          "usage_usec": 75377808,
+          "user_usec": 63479767,
+          "system_usec": 11898041,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 43417600,
+          "usage_usec": 39170850,
+          "user_usec": 13527843,
+          "system_usec": 25643007,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 20.649005135,
+        "interval_seconds": 5.196737794,
+        "wall_clock_step_seconds": 9.58000000217396e-07,
+        "target_rps": 91162.19035468235,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 2323398656,
+          "elapsed_seconds": 25.890777831,
+          "invalid": 0,
+          "monotonic_ns": 26282471388,
+          "peak_active_requests": 4,
+          "requests": 2268944,
+          "snapshot_unix_ns": 1790700057488917049
+        },
+        "generator": {
+          "memory_peak_bytes": 918089728,
+          "usage_usec": 93779766,
+          "user_usec": 78810755,
+          "system_usec": 14969010,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 43417600,
+          "usage_usec": 49352840,
+          "user_usec": 16944749,
+          "system_usec": 32408090,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 25.84240847,
+        "interval_seconds": 5.193403335,
+        "wall_clock_step_seconds": 2.5099999945155105e-07,
+        "target_rps": 91929.69796558272,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 2812284928,
+          "elapsed_seconds": 31.084178084,
+          "invalid": 0,
+          "monotonic_ns": 31475874723,
+          "peak_active_requests": 4,
+          "requests": 2746372,
+          "snapshot_unix_ns": 1790700062682320635
+        },
+        "generator": {
+          "memory_peak_bytes": 1130414080,
+          "usage_usec": 112252527,
+          "user_usec": 94188466,
+          "system_usec": 18064061,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 43417600,
+          "usage_usec": 59591234,
+          "user_usec": 20496686,
+          "system_usec": 39094547,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 31.023674223,
+        "interval_seconds": 5.181265753,
+        "wall_clock_step_seconds": -2.92000000179371e-07,
+        "target_rps": 92942.15409066279,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 3305400320,
+          "elapsed_seconds": 36.265445336,
+          "invalid": 0,
+          "monotonic_ns": 36657140476,
+          "peak_active_requests": 4,
+          "requests": 3227930,
+          "snapshot_unix_ns": 1790700067863586096
+        },
+        "generator": {
+          "memory_peak_bytes": 1130414080,
+          "usage_usec": 130524521,
+          "user_usec": 109298152,
+          "system_usec": 21226368,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 43896832,
+          "usage_usec": 69924961,
+          "user_usec": 24102606,
+          "system_usec": 45822355,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 36.201589808,
+        "interval_seconds": 5.177915585,
+        "wall_clock_step_seconds": 0.0001928610000003772,
+        "target_rps": 92822.48659911283,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 3797562368,
+          "elapsed_seconds": 41.443557158,
+          "invalid": 0,
+          "monotonic_ns": 41835056061,
+          "peak_active_requests": 4,
+          "requests": 3708557,
+          "snapshot_unix_ns": 1790700073041694542
+        },
+        "generator": {
+          "memory_peak_bytes": 1260654592,
+          "usage_usec": 148812657,
+          "user_usec": 124387486,
+          "system_usec": 24425171,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 43896832,
+          "usage_usec": 80359570,
+          "user_usec": 27702585,
+          "system_usec": 52656985,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 41.408490269,
+        "interval_seconds": 5.206900461,
+        "wall_clock_step_seconds": -4.5799999970341787e-07,
+        "target_rps": 93321.16172366368,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 4295138304,
+          "elapsed_seconds": 46.650460327,
+          "invalid": 0,
+          "monotonic_ns": 47041956522,
+          "peak_active_requests": 4,
+          "requests": 4194471,
+          "snapshot_unix_ns": 1790700078248594545
+        },
+        "generator": {
+          "memory_peak_bytes": 1416781824,
+          "usage_usec": 167177992,
+          "user_usec": 139522791,
+          "system_usec": 27655201,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 43896832,
+          "usage_usec": 90805710,
+          "user_usec": 31341146,
+          "system_usec": 59464563,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 46.595396563,
+        "interval_seconds": 5.186906294,
+        "wall_clock_step_seconds": 4.099999983964153e-08,
+        "target_rps": 94263.31849595584,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 4795807744,
+          "elapsed_seconds": 51.837367038,
+          "invalid": 0,
+          "monotonic_ns": 52228862816,
+          "peak_active_requests": 4,
+          "requests": 4683406,
+          "snapshot_unix_ns": 1790700083435500880
+        },
+        "generator": {
+          "memory_peak_bytes": 1416781824,
+          "usage_usec": 185473579,
+          "user_usec": 154694204,
+          "system_usec": 30779375,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 43896832,
+          "usage_usec": 101334435,
+          "user_usec": 34912038,
+          "system_usec": 66422396,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 51.783847274,
+        "interval_seconds": 5.188450711,
+        "wall_clock_step_seconds": 2.500000002569891e-07,
+        "target_rps": 93772.88657064782,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 5294020608,
+          "elapsed_seconds": 57.025813332,
+          "invalid": 0,
+          "monotonic_ns": 57417313527,
+          "peak_active_requests": 5,
+          "requests": 5169942,
+          "snapshot_unix_ns": 1790700088623951841
+        },
+        "generator": {
+          "memory_peak_bytes": 1809588224,
+          "usage_usec": 203777895,
+          "user_usec": 169770372,
+          "system_usec": 34007522,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 43896832,
+          "usage_usec": 111858884,
+          "user_usec": 38435438,
+          "system_usec": 73423445,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 56.981616276,
+        "interval_seconds": 5.197769002,
+        "wall_clock_step_seconds": 4.19999999223819e-08,
+        "target_rps": 94867.0477295674,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 5798951936,
+          "elapsed_seconds": 62.223587834,
+          "invalid": 0,
+          "monotonic_ns": 62615082529,
+          "peak_active_requests": 5,
+          "requests": 5663039,
+          "snapshot_unix_ns": 1790700093821720885
+        },
+        "generator": {
+          "memory_peak_bytes": 1809588224,
+          "usage_usec": 222185524,
+          "user_usec": 184969708,
+          "system_usec": 37215815,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 45400064,
+          "usage_usec": 122516204,
+          "user_usec": 42066346,
+          "system_usec": 80449857,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      },
+      {
+        "measurement_seconds": 60.069129403,
+        "interval_seconds": 3.087513127,
+        "wall_clock_step_seconds": -1.2667000000021744e-05,
+        "target_rps": 95710.03841759537,
+        "server": {
+          "active_requests": 0,
+          "body_bytes": 6101550080,
+          "elapsed_seconds": 65.311096086,
+          "invalid": 0,
+          "monotonic_ns": 65702595656,
+          "peak_active_requests": 5,
+          "requests": 5958545,
+          "snapshot_unix_ns": 1790700096909221345
+        },
+        "generator": {
+          "memory_peak_bytes": 1809588224,
+          "usage_usec": 233054644,
+          "user_usec": 193908012,
+          "system_usec": 39146632,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "target_container": {
+          "memory_peak_bytes": 45400064,
+          "usage_usec": 128873237,
+          "user_usec": 44190817,
+          "system_usec": 84682420,
+          "nice_usec": 0,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0,
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    ],
+    "command": [
+      "/bench/bin/k6",
+      "run",
+      "--quiet",
+      "/rate/rate.k6.js"
+    ],
+    "environment": {
+      "TARGET": "http://172.18.0.2:8080/work",
+      "RATE": "100000",
+      "SECONDS": "70",
+      "CONCURRENCY": "1024",
+      "SUMMARY": "/results/native.json",
+      "K6_NO_USAGE_REPORT": "true"
+    },
+    "first_activity_process_seconds": 0.4031755,
+    "measurement_start": {
+      "active_requests": 0,
+      "body_bytes": 448844800,
+      "elapsed_seconds": 5.238970794,
+      "invalid": 0,
+      "monotonic_ns": 5633466253,
+      "peak_active_requests": 4,
+      "requests": 438325,
+      "snapshot_unix_ns": 1790700036839265928
+    },
+    "measurement_seconds": 60.069129403,
+    "target_posts": 5520220,
+    "delivered_rps": 91897.78601526239,
+    "delivered_ratio": 0.918977860152624,
+    "invalid_in_window": 0,
+    "min_interval_ratio": 0.8567916395240909,
+    "max_wall_clock_step_seconds": 0.0006457360000000634,
+    "completed_observation": true,
+    "held": false,
+    "exit_code": 0,
+    "process_seconds": 72.167406459,
+    "generator_final": {
+      "memory_peak_bytes": 2150313984,
+      "usage_usec": 251109973,
+      "user_usec": 209119848,
+      "system_usec": 41990124,
+      "nice_usec": 0,
+      "nr_periods": 0,
+      "nr_throttled": 0,
+      "throttled_usec": 0,
+      "nr_bursts": 0,
+      "burst_usec": 0,
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+    },
+    "final_target": {
+      "active_requests": 0,
+      "body_bytes": 6543306752,
+      "elapsed_seconds": 69.907988949,
+      "invalid": 0,
+      "monotonic_ns": 72442533283,
+      "peak_active_requests": 5,
+      "requests": 6389948,
+      "snapshot_unix_ns": 1790700103649190417
+    },
+    "target_valid": true,
+    "native": {
+      "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": [],
+        "checks": []
+      },
+      "options": {
+        "noColor": false,
+        "summaryTrendStats": [
+          "avg",
+          "min",
+          "med",
+          "max",
+          "p(90)",
+          "p(95)"
+        ],
+        "summaryTimeUnit": ""
+      },
+      "state": {
+        "isStdOutTTY": false,
+        "isStdErrTTY": false,
+        "testRunDurationMs": 70002.569282
+      },
+      "metrics": {
+        "http_req_receiving": {
+          "type": "trend",
+          "contains": "time",
+          "values": {
+            "avg": 0.02250406914020368,
+            "min": 0.001625,
+            "med": 0.002958,
+            "max": 29.307791,
+            "p(90)": 0.004458,
+            "p(95)": 0.004917
+          }
+        },
+        "http_req_sending": {
+          "type": "trend",
+          "contains": "time",
+          "values": {
+            "p(95)": 2.791583,
+            "avg": 0.7462368282941308,
+            "min": 0.001209,
+            "med": 0.042917,
+            "max": 37.511042,
+            "p(90)": 2.493334
+          }
+        },
+        "data_sent": {
+          "contains": "data",
+          "values": {
+            "count": 7546528588,
+            "rate": 107803594.43093276
+          },
+          "type": "counter"
+        },
+        "http_req_tls_handshaking": {
+          "type": "trend",
+          "contains": "time",
+          "values": {
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0
+          }
+        },
+        "data_received": {
+          "type": "counter",
+          "contains": "data",
+          "values": {
+            "count": 7246201032,
+            "rate": 103513358.24274154
+          }
+        },
+        "iteration_duration": {
+          "values": {
+            "p(95)": 10.562027299999988,
+            "avg": 3.0461361420579958,
+            "min": 0.027083,
+            "med": 0.691958,
+            "max": 147.758667,
+            "p(90)": 8.734958
+          },
+          "type": "trend",
+          "contains": "time"
+        },
+        "http_reqs": {
+          "type": "counter",
+          "contains": "default",
+          "values": {
+            "rate": 91281.62102534527,
+            "count": 6389948
+          }
+        },
+        "iterations": {
+          "type": "counter",
+          "contains": "default",
+          "values": {
+            "count": 6389948,
+            "rate": 91281.62102534527
+          }
+        },
+        "http_req_duration{expected_response:true}": {
+          "type": "trend",
+          "contains": "time",
+          "values": {
+            "p(90)": 8.615583,
+            "p(95)": 10.35120865,
+            "avg": 2.9613933442754727,
+            "min": 0.015625,
+            "med": 0.670584,
+            "max": 54.8625
+          }
+        },
+        "vus": {
+          "contains": "default",
+          "values": {
+            "value": 15,
+            "min": 0,
+            "max": 977
+          },
+          "type": "gauge"
+        },
+        "http_req_duration": {
+          "type": "trend",
+          "contains": "time",
+          "values": {
+            "avg": 2.9613933442754727,
+            "min": 0.015625,
+            "med": 0.670584,
+            "max": 54.8625,
+            "p(90)": 8.615583,
+            "p(95)": 10.35120865
+          }
+        },
+        "dropped_iterations": {
+          "type": "counter",
+          "contains": "default",
+          "values": {
+            "count": 610089,
+            "rate": 8715.237258539799
+          }
+        },
+        "http_req_waiting": {
+          "type": "trend",
+          "contains": "time",
+          "values": {
+            "p(95)": 8.528791,
+            "avg": 2.1926524468416653,
+            "min": 0.010416,
+            "med": 0.191125,
+            "max": 51.979,
+            "p(90)": 7.050959
+          }
+        },
+        "vus_max": {
+          "type": "gauge",
+          "contains": "default",
+          "values": {
+            "value": 1024,
+            "min": 1024,
+            "max": 1024
+          }
+        },
+        "http_req_blocked": {
+          "type": "trend",
+          "contains": "time",
+          "values": {
+            "min": 0.000291,
+            "med": 0.000792,
+            "max": 112.704792,
+            "p(90)": 0.001125,
+            "p(95)": 0.00125,
+            "avg": 0.0091625001742562
+          }
+        },
+        "http_req_failed": {
+          "type": "rate",
+          "contains": "default",
+          "values": {
+            "rate": 0,
+            "passes": 0,
+            "fails": 6389948
+          }
+        },
+        "http_req_connecting": {
+          "type": "trend",
+          "contains": "time",
+          "values": {
+            "med": 0,
+            "max": 103.146541,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.004602565272518654,
+            "min": 0
+          }
+        }
+      }
+    }
+  }
+}
