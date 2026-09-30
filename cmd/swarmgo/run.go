@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ryokotaka/SwarmGo/internal/master"
+	"github.com/ryokotaka/SwarmGo/internal/scenario"
 	"github.com/ryokotaka/SwarmGo/internal/worker"
 	"github.com/ryokotaka/SwarmGo/proto"
 	"google.golang.org/grpc"
@@ -30,6 +31,9 @@ type runOptions struct {
 	timeout       time.Duration
 	output        string
 	command       *proto.StartCmd
+	config        string // Scenario file, when the run uses one.
+	spec          *scenario.Spec
+	print         int
 }
 
 type requestCounts struct {
@@ -59,28 +63,43 @@ type workerReport struct {
 	LatencyMS    *latencyPercentiles  `json:"latency_ms"`
 	LatencyUS    *latencyMicroseconds `json:"latency_us"`
 	ErrorReasons map[string]int       `json:"error_reasons"`
+	ByRequest    []requestReport      `json:"by_request,omitempty"`
+}
+
+// requestReport is one scenario request's share. Latency appears per worker
+// only, like the run's own percentiles.
+type requestReport struct {
+	Name        string               `json:"name"`
+	Weight      int                  `json:"weight"`
+	Completed   int64                `json:"completed"`
+	Succeeded   int64                `json:"succeeded"`
+	Failed      int64                `json:"failed"`
+	StatusCodes map[int]int64        `json:"status_codes"`
+	LatencyUS   *latencyMicroseconds `json:"latency_us,omitempty"`
 }
 
 // Percentiles remain per worker. ControllerRPS covers dispatch through the last
 // final report; it is not the sum of independently timed worker rates.
 type runReport struct {
-	SchemaVersion        int            `json:"schema_version"`
-	Status               string         `json:"status"`
-	Success              bool           `json:"success"`
-	Complete             bool           `json:"complete"`
-	Error                string         `json:"error,omitempty"`
-	TargetURL            string         `json:"target_url"`
-	Method               string         `json:"method"`
-	ExpectedWorkers      int            `json:"expected_workers"`
-	RequestsPerWorker    int32          `json:"requests_per_worker"`
-	ConcurrencyPerWorker int32          `json:"concurrency_per_worker"`
-	StartedAt            *time.Time     `json:"started_at"`
-	FinishedAt           time.Time      `json:"finished_at"`
-	ElapsedSeconds       float64        `json:"elapsed_seconds"`
-	ControllerRPS        float64        `json:"controller_rps"`
-	Requests             requestCounts  `json:"requests"`
-	Workers              []workerReport `json:"workers"`
-	ErrorReasons         map[string]int `json:"error_reasons"`
+	SchemaVersion        int             `json:"schema_version"`
+	Status               string          `json:"status"`
+	Success              bool            `json:"success"`
+	Complete             bool            `json:"complete"`
+	Error                string          `json:"error,omitempty"`
+	TargetURL            string          `json:"target_url"`
+	Method               string          `json:"method"` // "scenario" with Config.
+	Config               string          `json:"config,omitempty"`
+	ExpectedWorkers      int             `json:"expected_workers"`
+	RequestsPerWorker    int32           `json:"requests_per_worker"`
+	ConcurrencyPerWorker int32           `json:"concurrency_per_worker"`
+	StartedAt            *time.Time      `json:"started_at"`
+	FinishedAt           time.Time       `json:"finished_at"`
+	ElapsedSeconds       float64         `json:"elapsed_seconds"`
+	ControllerRPS        float64         `json:"controller_rps"`
+	Requests             requestCounts   `json:"requests"`
+	Workers              []workerReport  `json:"workers"`
+	ErrorReasons         map[string]int  `json:"error_reasons"`
+	ByRequest            []requestReport `json:"by_request,omitempty"` // Scenario runs, in config order.
 }
 
 func runCommand(args []string) int {
@@ -97,6 +116,13 @@ func runCommandContext(ctx context.Context, args []string, stderr io.Writer) int
 	if err != nil {
 		fmt.Fprintf(stderr, "run: %v\n", err)
 		return 2
+	}
+	if options.print > 0 {
+		if err := printRequests(stdout, options.spec, options.workers, options.print); err != nil {
+			fmt.Fprintf(stderr, "run: %v\n", err)
+			return 2
+		}
+		return 0
 	}
 	// Check the output directory before sending any traffic. Rename the completed
 	// report into place so a failed write does not truncate an earlier result.
@@ -150,11 +176,25 @@ func parseRunOptions(args []string, stderr io.Writer) (runOptions, error) {
 	requests := flags.Int("n", 100, "Requests per worker")
 	concurrency := flags.Int("c", 1, "Concurrency per worker")
 	requestFlags := addRequestFlags(flags)
+	configFlags := addConfigFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return runOptions{}, err
 	}
 	if flags.NArg() != 0 {
 		return runOptions{}, fmt.Errorf("unexpected positional arguments: %v", flags.Args())
+	}
+	spec, load, err := configFlags.config(flags, "url", "method", "header", "body-file")
+	if err != nil {
+		return runOptions{}, err
+	}
+	if load.Requests > 0 && !flagSet(flags, "n") {
+		*requests = load.Requests
+	}
+	if load.Concurrency > 0 && !flagSet(flags, "c") {
+		*concurrency = load.Concurrency
+	}
+	if load.Rate > 0 {
+		fmt.Fprintln(stderr, "run: load.rate is ignored; run sends as fast as -c allows (use swarmgo resilience for a fixed rate)")
 	}
 	portNumber, err := strconv.Atoi(*port)
 	if err != nil || portNumber < 1 || portNumber > 65535 {
@@ -169,6 +209,16 @@ func parseRunOptions(args []string, stderr io.Writer) (runOptions, error) {
 	if *output == "" {
 		return runOptions{}, fmt.Errorf("output path must not be empty")
 	}
+	options := runOptions{
+		port: *port, workers: *workers, workerTimeout: *workerTimeout, timeout: *timeout, output: *output,
+		config: configFlags.path, spec: spec, print: configFlags.print,
+		command: &proto.StartCmd{TotalRequests: int32(*requests), Concurrency: int32(*concurrency)},
+	}
+	if spec != nil {
+		options.command.TargetUrl = spec.Target
+		options.command.Scenario, err = encodeScenario(spec)
+		return options, err
+	}
 	if err := worker.ValidateTargetURL(*target); err != nil {
 		return runOptions{}, err
 	}
@@ -176,13 +226,9 @@ func parseRunOptions(args []string, stderr io.Writer) (runOptions, error) {
 	if err != nil {
 		return runOptions{}, err
 	}
-	return runOptions{
-		port: *port, workers: *workers, workerTimeout: *workerTimeout, timeout: *timeout, output: *output,
-		command: &proto.StartCmd{
-			TargetUrl: *target, TotalRequests: int32(*requests), Concurrency: int32(*concurrency),
-			Method: request.Method, Body: request.Body, Headers: request.Headers,
-		},
-	}, nil
+	options.command.TargetUrl = *target
+	options.command.Method, options.command.Body, options.command.Headers = request.Method, request.Body, request.Headers
+	return options, nil
 }
 
 func prepareReportFile(path string) (*os.File, error) {
@@ -225,14 +271,18 @@ waiting:
 		}
 		if len(server.ListWorkers()) >= options.workers {
 			runCtx, cancelRun = context.WithTimeout(ctx, options.timeout)
-			started := make(chan bool, 1)
-			go func() { started <- server.StartRunWithWorkers(options.command, options.workers) }()
+			started := make(chan error, 1)
+			go func() { started <- server.StartRunErr(options.command, options.workers) }()
 			select {
-			case ok := <-started:
-				if ok {
+			case err := <-started:
+				if err == nil {
 					break waiting
 				}
-				cancelRun() // A worker left before the atomic readiness check.
+				cancelRun()
+				if !errors.Is(err, master.ErrNotReady) {
+					return finish(err)
+				}
+				// A worker left before the atomic readiness check.
 			case <-runCtx.Done():
 				cancelRun()
 				stopRun(server, grpcServer)
@@ -332,7 +382,13 @@ func makeRunReport(options runOptions, snapshot master.RunSnapshot, runErr error
 		ExpectedWorkers: options.workers, RequestsPerWorker: options.command.TotalRequests,
 		ConcurrencyPerWorker: options.command.Concurrency, FinishedAt: time.Now().UTC(),
 		Requests: requestCounts{Expected: int64(options.workers) * int64(options.command.TotalRequests)},
-		Workers:  []workerReport{}, ErrorReasons: make(map[string]int),
+		Workers:  []workerReport{}, ErrorReasons: make(map[string]int), Config: options.config,
+	}
+	if options.spec != nil {
+		report.Method = "scenario"
+		for _, r := range options.spec.Requests {
+			report.ByRequest = append(report.ByRequest, requestReport{Name: r.Name, Weight: r.Weight, StatusCodes: make(map[int]int64)})
+		}
 	}
 	if !snapshot.StartedAt.IsZero() {
 		started := snapshot.StartedAt.UTC()
@@ -377,6 +433,27 @@ func makeRunReport(options runOptions, snapshot master.RunSnapshot, runErr error
 		}
 		if !state.Finished || participant.Requests.Completed != participant.Requests.Expected {
 			report.Complete = false
+		}
+		for i, r := range stats.Requests {
+			if i >= len(report.ByRequest) || r.Name != report.ByRequest[i].Name {
+				break // Not this run's scenario; never misattribute counts.
+			}
+			rr := requestReport{Name: r.Name, Weight: int(r.Weight), Succeeded: int64(r.SuccessCount), Failed: int64(r.FailCount), StatusCodes: make(map[int]int64, len(r.StatusCodes))}
+			rr.Completed = rr.Succeeded + rr.Failed
+			for code, n := range r.StatusCodes {
+				rr.StatusCodes[int(code)] = int64(n)
+			}
+			if l := r.LatencyUs; l != nil {
+				rr.LatencyUS = &latencyMicroseconds{l.P50, l.P90, l.P99}
+			}
+			participant.ByRequest = append(participant.ByRequest, rr)
+			total := &report.ByRequest[i]
+			total.Completed += rr.Completed
+			total.Succeeded += rr.Succeeded
+			total.Failed += rr.Failed
+			for code, n := range rr.StatusCodes {
+				total.StatusCodes[code] += n
+			}
 		}
 		report.Requests.Completed += participant.Requests.Completed
 		report.Requests.Succeeded += participant.Requests.Succeeded

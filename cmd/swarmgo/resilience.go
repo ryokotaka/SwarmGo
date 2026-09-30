@@ -38,16 +38,38 @@ func parseResilienceOptions(args []string, output io.Writer) (resilience.Config,
 	f.Float64Var(&c.MaxErrorRate, "max-error-rate", .01, "Maximum ordinary-request failure fraction in each second")
 	path := f.String("output", "resilience.json", "JSON result file")
 	loadFlags, probeFlags := addRequestFlags(f), addRequestFlagsWithPrefix(f, "probe-")
+	configFlags := addConfigFlags(f)
 	if err := f.Parse(args); err != nil {
 		return c, "", err
 	}
 	if f.NArg() != 0 {
 		return c, "", fmt.Errorf("unexpected positional arguments")
 	}
+	spec, load, err := configFlags.config(f, "url", "method", "header", "body-file")
+	if err != nil {
+		return c, "", err
+	}
+	if spec != nil {
+		c.Scenario, c.URL = spec, spec.Target+"/"
+		if load.Rate > 0 && !flagSet(f, "rate") {
+			c.Rate = load.Rate
+		}
+		if load.Concurrency > 0 && !flagSet(f, "c") {
+			c.Concurrency = load.Concurrency
+		}
+		if load.Requests > 0 {
+			fmt.Fprintln(output, "resilience: load.requests is ignored; the spike lasts -spike at -rate")
+		}
+		if configFlags.print > 0 {
+			if err := printRequests(stdout, spec, 1, configFlags.print); err != nil {
+				return c, "", err
+			}
+			return c, "", errPrinted
+		}
+	}
 	if *path == "" {
 		return c, "", fmt.Errorf("output path must not be empty")
 	}
-	var err error
 	if c.Request, err = loadFlags.load(); err != nil {
 		return c, "", err
 	}
@@ -68,7 +90,7 @@ func resilienceCommand(args []string) int {
 
 func resilienceCommandContext(ctx context.Context, args []string, stderr io.Writer) int {
 	c, path, err := parseResilienceOptions(args, stderr)
-	if errors.Is(err, flag.ErrHelp) {
+	if errors.Is(err, flag.ErrHelp) || errors.Is(err, errPrinted) {
 		return 0
 	}
 	if err != nil {

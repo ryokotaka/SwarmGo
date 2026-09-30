@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/ryokotaka/SwarmGo/internal/scenario"
 	"github.com/ryokotaka/SwarmGo/internal/worker"
 )
 
@@ -21,6 +22,9 @@ type Config struct {
 	MaxErrorRate                                   float64
 	// CatchUp applies worker.PaceOptions.CatchUp to the load stream only.
 	CatchUp bool
+	// Scenario, when set, is the load traffic in place of URL and Request.
+	// The ordinary requests stay ProbeURL and ProbeRequest.
+	Scenario *scenario.Spec
 }
 
 func (c Config) Validate() error {
@@ -154,6 +158,7 @@ func Run(ctx context.Context, c Config) (*Report, error) {
 		sum, err := loadRunner.RunPaced(ctx, c.URL, worker.PaceOptions{
 			Rate: c.Rate, Duration: c.Spike, Concurrency: c.Concurrency,
 			Request: c.Request, MaxStartDelay: c.MaxStartDelay, StartAt: start.Add(c.Baseline), CatchUp: c.CatchUp,
+			Scenario: c.Scenario, Position: scenario.Position{Worker: 0, Workers: 1},
 		})
 		loadDone <- outcome{sum, err, time.Now()}
 	}()
@@ -191,7 +196,9 @@ func Assess(c Config, load, probe *worker.PaceSummary) *Report {
 		BaselineSeconds: c.Baseline.Seconds(), SpikeSeconds: c.Spike.Seconds(), RecoverySeconds: c.Recovery.Seconds(), RecoveryWindowSeconds: c.RecoveryWindow.Seconds(),
 		RequestTimeoutSeconds: c.RequestTimeout.Seconds(), MaxStartDelayUS: c.MaxStartDelay.Microseconds(), MaxP99US: c.MaxP99.Microseconds(), MaxErrorRate: c.MaxErrorRate, LoadCatchUp: c.CatchUp,
 	}
-	if report.Settings.LoadMethod == "" {
+	if c.Scenario != nil {
+		report.Settings.LoadMethod = "scenario"
+	} else if report.Settings.LoadMethod == "" {
 		report.Settings.LoadMethod = "GET"
 	}
 	if report.Settings.ProbeMethod == "" {

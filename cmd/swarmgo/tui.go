@@ -37,6 +37,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -88,6 +89,8 @@ type model struct {
 	defaultTotalRequests int                    // total requests per run (from -n)
 	defaultConcurrency   int                    // concurrency (from -c)
 	requestOptions       worker.RequestOptions
+	scenario             []byte // Encoded -config scenario; replaces requestOptions when set.
+	configPath           string
 }
 
 // --- Bubble Tea Cmd ("send one message later") ---
@@ -175,16 +178,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// User key press; Bubble Tea delivers key input as tea.KeyMsg
 		switch msg.String() {
 		case "s":
-			if m.server.StartRun(&proto.StartCmd{
+			err := m.server.StartRunErr(&proto.StartCmd{
 				TargetUrl:     m.defaultTargetURL,
 				TotalRequests: int32(m.defaultTotalRequests),
 				Concurrency:   int32(m.defaultConcurrency),
 				Method:        m.requestOptions.Method,
 				Body:          m.requestOptions.Body,
 				Headers:       m.requestOptions.Headers,
-			}) {
+				Scenario:      m.scenario,
+			}, 0)
+			if err == nil {
 				m.rpsHistory = m.rpsHistory[:0]
 				m.refreshRunState()
+			} else if !errors.Is(err, master.ErrNotReady) {
+				m.logs = append(m.logs, "Not started: "+err.Error())
+				if len(m.logs) > maxLogLines {
+					m.logs = m.logs[len(m.logs)-maxLogLines:]
+				}
 			}
 			return m, nil
 		case "q", "ctrl+c":
@@ -299,8 +309,12 @@ func (m model) View() string {
 	}
 	logBox := boxStyle.Render(logContent)
 
-	footer := footerStyle.Render(fmt.Sprintf("Target: %s %s (n=%d, c=%d) | Press 's' to start, 'q' to quit",
-		m.requestOptions.Method, m.defaultTargetURL, m.defaultTotalRequests, m.defaultConcurrency))
+	target := m.requestOptions.Method + " " + m.defaultTargetURL
+	if m.configPath != "" {
+		target = "scenario " + m.configPath + " → " + m.defaultTargetURL
+	}
+	footer := footerStyle.Render(fmt.Sprintf("Target: %s (n=%d, c=%d) | Press 's' to start, 'q' to quit",
+		target, m.defaultTotalRequests, m.defaultConcurrency))
 
 	// Return the full screen as one string; Bubble Tea outputs it to the terminal
 	return header + "\n" + mainBox + "\n" + logBox + "\n" + footer
