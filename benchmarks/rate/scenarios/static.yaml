@@ -1,0 +1,11 @@
+# The harness's usual POST as a one-request scenario. The harness replaces
+# TARGET_ADDRESS and writes the result beside the run's records.
+target: http://TARGET_ADDRESS:8080
+requests:
+  - name: work
+    method: POST
+    path: /work
+    headers:
+      Content-Type: application/json
+      Accept-Encoding: identity
+    body_file: /bench/body.json
