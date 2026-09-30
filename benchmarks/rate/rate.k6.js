@@ -7,6 +7,7 @@ const concurrency = Number(__ENV.CONCURRENCY);
 
 export const options = {
   discardResponseBodies: true,
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   scenarios: {
     load: {
       executor: 'constant-arrival-rate', rate: Number(__ENV.RATE), timeUnit: '1s',

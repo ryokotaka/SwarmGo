@@ -33,9 +33,15 @@ func checkPaceConservation(t *testing.T, s *PaceSummary) {
 		if w.Planned != w.Started+w.Missed || w.Started != w.Completed || w.Completed != w.Succeeded+w.Failed || w.Missed != w.BusyMissed+w.LateMissed+w.CanceledMissed {
 			t.Fatalf("inconsistent window: %+v", w)
 		}
+		if w.LatencyP50US > w.LatencyP95US || w.LatencyP95US > w.LatencyP99US {
+			t.Fatalf("window percentiles out of order: %+v", w)
+		}
 		planned += w.Planned
 		completed += w.Completed
 		missed += w.Missed
+	}
+	if s.LatencyP50US > s.LatencyP95US || s.LatencyP95US > s.LatencyP99US || (s.Completed > 0 && s.LatencyP50US == 0 && s.LatencyP99US > 0) {
+		t.Fatalf("summary percentiles out of order or missing: %+v", s)
 	}
 	if planned != s.Planned || completed != s.Completed || missed != s.Missed {
 		t.Fatalf("window totals differ from summary: %+v", s)
