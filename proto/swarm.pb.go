@@ -237,6 +237,13 @@ type StartCmd struct {
 	Method        string                 `protobuf:"bytes,4,opt,name=method,proto3" json:"method,omitempty"`                                     // Empty means GET for older controllers.
 	Body          []byte                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`                                         // Reused for every request in the run.
 	Headers       map[string]string      `protobuf:"bytes,6,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// A scenario (JSON of scenario.Spec) replaces target_url, method, body and
+	// headers. worker_index of worker_count places this worker for sequential
+	// rows and {{seq}}. Only workers registered with the "scenario" capability
+	// receive one.
+	Scenario      []byte `protobuf:"bytes,7,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	WorkerIndex   int32  `protobuf:"varint,8,opt,name=worker_index,json=workerIndex,proto3" json:"worker_index,omitempty"`
+	WorkerCount   int32  `protobuf:"varint,9,opt,name=worker_count,json=workerCount,proto3" json:"worker_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -311,6 +318,27 @@ func (x *StartCmd) GetHeaders() map[string]string {
 		return x.Headers
 	}
 	return nil
+}
+
+func (x *StartCmd) GetScenario() []byte {
+	if x != nil {
+		return x.Scenario
+	}
+	return nil
+}
+
+func (x *StartCmd) GetWorkerIndex() int32 {
+	if x != nil {
+		return x.WorkerIndex
+	}
+	return 0
+}
+
+func (x *StartCmd) GetWorkerCount() int32 {
+	if x != nil {
+		return x.WorkerCount
+	}
+	return 0
 }
 
 type StopCmd struct {
@@ -389,6 +417,7 @@ type RegisterMsg struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"` // Worker の初回挨拶で送る ID
 	CpuArch       string                 `protobuf:"bytes,2,opt,name=cpu_arch,json=cpuArch,proto3" json:"cpu_arch,omitempty"`    // "arm64", "amd64" などのデバッグ用に
+	Capabilities  []string               `protobuf:"bytes,3,rep,name=capabilities,proto3" json:"capabilities,omitempty"`         // Features beyond the original StartCmd, such as "scenario".
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -435,6 +464,13 @@ func (x *RegisterMsg) GetCpuArch() string {
 		return x.CpuArch
 	}
 	return ""
+}
+
+func (x *RegisterMsg) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
 }
 
 // ErrorReason は Fail の要因（メッセージ）とその発生回数。Worker が集計して Master へ送る。
@@ -562,6 +598,7 @@ type StatsMsg struct {
 	LatencyP99Ms  int32                  `protobuf:"varint,6,opt,name=latency_p99_ms,json=latencyP99Ms,proto3" json:"latency_p99_ms,omitempty"` // レイテンシ P99（ミリ秒）
 	ErrorReasons  []*ErrorReason         `protobuf:"bytes,7,rep,name=error_reasons,json=errorReasons,proto3" json:"error_reasons,omitempty"`    // 失敗の要因ごとの集計（最終報告で送信、TUI で上位表示）
 	LatencyUs     *LatencyMicros         `protobuf:"bytes,8,opt,name=latency_us,json=latencyUs,proto3" json:"latency_us,omitempty"`             // Final percentiles; legacy integer-ms fields remain populated.
+	Requests      []*RequestStats        `protobuf:"bytes,9,rep,name=requests,proto3" json:"requests,omitempty"`                                // Final per-request counts of a scenario run, in config order.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -652,6 +689,99 @@ func (x *StatsMsg) GetLatencyUs() *LatencyMicros {
 	return nil
 }
 
+func (x *StatsMsg) GetRequests() []*RequestStats {
+	if x != nil {
+		return x.Requests
+	}
+	return nil
+}
+
+// One scenario request's share of a worker's run. Latency covers successful
+// requests, as in StatsMsg.
+type RequestStats struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Weight        int32                  `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty"`
+	SuccessCount  int32                  `protobuf:"varint,3,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`
+	FailCount     int32                  `protobuf:"varint,4,opt,name=fail_count,json=failCount,proto3" json:"fail_count,omitempty"`
+	StatusCodes   map[int32]int32        `protobuf:"bytes,5,rep,name=status_codes,json=statusCodes,proto3" json:"status_codes,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	LatencyUs     *LatencyMicros         `protobuf:"bytes,6,opt,name=latency_us,json=latencyUs,proto3" json:"latency_us,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestStats) Reset() {
+	*x = RequestStats{}
+	mi := &file_proto_swarm_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestStats) ProtoMessage() {}
+
+func (x *RequestStats) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_swarm_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestStats.ProtoReflect.Descriptor instead.
+func (*RequestStats) Descriptor() ([]byte, []int) {
+	return file_proto_swarm_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RequestStats) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RequestStats) GetWeight() int32 {
+	if x != nil {
+		return x.Weight
+	}
+	return 0
+}
+
+func (x *RequestStats) GetSuccessCount() int32 {
+	if x != nil {
+		return x.SuccessCount
+	}
+	return 0
+}
+
+func (x *RequestStats) GetFailCount() int32 {
+	if x != nil {
+		return x.FailCount
+	}
+	return 0
+}
+
+func (x *RequestStats) GetStatusCodes() map[int32]int32 {
+	if x != nil {
+		return x.StatusCodes
+	}
+	return nil
+}
+
+func (x *RequestStats) GetLatencyUs() *LatencyMicros {
+	if x != nil {
+		return x.LatencyUs
+	}
+	return nil
+}
+
 type FinishMsg struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	TotalDurationMs int32                  `protobuf:"varint,1,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"` // 完了報告：所要時間（ミリ秒）
@@ -661,7 +791,7 @@ type FinishMsg struct {
 
 func (x *FinishMsg) Reset() {
 	*x = FinishMsg{}
-	mi := &file_proto_swarm_proto_msgTypes[9]
+	mi := &file_proto_swarm_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -673,7 +803,7 @@ func (x *FinishMsg) String() string {
 func (*FinishMsg) ProtoMessage() {}
 
 func (x *FinishMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_swarm_proto_msgTypes[9]
+	mi := &file_proto_swarm_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -686,7 +816,7 @@ func (x *FinishMsg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinishMsg.ProtoReflect.Descriptor instead.
 func (*FinishMsg) Descriptor() ([]byte, []int) {
-	return file_proto_swarm_proto_rawDescGZIP(), []int{9}
+	return file_proto_swarm_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *FinishMsg) GetTotalDurationMs() int32 {
@@ -710,7 +840,7 @@ const file_proto_swarm_proto_rawDesc = "" +
 	"\bregister\x18\x01 \x01(\v2\x12.proto.RegisterMsgH\x00R\bregister\x12'\n" +
 	"\x05stats\x18\x02 \x01(\v2\x0f.proto.StatsMsgH\x00R\x05stats\x12*\n" +
 	"\x06finish\x18\x03 \x01(\v2\x10.proto.FinishMsgH\x00R\x06finishB\x05\n" +
-	"\x03msg\"\x92\x02\n" +
+	"\x03msg\"\xf4\x02\n" +
 	"\bStartCmd\x12\x1d\n" +
 	"\n" +
 	"target_url\x18\x01 \x01(\tR\ttargetUrl\x12%\n" +
@@ -718,22 +848,26 @@ const file_proto_swarm_proto_rawDesc = "" +
 	"\vconcurrency\x18\x03 \x01(\x05R\vconcurrency\x12\x16\n" +
 	"\x06method\x18\x04 \x01(\tR\x06method\x12\x12\n" +
 	"\x04body\x18\x05 \x01(\fR\x04body\x126\n" +
-	"\aheaders\x18\x06 \x03(\v2\x1c.proto.StartCmd.HeadersEntryR\aheaders\x1a:\n" +
+	"\aheaders\x18\x06 \x03(\v2\x1c.proto.StartCmd.HeadersEntryR\aheaders\x12\x1a\n" +
+	"\bscenario\x18\a \x01(\fR\bscenario\x12!\n" +
+	"\fworker_index\x18\b \x01(\x05R\vworkerIndex\x12!\n" +
+	"\fworker_count\x18\t \x01(\x05R\vworkerCount\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\t\n" +
 	"\aStopCmd\"\t\n" +
-	"\aQuitCmd\"E\n" +
+	"\aQuitCmd\"i\n" +
 	"\vRegisterMsg\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x19\n" +
-	"\bcpu_arch\x18\x02 \x01(\tR\acpuArch\"=\n" +
+	"\bcpu_arch\x18\x02 \x01(\tR\acpuArch\x12\"\n" +
+	"\fcapabilities\x18\x03 \x03(\tR\fcapabilities\"=\n" +
 	"\vErrorReason\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\"E\n" +
 	"\rLatencyMicros\x12\x10\n" +
 	"\x03p50\x18\x01 \x01(\x03R\x03p50\x12\x10\n" +
 	"\x03p90\x18\x02 \x01(\x03R\x03p90\x12\x10\n" +
-	"\x03p99\x18\x03 \x01(\x03R\x03p99\"\xcf\x02\n" +
+	"\x03p99\x18\x03 \x01(\x03R\x03p99\"\x80\x03\n" +
 	"\bStatsMsg\x12#\n" +
 	"\rsuccess_count\x18\x01 \x01(\x05R\fsuccessCount\x12\x1d\n" +
 	"\n" +
@@ -745,7 +879,20 @@ const file_proto_swarm_proto_rawDesc = "" +
 	"\x0elatency_p99_ms\x18\x06 \x01(\x05R\flatencyP99Ms\x127\n" +
 	"\rerror_reasons\x18\a \x03(\v2\x12.proto.ErrorReasonR\ferrorReasons\x123\n" +
 	"\n" +
-	"latency_us\x18\b \x01(\v2\x14.proto.LatencyMicrosR\tlatencyUs\"7\n" +
+	"latency_us\x18\b \x01(\v2\x14.proto.LatencyMicrosR\tlatencyUs\x12/\n" +
+	"\brequests\x18\t \x03(\v2\x13.proto.RequestStatsR\brequests\"\xbc\x02\n" +
+	"\fRequestStats\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06weight\x18\x02 \x01(\x05R\x06weight\x12#\n" +
+	"\rsuccess_count\x18\x03 \x01(\x05R\fsuccessCount\x12\x1d\n" +
+	"\n" +
+	"fail_count\x18\x04 \x01(\x05R\tfailCount\x12G\n" +
+	"\fstatus_codes\x18\x05 \x03(\v2$.proto.RequestStats.StatusCodesEntryR\vstatusCodes\x123\n" +
+	"\n" +
+	"latency_us\x18\x06 \x01(\v2\x14.proto.LatencyMicrosR\tlatencyUs\x1a>\n" +
+	"\x10StatusCodesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\x05R\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"7\n" +
 	"\tFinishMsg\x12*\n" +
 	"\x11total_duration_ms\x18\x01 \x01(\x05R\x0ftotalDurationMs2A\n" +
 	"\fSwarmService\x121\n" +
@@ -763,7 +910,7 @@ func file_proto_swarm_proto_rawDescGZIP() []byte {
 	return file_proto_swarm_proto_rawDescData
 }
 
-var file_proto_swarm_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_proto_swarm_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_proto_swarm_proto_goTypes = []any{
 	(*MasterCmd)(nil),     // 0: proto.MasterCmd
 	(*WorkerMsg)(nil),     // 1: proto.WorkerMsg
@@ -774,8 +921,10 @@ var file_proto_swarm_proto_goTypes = []any{
 	(*ErrorReason)(nil),   // 6: proto.ErrorReason
 	(*LatencyMicros)(nil), // 7: proto.LatencyMicros
 	(*StatsMsg)(nil),      // 8: proto.StatsMsg
-	(*FinishMsg)(nil),     // 9: proto.FinishMsg
-	nil,                   // 10: proto.StartCmd.HeadersEntry
+	(*RequestStats)(nil),  // 9: proto.RequestStats
+	(*FinishMsg)(nil),     // 10: proto.FinishMsg
+	nil,                   // 11: proto.StartCmd.HeadersEntry
+	nil,                   // 12: proto.RequestStats.StatusCodesEntry
 }
 var file_proto_swarm_proto_depIdxs = []int32{
 	2,  // 0: proto.MasterCmd.start:type_name -> proto.StartCmd
@@ -783,17 +932,20 @@ var file_proto_swarm_proto_depIdxs = []int32{
 	4,  // 2: proto.MasterCmd.quit:type_name -> proto.QuitCmd
 	5,  // 3: proto.WorkerMsg.register:type_name -> proto.RegisterMsg
 	8,  // 4: proto.WorkerMsg.stats:type_name -> proto.StatsMsg
-	9,  // 5: proto.WorkerMsg.finish:type_name -> proto.FinishMsg
-	10, // 6: proto.StartCmd.headers:type_name -> proto.StartCmd.HeadersEntry
+	10, // 5: proto.WorkerMsg.finish:type_name -> proto.FinishMsg
+	11, // 6: proto.StartCmd.headers:type_name -> proto.StartCmd.HeadersEntry
 	6,  // 7: proto.StatsMsg.error_reasons:type_name -> proto.ErrorReason
 	7,  // 8: proto.StatsMsg.latency_us:type_name -> proto.LatencyMicros
-	1,  // 9: proto.SwarmService.Connect:input_type -> proto.WorkerMsg
-	0,  // 10: proto.SwarmService.Connect:output_type -> proto.MasterCmd
-	10, // [10:11] is the sub-list for method output_type
-	9,  // [9:10] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	9,  // 9: proto.StatsMsg.requests:type_name -> proto.RequestStats
+	12, // 10: proto.RequestStats.status_codes:type_name -> proto.RequestStats.StatusCodesEntry
+	7,  // 11: proto.RequestStats.latency_us:type_name -> proto.LatencyMicros
+	1,  // 12: proto.SwarmService.Connect:input_type -> proto.WorkerMsg
+	0,  // 13: proto.SwarmService.Connect:output_type -> proto.MasterCmd
+	13, // [13:14] is the sub-list for method output_type
+	12, // [12:13] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_proto_swarm_proto_init() }
@@ -817,7 +969,7 @@ func file_proto_swarm_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_swarm_proto_rawDesc), len(file_proto_swarm_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

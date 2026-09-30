@@ -131,7 +131,34 @@ func runMaster() {
 	c := masterCmd.Int("c", cDefault, "Concurrency per Worker (default: CONCURRENCY or 1)")
 	noTUI := masterCmd.Bool("no-tui", false, "Run without TUI (headless); gRPC listener only; does not start runs")
 	requestFlags := addRequestFlags(masterCmd)
+	configFlags := addConfigFlags(masterCmd)
 	masterCmd.Parse(os.Args[2:])
+	spec, load, err := configFlags.config(masterCmd, "url", "method", "header", "body-file")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "master: %v\n", err)
+		os.Exit(1)
+	}
+	var encoded []byte
+	if spec != nil {
+		if configFlags.print > 0 {
+			if err := printRequests(stdout, spec, 1, configFlags.print); err != nil {
+				fmt.Fprintf(os.Stderr, "master: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		}
+		if encoded, err = encodeScenario(spec); err != nil {
+			fmt.Fprintf(os.Stderr, "master: %v\n", err)
+			os.Exit(1)
+		}
+		*url = spec.Target
+		if load.Requests > 0 && !flagSet(masterCmd, "n") {
+			*n = load.Requests
+		}
+		if load.Concurrency > 0 && !flagSet(masterCmd, "c") {
+			*c = load.Concurrency
+		}
+	}
 	requestOptions, err := requestFlags.load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "master: %v\n", err)
@@ -165,7 +192,9 @@ func runMaster() {
 	uiChan := make(chan interface{}, 300)
 	srv.SetUIChan(uiChan)
 
-	p := tea.NewProgram(newModel(srv, uiChan, *url, *n, *c, requestOptions), tea.WithAltScreen())
+	m := newModel(srv, uiChan, *url, *n, *c, requestOptions)
+	m.scenario, m.configPath = encoded, configFlags.path
+	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "TUI: %v\n", err)
 		os.Exit(1)

@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -169,6 +170,28 @@ func (r *MyRunner) MyRunScenario(ctx context.Context, spec *scenario.Spec, pos s
 		return nil, err
 	}
 	return r.runLanes(ctx, plan, nil, totalRequests, min(concurrency, totalRequests), onProgress)
+}
+
+// RenderedRequest is one request as a worker would send it.
+type RenderedRequest struct {
+	Name string
+	Wire []byte
+}
+
+// RenderScenario returns the first n requests a worker at pos would send,
+// without sending them.
+func RenderScenario(spec *scenario.Spec, pos scenario.Position, n int) ([]RenderedRequest, error) {
+	plan, err := NewMyRunner().scenarioPlan(spec, pos)
+	if err != nil {
+		return nil, err
+	}
+	lane := plan.scenario.NewLane(rand.Uint64())
+	out := make([]RenderedRequest, n)
+	for k := range out {
+		i, wire := lane.Next()
+		out[k] = RenderedRequest{Name: spec.Requests[i].Name, Wire: bytes.Clone(wire)}
+	}
+	return out, nil
 }
 
 // errorReasonString returns a TUI-friendly error reason string from MyResult. Only meaningful when the request failed.

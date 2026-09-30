@@ -76,7 +76,7 @@ type PaceSummary struct {
 	Canceled            bool          `json:"canceled"`
 	Windows             []PaceWindow  `json:"windows"`
 	StatusCodes         map[int]int64 `json:"status_codes"`
-	Requests            []PaceRequest `json:"requests,omitempty"` // Per scenario request, in config order.
+	Requests            []PaceRequest `json:"by_request,omitempty"` // Per scenario request, in config order.
 }
 
 // PaceRequest is one scenario request's share of a paced run. Latency includes

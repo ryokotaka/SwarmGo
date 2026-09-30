@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -13,8 +14,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/ryokotaka/SwarmGo/internal/scenario"
 	"github.com/ryokotaka/SwarmGo/proto"
 )
+
+// MaxCommandBytes bounds one command from the controller. A scenario carries
+// up to scenario.MaxDataBytes of CSV data, which grows when encoded as JSON.
+const MaxCommandBytes = 64 << 20
 
 // GRPCClient manages the gRPC connection to the Master.
 //
@@ -36,7 +42,8 @@ type GRPCClient struct {
 //     The stream (path for sending WorkerMsg and receiving MasterCmd) is not opened yet;
 //     it is opened in Start() when Connect() is called.
 func NewGRPCClient(addr string) (*GRPCClient, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxCommandBytes)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to master: %w", err)
 	}
@@ -70,7 +77,7 @@ func (c *GRPCClient) Start() error {
 	workerID := newWorkerID()
 	if err := stream.Send(&proto.WorkerMsg{
 		Msg: &proto.WorkerMsg_Register{Register: &proto.RegisterMsg{
-			WorkerId: workerID, CpuArch: runtime.GOARCH,
+			WorkerId: workerID, CpuArch: runtime.GOARCH, Capabilities: []string{"scenario"},
 		}},
 	}); err != nil {
 		return fmt.Errorf("failed to send register: %w", err)
@@ -175,19 +182,33 @@ func runAndReport(sessionCtx, runCtx context.Context, cmd *proto.StartCmd, event
 	}
 	runner := NewMyRunnerWithConcurrency(min(int(cmd.Concurrency), int(cmd.TotalRequests)))
 	defer runner.MyClient.CloseIdleConnections()
-	log.Printf("START: method=%s target=%s requests=%d concurrency=%d", cmd.Method, cmd.TargetUrl, cmd.TotalRequests, cmd.Concurrency)
-	options := RequestOptions{Method: cmd.Method, Body: cmd.Body, Headers: cmd.Headers}
-	summary, err := runner.MyRunWithOptions(runCtx, cmd.TargetUrl, int(cmd.TotalRequests), int(cmd.Concurrency), options,
-		func(completed, success, failed int, elapsed time.Duration) {
-			stats := &proto.StatsMsg{SuccessCount: int32(success), FailCount: int32(failed)}
-			if elapsed > 0 {
-				stats.CurrentRps = float64(completed) / elapsed.Seconds()
-			}
-			select {
-			case events <- runEvent{msg: &proto.WorkerMsg{Msg: &proto.WorkerMsg_Stats{Stats: stats}}}:
-			default: // Intermediate progress can be skipped; final reports cannot.
-			}
-		})
+	progress := func(completed, success, failed int, elapsed time.Duration) {
+		stats := &proto.StatsMsg{SuccessCount: int32(success), FailCount: int32(failed)}
+		if elapsed > 0 {
+			stats.CurrentRps = float64(completed) / elapsed.Seconds()
+		}
+		select {
+		case events <- runEvent{msg: &proto.WorkerMsg{Msg: &proto.WorkerMsg_Stats{Stats: stats}}}:
+		default: // Intermediate progress can be skipped; final reports cannot.
+		}
+	}
+	var summary *MySummary
+	var err error
+	if len(cmd.Scenario) > 0 {
+		var spec scenario.Spec
+		if err = json.Unmarshal(cmd.Scenario, &spec); err == nil {
+			err = spec.Validate(MaxRequestBodyBytes)
+		}
+		if err == nil {
+			log.Printf("START: scenario target=%s requests=%d concurrency=%d worker=%d/%d", spec.Target, cmd.TotalRequests, cmd.Concurrency, cmd.WorkerIndex+1, cmd.WorkerCount)
+			pos := scenario.Position{Worker: int(cmd.WorkerIndex), Workers: int(cmd.WorkerCount)}
+			summary, err = runner.MyRunScenario(runCtx, &spec, pos, int(cmd.TotalRequests), int(cmd.Concurrency), progress)
+		}
+	} else {
+		log.Printf("START: method=%s target=%s requests=%d concurrency=%d", cmd.Method, cmd.TargetUrl, cmd.TotalRequests, cmd.Concurrency)
+		options := RequestOptions{Method: cmd.Method, Body: cmd.Body, Headers: cmd.Headers}
+		summary, err = runner.MyRunWithOptions(runCtx, cmd.TargetUrl, int(cmd.TotalRequests), int(cmd.Concurrency), options, progress)
+	}
 	if err != nil {
 		emit(runEvent{err: err, done: true, msg: &proto.WorkerMsg{Msg: &proto.WorkerMsg_Finish{Finish: &proto.FinishMsg{}}}})
 		return
@@ -226,6 +247,16 @@ func summaryStats(summary *MySummary) *proto.StatsMsg {
 	}
 	for message, count := range summary.MyErrorReasons {
 		stats.ErrorReasons = append(stats.ErrorReasons, &proto.ErrorReason{Message: message, Count: int32(count)})
+	}
+	for _, r := range summary.Requests {
+		rs := &proto.RequestStats{Name: r.Name, Weight: int32(r.Weight), SuccessCount: int32(r.MySuccess), FailCount: int32(r.MyFailed), StatusCodes: make(map[int32]int32, len(r.MyStatusCodeCnt))}
+		for code, n := range r.MyStatusCodeCnt {
+			rs.StatusCodes[int32(code)] = int32(n)
+		}
+		if r.MySuccess > 0 {
+			rs.LatencyUs = &proto.LatencyMicros{P50: r.LatencyP50.Microseconds(), P90: r.LatencyP90.Microseconds(), P99: r.LatencyP99.Microseconds()}
+		}
+		stats.Requests = append(stats.Requests, rs)
 	}
 	return stats
 }

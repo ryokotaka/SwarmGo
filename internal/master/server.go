@@ -1,16 +1,19 @@
 package master
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"slices"
 	"sort"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
+	goproto "google.golang.org/protobuf/proto"
 
 	"github.com/ryokotaka/SwarmGo/proto"
 )
@@ -28,6 +31,7 @@ type StatsUpdate struct {
 	LatencyP90Ms int32
 	LatencyP99Ms int32
 	LatencyUS    *proto.LatencyMicros
+	Requests     []*proto.RequestStats // Final per-request counts of a scenario run.
 }
 
 // WorkerListChanged notifies the TUI when a Worker connects or disconnects (triggers list redraw).
@@ -54,6 +58,7 @@ type Server struct {
 
 	mu               sync.Mutex
 	workers          map[string]proto.SwarmService_ConnectServer
+	capabilities     map[string][]string // Per worker, as registered.
 	stats            map[string]StatsUpdate
 	activeWorkers    map[string]bool
 	runWorkers       map[string]WorkerRunState
@@ -72,6 +77,7 @@ type Server struct {
 func NewServer() *Server {
 	return &Server{
 		workers:       make(map[string]proto.SwarmService_ConnectServer),
+		capabilities:  make(map[string][]string),
 		stats:         make(map[string]StatsUpdate),
 		activeWorkers: make(map[string]bool),
 		runWorkers:    make(map[string]WorkerRunState),
@@ -170,6 +176,7 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 		return fmt.Errorf("worker ID must be nonempty and unique")
 	}
 	s.workers[workerID] = stream
+	s.capabilities[workerID] = reg.Capabilities
 	s.mu.Unlock()
 	s.sendToUI(WorkerListChanged{})
 
@@ -177,6 +184,7 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 	defer func() {
 		s.mu.Lock()
 		delete(s.workers, workerID)
+		delete(s.capabilities, workerID)
 		s.finishWorkerLocked(workerID, true, 0)
 		s.mu.Unlock()
 		s.logOrSendToUI("Worker disconnected: %s", workerID)
@@ -208,6 +216,7 @@ func (s *Server) Connect(stream proto.SwarmService_ConnectServer) error {
 				LatencyP90Ms: stats.LatencyP90Ms,
 				LatencyP99Ms: stats.LatencyP99Ms,
 				LatencyUS:    stats.LatencyUs,
+				Requests:     stats.Requests,
 			}
 			s.mu.Lock()
 			if !s.activeWorkers[workerID] {
@@ -296,9 +305,17 @@ func (s *Server) SnapshotRun() RunSnapshot {
 	return snapshot
 }
 
+// ErrNotReady reports that a run could not start yet: one is still running, or
+// fewer workers than requested are connected.
+var ErrNotReady = errors.New("workers are not ready")
+
+// ErrScenarioUnsupported reports a selected worker too old to run a scenario;
+// it would otherwise send plain requests to target_url.
+var ErrScenarioUnsupported = errors.New("a worker does not support scenarios; upgrade it")
+
 // StartRun captures all current workers for one run. The TUI uses this variant.
 func (s *Server) StartRun(start *proto.StartCmd) bool {
-	return s.startRun(start, 0)
+	return s.StartRunErr(start, 0) == nil
 }
 
 // StartRunWithWorkers starts exactly count participants, only when that many are
@@ -308,14 +325,17 @@ func (s *Server) StartRunWithWorkers(start *proto.StartCmd, count int) bool {
 	if count <= 0 {
 		return false
 	}
-	return s.startRun(start, count)
+	return s.StartRunErr(start, count) == nil
 }
 
-func (s *Server) startRun(start *proto.StartCmd, count int) bool {
+// StartRunErr is StartRunWithWorkers, with count 0 meaning every connected
+// worker, and says why a run did not start. A scenario run gives each worker
+// its own copy of start with its position.
+func (s *Server) StartRunErr(start *proto.StartCmd, count int) error {
 	s.mu.Lock()
 	if start == nil || len(s.activeWorkers) > 0 || len(s.workers) == 0 || len(s.workers) < count {
 		s.mu.Unlock()
-		return false
+		return ErrNotReady
 	}
 	ids := make([]string, 0, len(s.workers))
 	for id := range s.workers {
@@ -324,6 +344,19 @@ func (s *Server) startRun(start *proto.StartCmd, count int) bool {
 	sort.Strings(ids)
 	if count > 0 {
 		ids = ids[:count]
+	}
+	commands := make(map[string]*proto.MasterCmd, len(ids))
+	for i, id := range ids {
+		cmd := start
+		if len(start.Scenario) > 0 {
+			if !slices.Contains(s.capabilities[id], "scenario") {
+				s.mu.Unlock()
+				return fmt.Errorf("%w: %s", ErrScenarioUnsupported, id)
+			}
+			cmd = goproto.CloneOf(start)
+			cmd.WorkerIndex, cmd.WorkerCount = int32(i), int32(len(ids))
+		}
+		commands[id] = &proto.MasterCmd{Cmd: &proto.MasterCmd_Start{Start: cmd}}
 	}
 	snapshot := make(map[string]proto.SwarmService_ConnectServer, len(ids))
 	s.stats = make(map[string]StatsUpdate)
@@ -337,8 +370,8 @@ func (s *Server) startRun(start *proto.StartCmd, count int) bool {
 	s.startedAt, s.finishedAt = time.Now(), time.Time{}
 	s.ResetErrorReasons()
 	s.mu.Unlock()
-	s.broadcast(snapshot, &proto.MasterCmd{Cmd: &proto.MasterCmd_Start{Start: start}})
-	return true
+	s.broadcastEach(snapshot, func(id string) *proto.MasterCmd { return commands[id] })
+	return nil
 }
 
 // finishWorkerLocked is called with mu held. A disconnection after a valid
@@ -385,11 +418,15 @@ func (s *Server) BroadcastCommand(cmd *proto.MasterCmd) {
 }
 
 func (s *Server) broadcast(snapshot map[string]proto.SwarmService_ConnectServer, cmd *proto.MasterCmd) {
+	s.broadcastEach(snapshot, func(string) *proto.MasterCmd { return cmd })
+}
+
+func (s *Server) broadcastEach(snapshot map[string]proto.SwarmService_ConnectServer, cmdFor func(id string) *proto.MasterCmd) {
 	// gRPC permits one sender and one receiver per stream, but not concurrent sends.
 	s.broadcastMu.Lock()
 	defer s.broadcastMu.Unlock()
 	for id, stream := range snapshot {
-		if err := stream.Send(cmd); err != nil {
+		if err := stream.Send(cmdFor(id)); err != nil {
 			s.mu.Lock()
 			s.finishWorkerLocked(id, true, 0)
 			s.mu.Unlock()

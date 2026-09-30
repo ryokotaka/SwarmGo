@@ -2,6 +2,7 @@ package master
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sync"
 	"testing"
@@ -33,10 +34,10 @@ func (s *testStream) Recv() (*proto.WorkerMsg, error) {
 	return msg, nil
 }
 
-func connectTestWorker(t *testing.T, server *Server, id string) *testStream {
+func connectTestWorker(t *testing.T, server *Server, id string, capabilities ...string) *testStream {
 	t.Helper()
 	stream := &testStream{incoming: make(chan *proto.WorkerMsg, 10), outgoing: make(chan *proto.MasterCmd, 10)}
-	stream.incoming <- &proto.WorkerMsg{Msg: &proto.WorkerMsg_Register{Register: &proto.RegisterMsg{WorkerId: id}}}
+	stream.incoming <- &proto.WorkerMsg{Msg: &proto.WorkerMsg_Register{Register: &proto.RegisterMsg{WorkerId: id, Capabilities: capabilities}}}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -182,5 +183,47 @@ func TestStartRunWithWorkersWaitsAndSelectsExactlyRequestedCount(t *testing.T) {
 	waitUntil(t, func() bool { return !server.SnapshotRun().Running })
 	if _, ok := server.SnapshotRun().Stats["c"]; ok {
 		t.Fatal("a nonparticipant changed the run results")
+	}
+}
+
+func TestScenarioRunGivesEachWorkerItsPosition(t *testing.T) {
+	server := NewServer()
+	streams := []*testStream{
+		connectTestWorker(t, server, "a", "scenario"),
+		connectTestWorker(t, server, "b", "scenario"),
+		connectTestWorker(t, server, "c", "scenario"),
+	}
+	start := &proto.StartCmd{TargetUrl: "http://127.0.0.1:1", TotalRequests: 1, Concurrency: 1, Scenario: []byte(`{}`)}
+	if err := server.StartRunErr(start, 3); err != nil {
+		t.Fatal(err)
+	}
+	for i, stream := range streams {
+		got := (<-stream.outgoing).GetStart()
+		if got.WorkerIndex != int32(i) || got.WorkerCount != 3 || string(got.Scenario) != `{}` {
+			t.Errorf("worker %d got position %d of %d", i, got.WorkerIndex, got.WorkerCount)
+		}
+	}
+	if start.WorkerIndex != 0 || start.WorkerCount != 0 {
+		t.Error("the caller's command was modified")
+	}
+}
+
+// A worker without the capability would ignore the scenario and send plain
+// requests to target_url, so the run must not start at all.
+func TestScenarioRunRefusesOldWorkers(t *testing.T) {
+	server := NewServer()
+	fresh := connectTestWorker(t, server, "a", "scenario")
+	connectTestWorker(t, server, "b")
+	start := &proto.StartCmd{TargetUrl: "http://127.0.0.1:1", TotalRequests: 1, Concurrency: 1, Scenario: []byte(`{}`)}
+	if err := server.StartRunErr(start, 2); !errors.Is(err, ErrScenarioUnsupported) {
+		t.Fatalf("err = %v", err)
+	}
+	if server.SnapshotRun().Running || len(fresh.outgoing) != 0 {
+		t.Fatal("a refused run must send nothing")
+	}
+	// Without a scenario the same workers run as before.
+	start.Scenario = nil
+	if err := server.StartRunErr(start, 2); err != nil {
+		t.Fatal(err)
 	}
 }
