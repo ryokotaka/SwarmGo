@@ -191,10 +191,19 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 					}
 					// This lane waits for the next slot on its own timer. A lane
 					// that has just finished replaces an earlier waiter, so the
-					// most recently used connection sends next.
+					// most recently used connection sends next. The replaced
+					// waiter is told to stop sleeping and park; otherwise both
+					// would wake for the same slot, and if both overslept past
+					// the quantum, whichever locked first would send it.
+					// Only a long wait listens for that signal; short waits,
+					// the rule under load, end too soon to need it.
+					wake := dueOffset - ahead
+					if old := sched.waiter; old != nil && old != me && -overdue-ahead > time.Millisecond {
+						old.signal()
+					}
 					sched.sleeper, sched.waiter, sleeper, free = true, me, true, true
 					sched.Unlock()
-					paceWait(ctx, timer, startAt.Add(dueOffset-ahead))
+					paceWaitOr(ctx, timer, startAt.Add(wake), me.wake)
 					sched.Lock()
 					// A finished lane may have taken over while this one slept.
 					sleeper = sched.waiter == me
@@ -289,7 +298,16 @@ func (s *paceSched) promote() {
 	s.idle = s.idle[:len(s.idle)-1]
 	l.promoted = true
 	s.sleeper, s.waiter = true, l
-	l.wake <- struct{}{}
+	l.signal()
+}
+
+// signal wakes l if it is parked or sleeping as the waiter. A signal that finds
+// one already pending is dropped: either way l wakes and rechecks its state.
+func (l *paceIdle) signal() {
+	select {
+	case l.wake <- struct{}{}:
+	default:
+	}
 }
 
 // park waits, with the lock released, until l is promoted or the run ends.
@@ -373,6 +391,27 @@ func paceCeilCount(elapsed time.Duration, rate int64) int64 {
 		q++
 	}
 	return int64(q)
+}
+
+// paceWaitOr is paceWait that also returns early when wake is signaled. A wait
+// of at most 1 ms sleeps through, as paceWait does.
+func paceWaitOr(ctx context.Context, timer *time.Timer, until time.Time, wake <-chan struct{}) {
+	delay := time.Until(until)
+	if ctx.Err() != nil || delay <= 0 {
+		return
+	}
+	if delay <= time.Millisecond {
+		time.Sleep(delay)
+		return
+	}
+	timer.Reset(delay)
+	select {
+	case <-ctx.Done():
+		timer.Stop()
+	case <-wake:
+		timer.Stop()
+	case <-timer.C:
+	}
 }
 
 func paceWait(ctx context.Context, timer *time.Timer, until time.Time) bool {
