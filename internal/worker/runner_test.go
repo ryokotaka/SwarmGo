@@ -45,7 +45,11 @@ func TestRunnerReadsBodiesAndReusesConnections(t *testing.T) {
 }
 
 func TestRunnerReusesConnectionsAcrossLargeRequestWaves(t *testing.T) {
-	const concurrency = 150 // Exceeds the old fixed pool of 100.
+	// Exceeds the old fixed pool of 100 but stays within macOS's default listen
+	// backlog of 128 (kern.ipc.somaxconn). With 150 simultaneous dials the
+	// backlog overflowed in 5 of 200 runs: a few connections were reset, their
+	// requests never reached the server, and the wave waited for its timeout.
+	const concurrency = 120
 	var connections, requests atomic.Int32
 	gates := []chan struct{}{make(chan struct{}), make(chan struct{})}
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
