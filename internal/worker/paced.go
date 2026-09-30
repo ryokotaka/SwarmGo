@@ -42,6 +42,7 @@ type PaceWindow struct {
 	BusyMissed            int64         `json:"busy_missed"`
 	LateMissed            int64         `json:"late_missed"`
 	CanceledMissed        int64         `json:"canceled_missed"`
+	LatencyP50US          int64         `json:"latency_p50_us"`
 	LatencyP95US          int64         `json:"latency_p95_us"`
 	LatencyP99US          int64         `json:"latency_p99_us"`
 	StartDelayP99US       int64         `json:"start_delay_p99_us"`
@@ -61,6 +62,7 @@ type PaceSummary struct {
 	LateMissed          int64         `json:"late_missed"`
 	CanceledMissed      int64         `json:"canceled_missed"`
 	ElapsedSeconds      float64       `json:"elapsed_seconds"`
+	LatencyP50US        int64         `json:"latency_p50_us"`
 	LatencyP95US        int64         `json:"latency_p95_us"`
 	LatencyP99US        int64         `json:"latency_p99_us"`
 	StartDelayP99US     int64         `json:"start_delay_p99_us"`
@@ -463,6 +465,7 @@ func (s *paceState) finishWindow(w *paceWindowState) {
 		return
 	}
 	if w.latency != nil {
+		w.LatencyP50US = w.latency.ValueAtQuantile(50)
 		w.LatencyP95US = w.latency.ValueAtQuantile(95)
 		w.LatencyP99US = w.latency.ValueAtQuantile(99)
 		paceMerge(&s.latency, w.latency)
@@ -498,6 +501,7 @@ func (s *paceState) summary(elapsed float64, canceled bool) *PaceSummary {
 		sum.Windows[i] = w
 	}
 	if s.latency != nil {
+		sum.LatencyP50US = s.latency.ValueAtQuantile(50)
 		sum.LatencyP95US = s.latency.ValueAtQuantile(95)
 		sum.LatencyP99US = s.latency.ValueAtQuantile(99)
 	}

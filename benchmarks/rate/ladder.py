@@ -91,6 +91,9 @@ p.add_argument('--out', help='New directory name under results/')
 p.add_argument('--profile', choices=['cpu', 'trace'],
                help='SwarmGo only: record a CPU profile of the whole run, or a 1-second execution trace '
                     '20 seconds in, to results/<out>/. Profiling costs CPU, so profiled runs are diagnostics, not results.')
+p.add_argument('--target-query',
+               help='Query appended to every load URL, e.g. delay_us=5000 or stall_every_ms=5000&stall_ms=200. '
+                    'The target then holds each request accordingly and reports how long it held them.')
 p.add_argument('--catch-up', action='store_true',
                help='SwarmGo only: pass -catch-up, so due requests start late (up to -max-start-delay) '
                     'when every connection is busy instead of being missed.')
@@ -99,6 +102,8 @@ if a.profile and a.tool != 'swarmgo':
     p.error('--profile applies to --tool swarmgo only')
 if a.catch_up and a.tool != 'swarmgo':
     p.error('--catch-up applies to --tool swarmgo only')
+if a.target_query and not re.fullmatch(r'[A-Za-z0-9_]+=[0-9]+(&[A-Za-z0-9_]+=[0-9]+)*', a.target_query):
+    p.error('--target-query takes name=number pairs joined by &, e.g. delay_us=5000')
 if a.prepare:
     prepare(Docker())
     sys.exit(0)
@@ -136,7 +141,7 @@ created, proc = [], None
 manifest = {
     'tool': a.tool, 'requested_rps': a.rate, 'measured_seconds': a.seconds, 'warmup_seconds': a.warmup,
     'native_duration_seconds': duration, 'concurrency': a.concurrency, 'tolerance': a.tolerance,
-    'cpusets': {'client': a.client_cpus, 'target': a.target_cpus}, 'wrk2_threads': threads, 'profile': a.profile, 'swarmgo_catch_up': a.catch_up,
+    'cpusets': {'client': a.client_cpus, 'target': a.target_cpus}, 'wrk2_threads': threads, 'profile': a.profile, 'swarmgo_catch_up': a.catch_up, 'target_query': a.target_query,
     'generator_memory_bytes': 6 * 1024**3, 'target_memory_bytes': 512 * 1024**2, 'image': IMAGE,
     'target': 'fasthttp HTTP/1.1; validates 1 KiB POST body; 1 KiB response; no delay',
     'swarmgo_source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT.parents[1], text=True).strip(),
@@ -155,6 +160,33 @@ record = {'samples': []}
 
 def save():
     (out / 'results.json').write_text(json.dumps({'manifest': manifest, 'result': record}, indent=2) + '\n')
+
+
+def reported_latency(tool, native, log):
+    """Each tool's own latency percentiles, in microseconds, as far as it reports them."""
+    try:
+        if tool == 'swarmgo':
+            load = native['load']
+            return {'p50': load.get('latency_p50_us'), 'p95': load['latency_p95_us'], 'p99': load['latency_p99_us']}
+        if tool == 'vegeta':
+            lat = native['latencies']
+            return {'p50': lat['50th'] / 1e3, 'p90': lat['90th'] / 1e3, 'p95': lat['95th'] / 1e3, 'p99': lat['99th'] / 1e3, 'max': lat['max'] / 1e3}
+        if tool == 'oha':
+            lat = native['latencyPercentiles']
+            return {k: lat[k] * 1e6 for k in ('p50', 'p90', 'p95', 'p99')} | {'max': native['summary']['slowest'] * 1e6}
+        if tool == 'k6':
+            v = native['metrics']['http_req_duration']['values']
+            return {'p50': v['med'] * 1e3, 'p90': v['p(90)'] * 1e3, 'p95': v['p(95)'] * 1e3, 'p99': v.get('p(99)', float('nan')) * 1e3, 'max': v['max'] * 1e3}
+        if tool == 'wrk2':
+            # wrk2 --latency prints its corrected distribution, e.g. " 99.000%    4.19ms".
+            unit = {'us': 1, 'ms': 1e3, 's': 1e6, 'm': 6e7}
+            text = log.read_text()
+            section = text.split('Latency Distribution', 1)[1].split('Detailed Percentile', 1)[0]
+            found = {float(q): float(v) * unit[u] for q, v, u in re.findall(r'^\s*([\d.]+)%\s+([\d.]+)(us|ms|s|m)\s*$', section, re.M)}
+            return {'p50': found[50.0], 'p90': found[90.0], 'p99': found[99.0], 'max': found[100.0]}
+    except (KeyError, TypeError, IndexError, ValueError):
+        return None
+    return None
 
 
 def stats():
@@ -198,7 +230,7 @@ try:
     else:
         raise RuntimeError('Target did not start')
     address = D.run('inspect', '--format', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', target)
-    url = f'http://{address}:8080/work'
+    url = f'http://{address}:8080/work' + (f'?{a.target_query}' if a.target_query else '')
     headers = ['Content-Type: application/json', 'Accept-Encoding: identity']
     if a.tool == 'swarmgo':
         # The load spike covers the whole run. Its one ordinary request per
@@ -290,6 +322,7 @@ try:
             record['native'] = json.loads(native.read_text())
         except json.JSONDecodeError:
             record['native_unparsed'] = True
+    record['reported_latency_us'] = reported_latency(a.tool, record.get('native'), out / 'run.log')
     save()
     print(json.dumps({k: record.get(k) for k in ['delivered_rps', 'delivered_ratio', 'min_interval_ratio', 'held',
                                                  'invalid_in_window', 'exit_code']} | {'tool': a.tool, 'rate': a.rate}))
