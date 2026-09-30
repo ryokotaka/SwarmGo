@@ -94,6 +94,12 @@ p.add_argument('--profile', choices=['cpu', 'trace'],
 p.add_argument('--target-query',
                help='Query appended to every load URL, e.g. delay_us=5000 or stall_every_ms=5000&stall_ms=200. '
                     'The target then holds each request accordingly and reports how long it held them.')
+p.add_argument('--swarmgo-bin', default='swarmgo',
+               help='SwarmGo only: executable in benchmarks/throughput/bin to run (default swarmgo), '
+                    'so two builds can be compared under one harness')
+p.add_argument('--scenario', choices=['static', 'mix'],
+               help='SwarmGo only: send scenarios/<name>.yaml with -config instead of the POST flags. '
+                    'static is the same POST; mix is browse/search/buy against the target\'s /mix/ path.')
 p.add_argument('--catch-up', action='store_true',
                help='SwarmGo only: pass -catch-up, so due requests start late (up to -max-start-delay) '
                     'when every connection is busy instead of being missed.')
@@ -102,6 +108,12 @@ if a.profile and a.tool != 'swarmgo':
     p.error('--profile applies to --tool swarmgo only')
 if a.catch_up and a.tool != 'swarmgo':
     p.error('--catch-up applies to --tool swarmgo only')
+if (a.scenario or a.swarmgo_bin != 'swarmgo') and a.tool != 'swarmgo':
+    p.error('--scenario and --swarmgo-bin apply to --tool swarmgo only')
+if a.scenario and a.target_query:
+    p.error('--target-query does not apply to --scenario')
+if Path(a.swarmgo_bin).name != a.swarmgo_bin or not (THROUGHPUT / 'bin' / a.swarmgo_bin).is_file():
+    p.error('--swarmgo-bin must name an executable in benchmarks/throughput/bin')
 if a.target_query and not re.fullmatch(r'[A-Za-z0-9_]+=[0-9]+(&[A-Za-z0-9_]+=[0-9]+)*', a.target_query):
     p.error('--target-query takes name=number pairs joined by &, e.g. delay_us=5000')
 if a.prepare:
@@ -142,18 +154,21 @@ manifest = {
     'tool': a.tool, 'requested_rps': a.rate, 'measured_seconds': a.seconds, 'warmup_seconds': a.warmup,
     'native_duration_seconds': duration, 'concurrency': a.concurrency, 'tolerance': a.tolerance,
     'cpusets': {'client': a.client_cpus, 'target': a.target_cpus}, 'wrk2_threads': threads, 'profile': a.profile, 'swarmgo_catch_up': a.catch_up, 'target_query': a.target_query,
+    'swarmgo_bin': a.swarmgo_bin, 'scenario': a.scenario,
     'generator_memory_bytes': 6 * 1024**3, 'target_memory_bytes': 512 * 1024**2, 'image': IMAGE,
     'target': 'fasthttp HTTP/1.1; validates 1 KiB POST body; 1 KiB response; no delay',
     'swarmgo_source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT.parents[1], text=True).strip(),
     'swarmgo_product_sha256': product_hash(),
     'sha256': {str(f.relative_to(ROOT.parent)): sha256(f) for f in
                [THROUGHPUT / 'target.go', THROUGHPUT / 'body.json', THROUGHPUT / 'wrk.lua', ROOT / 'rate.k6.js',
-                ROOT / 'Dockerfile.wrk2', *sorted((THROUGHPUT / 'bin').iterdir()), *sorted((ROOT / 'bin').iterdir())]},
+                ROOT / 'Dockerfile.wrk2', *sorted((ROOT / 'scenarios').iterdir()), *sorted((THROUGHPUT / 'bin').iterdir()), *sorted((ROOT / 'bin').iterdir())]},
     'versions': {'wrk2': WRK2_COMMIT, 'luajit': LUAJIT_COMMIT, 'vegeta': VEGETA_VERSION, 'k6': '2.3.0', 'oha': '1.16.0'},
     'docker': {k: D.info.get(k) for k in ['ServerVersion', 'KernelVersion', 'NCPU', 'MemTotal', 'Architecture']},
     'internal_network': True, 'published_ports': [],
-    'verdict_rule': 'held = target-validated POSTs per second over the measured window >= requested * (1 - tolerance), '
+    'verdict_rule': 'held = target-validated requests per second over the measured window >= requested * (1 - tolerance), '
                     'with zero invalid requests in the window',
+    'cpu_rule': 'generator_cpu_us_per_request = change in the generator cgroup cpu.stat usage_usec over the measured '
+                'window / target-validated requests in the window',
 }
 record = {'samples': []}
 
@@ -235,8 +250,15 @@ try:
     if a.tool == 'swarmgo':
         # The load spike covers the whole run. Its one ordinary request per
         # second goes to /stats, which the target does not count as load.
-        command = ['/bench/bin/swarmgo', 'resilience', '-url', url, '-method', 'POST', '-body-file', '/bench/body.json',
-                   '-header', headers[0], '-header', headers[1], '-rate', str(a.rate), '-c', str(a.concurrency),
+        if a.scenario:
+            # The run's own copy, with the target's address filled in.
+            text = (ROOT / 'scenarios' / f'{a.scenario}.yaml').read_text().replace('TARGET_ADDRESS', address)
+            (out / 'scenario.yaml').write_text(text)
+            (out / 'users.csv').write_bytes((ROOT / 'scenarios' / 'users.csv').read_bytes())
+            load = ['-config', '/results/scenario.yaml']
+        else:
+            load = ['-url', url, '-method', 'POST', '-body-file', '/bench/body.json', '-header', headers[0], '-header', headers[1]]
+        command = [f'/bench/bin/{a.swarmgo_bin}', 'resilience', *load, '-rate', str(a.rate), '-c', str(a.concurrency),
                    '-probe-url', f'http://{address}:8080/stats', '-probe-rate', '1', '-probe-c', '1',
                    '-baseline', '1s', '-spike', f'{duration}s', '-recovery', '2s', '-recovery-window', '1s',
                    '-output', '/results/native.json'] + (['-catch-up'] if a.catch_up else [])
@@ -278,6 +300,7 @@ try:
         record['first_activity_process_seconds'] = time.monotonic() - started
         time.sleep(a.warmup)
         base = previous = stats()
+        base_generator = resources(D, client)
         record['measurement_start'] = base
         end_at = time.monotonic() + a.seconds
         while True:
@@ -302,6 +325,8 @@ try:
             'min_interval_ratio': min(s['target_rps'] for s in record['samples']) / a.rate,
             'max_wall_clock_step_seconds': max(abs(s['wall_clock_step_seconds']) for s in record['samples']),
             'completed_observation': window >= a.seconds and proc.poll() is None,
+            'generator_cpu_us_per_request': (record['samples'][-1]['generator']['usage_usec'] - base_generator['usage_usec'])
+                                            / max(1, observed['requests'] - base['requests']),
         })
         record['held'] = (record['completed_observation'] and invalid == 0
                           and delivered >= a.rate * (1 - a.tolerance))
@@ -315,7 +340,8 @@ try:
             break
         time.sleep(.05)
     record['final_target'] = final
-    record['target_valid'] = final['invalid'] == 0 and final['body_bytes'] == final['requests'] * 1024
+    # Mix bodies vary in size; the target validated each one.
+    record['target_valid'] = final['invalid'] == 0 and (a.scenario == 'mix' or final['body_bytes'] == final['requests'] * 1024)
     native = out / 'native.json'
     if native.exists() and native.stat().st_size:
         try:
@@ -325,7 +351,8 @@ try:
     record['reported_latency_us'] = reported_latency(a.tool, record.get('native'), out / 'run.log')
     save()
     print(json.dumps({k: record.get(k) for k in ['delivered_rps', 'delivered_ratio', 'min_interval_ratio', 'held',
-                                                 'invalid_in_window', 'exit_code']} | {'tool': a.tool, 'rate': a.rate}))
+                                                 'invalid_in_window', 'exit_code', 'generator_cpu_us_per_request']}
+                     | {'tool': a.tool, 'rate': a.rate, 'swarmgo_bin': a.swarmgo_bin, 'scenario': a.scenario}))
 finally:
     for name in reversed(created):
         try:

@@ -1,0 +1,24 @@
+# Browse, search and buy with a CSV column, random numbers, a UUID and {{seq}}.
+# The target's /mix/ path validates these requests.
+target: http://TARGET_ADDRESS:8080
+headers:
+  Accept-Encoding: identity
+data:
+  users: {csv: users.csv, order: random}
+requests:
+  - name: browse
+    weight: 6
+    path: /mix/items/{{random.int(1,100000)}}
+  - name: search
+    weight: 3
+    path: /mix/search?q={{users.name}}
+    headers:
+      X-User: "{{users.id}}"
+  - name: buy
+    weight: 1
+    method: POST
+    path: /mix/orders
+    headers:
+      Content-Type: application/json
+      Idempotency-Key: "{{random.uuid}}"
+    body: '{"user": {{users.id}}, "item": {{random.int(1,100000)}}, "seq": {{seq}}}'

@@ -67,9 +67,14 @@ func server() {
 			return
 		case "/work":
 		default:
-			ctx.SetStatusCode(404)
-			return
+			// /mix/ takes the scenario benchmark's request mix: bodiless GETs
+			// and POSTs of one JSON document.
+			if !bytes.HasPrefix(ctx.Path(), []byte("/mix/")) {
+				ctx.SetStatusCode(404)
+				return
+			}
 		}
+		mix := bytes.HasPrefix(ctx.Path(), []byte("/mix/"))
 		first.CompareAndSwap(0, time.Now().UnixNano())
 		n := active.Add(1)
 		defer active.Add(-1)
@@ -79,7 +84,17 @@ func server() {
 			}
 		}
 		bodyBytes.Add(int64(len(ctx.PostBody())))
-		if !ctx.IsPost() || !bytes.Equal(ctx.PostBody(), payload) || string(ctx.Request.Header.Protocol()) != "HTTP/1.1" {
+		var valid bool
+		switch {
+		case string(ctx.Request.Header.Protocol()) != "HTTP/1.1":
+		case !mix:
+			valid = ctx.IsPost() && bytes.Equal(ctx.PostBody(), payload)
+		case ctx.IsGet():
+			valid = len(ctx.PostBody()) == 0
+		case ctx.IsPost():
+			valid = json.Valid(ctx.PostBody()) && string(ctx.Request.Header.ContentType()) == "application/json"
+		}
+		if !valid {
 			failures.Add(1)
 			ctx.SetStatusCode(400)
 		} else {
