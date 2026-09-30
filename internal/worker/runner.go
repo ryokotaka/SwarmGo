@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ryokotaka/SwarmGo/internal/scenario"
 	"golang.org/x/net/http/httpguts"
 )
 
@@ -22,22 +23,37 @@ type MyResult struct {
 	MyDuration       time.Duration // Duration of the request from start to response completion
 	ResponseComplete bool          // A final HTTP response and its complete body were received.
 	MyErr            error         // Failure of the communication itself
+	Request          int           // Index of the scenario request sent; 0 without a scenario.
 }
 
 // MySummary represents the results after all requests are completed.
 // The run merges per-shard counters after all execution lanes finish.
 type MySummary struct {
-	MyTotal         int            // Total number of requests executed
-	MySuccess       int            // Number of successful requests
-	MyFailed        int            // Number of failed requests
-	MyFirstErr      error          // First error encountered (for logging when MyFailed > 0)
-	MyStatusCodeCnt map[int]int    // Number of requests for each status code (pair of [status code] and [number of requests])
-	MyErrorReasons  map[string]int // occurrence count per failure reason (sent to Master for TUI top-N display)
-	MyTotalDuration time.Duration  // Sum of successful request durations (used for mean latency)
-	Elapsed         time.Duration  // Wall-clock duration of the request run (used for RPS)
-	LatencyP50      time.Duration  // 50th percentile latency (successful requests only)
-	LatencyP90      time.Duration  // 90th percentile latency (successful requests only)
-	LatencyP99      time.Duration  // 99th percentile latency (successful requests only)
+	MyTotal         int              // Total number of requests executed
+	MySuccess       int              // Number of successful requests
+	MyFailed        int              // Number of failed requests
+	MyFirstErr      error            // First error encountered (for logging when MyFailed > 0)
+	MyStatusCodeCnt map[int]int      // Number of requests for each status code (pair of [status code] and [number of requests])
+	MyErrorReasons  map[string]int   // occurrence count per failure reason (sent to Master for TUI top-N display)
+	MyTotalDuration time.Duration    // Sum of successful request durations (used for mean latency)
+	Elapsed         time.Duration    // Wall-clock duration of the request run (used for RPS)
+	LatencyP50      time.Duration    // 50th percentile latency (successful requests only)
+	LatencyP90      time.Duration    // 90th percentile latency (successful requests only)
+	LatencyP99      time.Duration    // 99th percentile latency (successful requests only)
+	Requests        []RequestSummary // Per scenario request, in config order; nil without a scenario.
+}
+
+// RequestSummary is one scenario request's share of a run.
+type RequestSummary struct {
+	Name            string
+	Weight          int
+	MyTotal         int
+	MySuccess       int
+	MyFailed        int
+	MyStatusCodeCnt map[int]int
+	LatencyP50      time.Duration // Successful requests only, as in MySummary.
+	LatencyP90      time.Duration
+	LatencyP99      time.Duration
 }
 
 // MyRunner is the main struct for running the load test.
@@ -135,7 +151,24 @@ func (r *MyRunner) MyRunWithOptions(ctx context.Context, url string, totalReques
 	if concurrency > totalRequests {
 		concurrency = totalRequests
 	}
-	return r.runLanes(ctx, template, totalRequests, concurrency, onProgress)
+	plan, err := r.directPlan(template)
+	if err != nil {
+		return nil, err
+	}
+	return r.runLanes(ctx, plan, template, totalRequests, concurrency, onProgress)
+}
+
+// MyRunScenario sends totalRequests requests picked from spec by weight. pos
+// places this worker among the run's workers for sequential rows and {{seq}}.
+func (r *MyRunner) MyRunScenario(ctx context.Context, spec *scenario.Spec, pos scenario.Position, totalRequests, concurrency int, onProgress OnProgressFunc) (*MySummary, error) {
+	if totalRequests <= 0 || concurrency <= 0 {
+		return nil, fmt.Errorf("totalRequests and concurrency must be positive, got %d, %d", totalRequests, concurrency)
+	}
+	plan, err := r.scenarioPlan(spec, pos)
+	if err != nil {
+		return nil, err
+	}
+	return r.runLanes(ctx, plan, nil, totalRequests, min(concurrency, totalRequests), onProgress)
 }
 
 // errorReasonString returns a TUI-friendly error reason string from MyResult. Only meaningful when the request failed.

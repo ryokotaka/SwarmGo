@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -17,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ryokotaka/SwarmGo/internal/scenario"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/idna"
 )
@@ -81,32 +83,84 @@ func (t *directTransport) put(c idleConnection) {
 
 type directPlan struct {
 	transport      *directTransport
-	template       *http.Request
-	wire           []byte
+	reqs           []directRequest    // One request, or one per scenario request.
+	scenario       *scenario.Scenario // Fills reqs' bytes per request when set.
 	address, key   string
 	tlsConfig      *tls.Config
 	timeout        time.Duration
-	gzip           bool
-	replayable     bool // Idempotent: may be resent when a reused socket was closed.
-	closeAfter     bool // The request itself asks to close the connection.
 	maxHeaderBytes int
 	fallback       *http.Client
 	watch          laneWatch // Enforces timeout for this plan's lanes.
 }
 
+// directRequest is one request a plan can send: its bytes, or for a scenario
+// its template's bytes, and what the lane needs to read its response.
+type directRequest struct {
+	template   *http.Request
+	wire       []byte
+	gzip       bool
+	replayable bool // Idempotent: may be resent when a reused socket was closed.
+	closeAfter bool // The request itself asks to close the connection.
+}
+
 func (r *MyRunner) directPlan(template *http.Request) (*directPlan, error) {
-	t, ok := r.MyClient.Transport.(*directTransport)
-	if !ok || r.MyClient.Jar != nil || r.MyClient.CheckRedirect != nil ||
-		template.Method == http.MethodHead || template.Method == http.MethodConnect || template.Header.Get("Upgrade") != "" ||
+	if template.Method == http.MethodHead || template.Method == http.MethodConnect || template.Header.Get("Upgrade") != "" ||
 		template.Header.Get("Expect") != "" {
 		return nil, nil
 	}
+	p, err := r.directBase(template)
+	if p == nil || err != nil {
+		return nil, err
+	}
+	req, err := p.request(template)
+	if err != nil {
+		return nil, err
+	}
+	p.reqs = []directRequest{req}
+	return p, nil
+}
+
+// scenarioPlan compiles spec's requests through the same serialization as a
+// single request, so a filled scenario request is byte for byte what the
+// direct path would send for it.
+func (r *MyRunner) scenarioPlan(spec *scenario.Spec, pos scenario.Position) (*directPlan, error) {
+	base, err := requestTemplate(spec.Target+"/", RequestOptions{Method: http.MethodGet})
+	if err != nil {
+		return nil, err
+	}
+	p, err := r.directBase(base)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, errors.New("scenarios need the direct HTTP transport")
+	}
+	write := func(method, target string, headers map[string]string, body []byte) ([]byte, error) {
+		t, err := requestTemplate(target, RequestOptions{Method: method, Body: body, Headers: headers})
+		if err != nil {
+			return nil, err
+		}
+		req, err := p.request(t)
+		if err != nil {
+			return nil, err
+		}
+		p.reqs = append(p.reqs, req)
+		return req.wire, nil
+	}
+	if p.scenario, err = scenario.Compile(spec, pos, write); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// request serializes template for the direct path, as net/http would send it.
+func (p *directPlan) request(template *http.Request) (directRequest, error) {
 	req := template.Clone(context.Background())
 	if template.GetBody != nil {
 		var err error
 		req.Body, err = template.GetBody()
 		if err != nil {
-			return nil, err
+			return directRequest{}, err
 		}
 		defer req.Body.Close()
 	}
@@ -114,14 +168,33 @@ func (r *MyRunner) directPlan(template *http.Request) (*directPlan, error) {
 		password, _ := req.URL.User.Password()
 		req.SetBasicAuth(req.URL.User.Username(), password)
 	}
-	automaticGzip := req.Header.Get("Accept-Encoding") == "" && req.Header.Get("Range") == "" && req.Method != http.MethodHead && !t.base.DisableCompression
-	if automaticGzip {
+	d := directRequest{template: template}
+	d.gzip = req.Header.Get("Accept-Encoding") == "" && req.Header.Get("Range") == "" && req.Method != http.MethodHead && !p.transport.base.DisableCompression
+	if d.gzip {
 		req.Header.Set("Accept-Encoding", "gzip")
 	}
 	var wire bytes.Buffer
 	if err := req.Write(&wire); err != nil {
-		return nil, err
+		return directRequest{}, err
 	}
+	d.wire = wire.Bytes()
+	// Decided once per run instead of once per request.
+	switch template.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		d.replayable = true
+	}
+	d.closeAfter = template.Close || strings.EqualFold(template.Header.Get("Connection"), "close")
+	return d, nil
+}
+
+// directBase holds what a plan shares across its requests: the transport,
+// address and TLS settings of template's origin.
+func (r *MyRunner) directBase(template *http.Request) (*directPlan, error) {
+	t, ok := r.MyClient.Transport.(*directTransport)
+	if !ok || r.MyClient.Jar != nil || r.MyClient.CheckRedirect != nil {
+		return nil, nil
+	}
+	req := template
 	host := req.URL.Hostname()
 	if net.ParseIP(strings.Split(host, "%")[0]) == nil {
 		var err error
@@ -137,14 +210,8 @@ func (r *MyRunner) directPlan(template *http.Request) (*directPlan, error) {
 			port = "443"
 		}
 	}
-	p := &directPlan{transport: t, template: template, wire: wire.Bytes(), address: net.JoinHostPort(host, port), timeout: r.MyClient.Timeout, gzip: automaticGzip}
+	p := &directPlan{transport: t, address: net.JoinHostPort(host, port), timeout: r.MyClient.Timeout}
 	p.key = req.URL.Scheme + "://" + p.address
-	// Decided once per run instead of once per request.
-	switch template.Method {
-	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
-		p.replayable = true
-	}
-	p.closeAfter = template.Close || strings.EqualFold(template.Header.Get("Connection"), "close")
 	p.maxHeaderBytes = int(t.base.MaxResponseHeaderBytes)
 	if p.maxHeaderBytes <= 0 {
 		p.maxHeaderBytes = 10 << 20
@@ -178,10 +245,18 @@ type directLane struct {
 	canceled bool
 	stop     func() bool
 	started  atomic.Int64 // Current request's start token; 0 when idle.
+
+	cur  *directRequest // The request being sent.
+	wire []byte         // Its bytes: cur.wire, or a filled scenario request.
+	req  int            // Its scenario index; 0 without a scenario.
+	fill *scenario.Lane // Fills scenario requests; nil without a scenario.
 }
 
 func (p *directPlan) lane(ctx context.Context) *directLane {
-	l := &directLane{plan: p, ctx: ctx}
+	l := &directLane{plan: p, ctx: ctx, cur: &p.reqs[0], wire: p.reqs[0].wire}
+	if p.scenario != nil {
+		l.fill = p.scenario.NewLane(rand.Uint64())
+	}
 	if p.timeout > 0 {
 		p.register(l)
 	}
@@ -315,7 +390,7 @@ func (l *directLane) readHeader(trailer bool) error {
 
 func (l *directLane) drainBody() error {
 	code := l.head.status
-	if l.plan.template.Method == http.MethodHead || code == 204 || code == 304 {
+	if l.cur.template.Method == http.MethodHead || code == 204 || code == 304 {
 		return nil
 	}
 	length := l.head.length
@@ -323,7 +398,7 @@ func (l *directLane) drainBody() error {
 		length = -2
 	}
 	// Most API responses have a known length and need no allocation or copy.
-	decompress := l.plan.gzip && l.head.gzip
+	decompress := l.cur.gzip && l.head.gzip
 	if length >= 0 && !decompress {
 		_, err := l.reader.Discard(length)
 		if err == io.EOF {
@@ -376,8 +451,18 @@ func (l *directLane) drainBody() error {
 }
 
 func (l *directLane) execute() MyResult {
+	if l.fill != nil {
+		l.req, l.wire = l.fill.Next()
+		l.cur = &l.plan.reqs[l.req]
+	}
 	if l.standard {
-		return (&MyRunner{MyClient: l.plan.fallback}).executeRequest(l.ctx, l.plan.template)
+		template, err := l.fallbackTemplate()
+		if err != nil {
+			return MyResult{Request: l.req, MyErr: err}
+		}
+		result := (&MyRunner{MyClient: l.plan.fallback}).executeRequest(l.ctx, template)
+		result.Request = l.req
+		return result
 	}
 	start := time.Now()
 	token := l.begin(start)
@@ -392,7 +477,36 @@ func (l *directLane) execute() MyResult {
 			result.ResponseComplete = false
 		}
 	}
+	result.Request = l.req
 	return result
+}
+
+// fallbackTemplate is the request the standard client sends in place of the
+// direct path. A scenario request is rebuilt from its filled bytes.
+func (l *directLane) fallbackTemplate() (*http.Request, error) {
+	if l.fill == nil {
+		return l.cur.template, nil
+	}
+	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(l.wire)))
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	req.RequestURI = ""
+	req.URL.Scheme, req.URL.Host = l.cur.template.URL.Scheme, req.Host
+	if l.cur.gzip {
+		// Added by the direct path; the standard transport adds its own.
+		req.Header.Del("Accept-Encoding")
+	}
+	req.Body, req.GetBody = nil, nil
+	if len(body) > 0 {
+		req.Body = io.NopCloser(bytes.NewReader(body))
+		req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+	}
+	return req.WithContext(context.Background()), nil
 }
 
 // deadline combines the run's deadline with the per-request client timeout.
@@ -449,7 +563,7 @@ func (l *directLane) finishResponse(result *MyResult) {
 		return
 	}
 	result.ResponseComplete = true
-	if l.head.close || (l.head.length == -2 && l.plan.template.Method != http.MethodHead && result.MyStatusCode != 204 && result.MyStatusCode != 304) || result.MyStatusCode == 101 || l.plan.closeAfter {
+	if l.head.close || (l.head.length == -2 && l.cur.template.Method != http.MethodHead && result.MyStatusCode != 204 && result.MyStatusCode != 304) || result.MyStatusCode == 101 || l.cur.closeAfter {
 		l.closeConn()
 	}
 	if result.MyStatusCode >= 400 {
@@ -483,14 +597,14 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 			return
 		}
 	}
-	err := l.send(l.plan.wire)
+	err := l.send(l.wire)
 	if err == nil {
 		err = l.readFinalHeader()
 	}
 	if err != nil {
 		// A server can close an idle keep-alive socket without advertising it.
 		// Only replay idempotent requests when no response header was received.
-		again := retry && reused && l.plan.replayable && err == io.EOF && l.ctx.Err() == nil && !l.timedOut()
+		again := retry && reused && l.cur.replayable && err == io.EOF && l.ctx.Err() == nil && !l.timedOut()
 		l.closeConn()
 		if again {
 			return l.executeAttempt(start, false)
@@ -521,7 +635,12 @@ func (l *directLane) executeAttempt(start time.Time, retry bool) (result MyResul
 		c.Timeout = 0 // The original request's deadline covers the whole chain.
 		c.Transport = &redirectTransport{first: response, next: c.Transport}
 		fallback := &MyRunner{MyClient: &c}
-		return fallback.executeRequest(ctx, l.plan.template)
+		template, err := l.fallbackTemplate()
+		if err != nil {
+			result.MyErr = err
+			return
+		}
+		return fallback.executeRequest(ctx, template)
 	}
 	l.finishResponse(&result)
 	return

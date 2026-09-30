@@ -23,12 +23,80 @@ type resultShard struct {
 	sync.Mutex
 	sum       MySummary
 	histogram *hdr.Histogram
+	reqs      []requestShard // One per scenario request; nil without a scenario.
+}
+
+// requestShard counts one scenario request's results within a shard.
+type requestShard struct {
+	sum       RequestSummary
+	histogram *hdr.Histogram
+}
+
+func newRequestShards(plan *directPlan) []requestShard {
+	if plan == nil || plan.scenario == nil {
+		return nil
+	}
+	reqs := make([]requestShard, len(plan.scenario.Templates))
+	for i, t := range plan.scenario.Templates {
+		reqs[i] = requestShard{sum: RequestSummary{Name: t.Spec.Name, Weight: t.Spec.Weight, MyStatusCodeCnt: make(map[int]int)}, histogram: latencyHistogram()}
+	}
+	return reqs
+}
+
+func (r *requestShard) add(res MyResult) {
+	r.sum.MyTotal++
+	if res.MyStatusCode != 0 {
+		r.sum.MyStatusCodeCnt[res.MyStatusCode]++
+	}
+	if res.MyErr != nil {
+		r.sum.MyFailed++
+	} else {
+		r.sum.MySuccess++
+		_ = r.histogram.RecordValue(max(0, res.MyDuration.Microseconds()))
+	}
+}
+
+// mergeRequests adds each shard's per-request counts into one summary per request.
+func mergeRequests(shards [][]requestShard) []RequestSummary {
+	if len(shards) == 0 || shards[0] == nil {
+		return nil
+	}
+	out := make([]RequestSummary, len(shards[0]))
+	for i := range out {
+		first := shards[0][i].sum
+		out[i] = RequestSummary{Name: first.Name, Weight: first.Weight, MyStatusCodeCnt: make(map[int]int)}
+		histogram := latencyHistogram()
+		for _, reqs := range shards {
+			r := &reqs[i]
+			out[i].MyTotal += r.sum.MyTotal
+			out[i].MySuccess += r.sum.MySuccess
+			out[i].MyFailed += r.sum.MyFailed
+			for k, v := range r.sum.MyStatusCodeCnt {
+				out[i].MyStatusCodeCnt[k] += v
+			}
+			histogram.Merge(r.histogram)
+		}
+		if out[i].MySuccess > 0 {
+			out[i].LatencyP50, out[i].LatencyP90, out[i].LatencyP99 = quantiles(histogram)
+		}
+	}
+	return out
+}
+
+func quantiles(h *hdr.Histogram) (p50, p90, p99 time.Duration) {
+	at := func(q float64) time.Duration {
+		return time.Duration(min(maxLatencyMicros, h.ValueAtQuantile(q))) * time.Microsecond
+	}
+	return at(50), at(90), at(99)
 }
 
 func (s *resultShard) add(batch []MyResult) {
 	s.Lock()
 	defer s.Unlock()
 	for _, res := range batch {
+		if s.reqs != nil {
+			s.reqs[res.Request].add(res)
+		}
 		s.sum.MyTotal++
 		if res.MyStatusCode != 0 {
 			s.sum.MyStatusCodeCnt[res.MyStatusCode]++
@@ -48,11 +116,9 @@ func (s *resultShard) add(batch []MyResult) {
 	}
 }
 
-func (r *MyRunner) runLanes(ctx context.Context, template *http.Request, total, concurrency int, onProgress OnProgressFunc) (*MySummary, error) {
-	plan, err := r.directPlan(template)
-	if err != nil {
-		return nil, err
-	}
+// runLanes sends total requests over concurrency lanes: plan's requests when
+// plan is set, otherwise template through the standard client.
+func (r *MyRunner) runLanes(ctx context.Context, plan *directPlan, template *http.Request, total, concurrency int, onProgress OnProgressFunc) (*MySummary, error) {
 	if plan != nil && plan.transport.base.MaxConnsPerHost > 0 {
 		concurrency = min(concurrency, plan.transport.base.MaxConnsPerHost)
 	}
@@ -62,6 +128,7 @@ func (r *MyRunner) runLanes(ctx context.Context, template *http.Request, total, 
 		shards[i].histogram = latencyHistogram()
 		shards[i].sum.MyStatusCodeCnt = make(map[int]int)
 		shards[i].sum.MyErrorReasons = make(map[string]int)
+		shards[i].reqs = newRequestShards(plan)
 	}
 	done, progressDone := make(chan struct{}), make(chan struct{})
 	if onProgress != nil {
@@ -149,7 +216,9 @@ func (r *MyRunner) runLanes(ctx context.Context, template *http.Request, total, 
 	<-progressDone
 	sum := &MySummary{Elapsed: elapsed, MyStatusCodeCnt: make(map[int]int), MyErrorReasons: make(map[string]int)}
 	histogram := latencyHistogram()
+	reqs := make([][]requestShard, len(shards))
 	for i := range shards {
+		reqs[i] = shards[i].reqs
 		s := &shards[i].sum
 		sum.MyTotal += s.MyTotal
 		sum.MySuccess += s.MySuccess
@@ -167,10 +236,9 @@ func (r *MyRunner) runLanes(ctx context.Context, template *http.Request, total, 
 		histogram.Merge(shards[i].histogram)
 	}
 	if sum.MySuccess > 0 {
-		sum.LatencyP50 = time.Duration(min(maxLatencyMicros, histogram.ValueAtQuantile(50))) * time.Microsecond
-		sum.LatencyP90 = time.Duration(min(maxLatencyMicros, histogram.ValueAtQuantile(90))) * time.Microsecond
-		sum.LatencyP99 = time.Duration(min(maxLatencyMicros, histogram.ValueAtQuantile(99))) * time.Microsecond
+		sum.LatencyP50, sum.LatencyP90, sum.LatencyP99 = quantiles(histogram)
 	}
+	sum.Requests = mergeRequests(reqs)
 	if onProgress != nil {
 		onProgress(sum.MyTotal, sum.MySuccess, sum.MyFailed, elapsed)
 	}
