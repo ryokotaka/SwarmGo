@@ -132,6 +132,67 @@ printf '%s\n' '{"message":"hello"}' > request.json
 
 コントローラーとワーカーには同じビルドを使ってください。旧ワーカーは追加されたメソッド・本文・ヘッダーの指定を無視し、GET を送ります。更新後のワーカーは旧コントローラーの GET 指示も受け付けます。
 
+## 複数のリクエストを混ぜて送る
+
+実際のアクセスは、同じリクエストの繰り返しではありません。シナリオファイルには、複数のリクエスト、それぞれを送る割合、リクエストごとに変わる値を書きます。
+
+```yaml
+# shop.yaml
+target: http://127.0.0.1:8080
+headers:                      # すべてのリクエストに付ける
+  Authorization: "Bearer {{env.API_TOKEN}}"
+data:
+  users: {csv: users.csv, order: sequential}
+requests:
+  - name: browse
+    weight: 6
+    path: /items/{{random.int(1,5000)}}
+  - name: search
+    weight: 3
+    path: /search?q={{users.name}}
+  - name: buy
+    weight: 1
+    method: POST
+    path: /orders
+    headers: {Content-Type: application/json, Idempotency-Key: "{{random.uuid}}"}
+    body: '{"user": {{users.id}}, "seq": {{seq}}}'
+load: {requests: 1000, concurrency: 16}
+```
+
+```bash
+./swarmgo run -config shop.yaml -workers 2 -output report.json
+```
+
+リクエストのおよそ 60% が `browse`、30% が `search`、10% が `buy` になります。1 件ごとに重みに従って独立に選びます。
+
+| 変数 | 値 |
+| :--- | :--- |
+| `{{env.NAME}}` | 環境変数。ファイルを読むときに 1 回だけ読みます。未設定ならエラーです。 |
+| `{{users.name}}` | `data:` に書いた CSV ファイルの列。リクエストごとに 1 行を選ぶので、1 件の中の列はすべて同じ行の値です。 |
+| `{{random.int(1,5000)}}` | 両端を含む乱数の整数。 |
+| `{{random.uuid}}` | ランダムな UUID（バージョン 4）。テスト用に重複しない値で、推測できない値ではありません。 |
+| `{{seq}}` | 実行全体を通した 0, 1, 2, … の連番。 |
+
+- `order: sequential`（初期値）は行を順番に使い、最後まで行くと先頭に戻ります。`random` は任意の行を選びます。ワーカーが複数でも、順番に使う行と `{{seq}}` はワーカー間で重なりません。
+- 値は使う場所に合わせてエスケープします。パスとクエリはパーセントエンコードし、ヘッダー値には改行を入れられません。`{{` そのものは `{{{{` と書きます。
+- `method` の初期値は GET、`weight` の初期値は 1 です。`body_file` はシナリオファイルからの相対パスで本文を読み、変数も使えます。Content-Length はリクエストごとに設定します。
+- `target` は 1 つのオリジン（スキーム、ホスト、ポート）で、パスは各リクエストに書きます。CSV は合計 16 MiB までで、コントローラーがワーカーへ送ります。
+- キーの書き間違い、存在しない列、安全でないヘッダー値は、送信を始める前にエラーになります。
+
+`-config` は `-url`、`-method`、`-header`、`-body-file` の代わりになります。`-n`、`-c`、`-rate` を指定すると `load:` の値より優先します。`run`、`master`、`resilience` で使えます。`resilience` ではシナリオが負荷の側になり、通常アクセスは `-probe-url` のままです。
+
+何も送らずにファイルを確かめるには、ワーカーが送るとおりのリクエストを先頭から表示します。
+
+```bash
+./swarmgo run -config shop.yaml -print 5
+```
+
+レポートには `by_request` が加わり、リクエスト名ごとの重み、完了・成功・失敗の件数、ステータスコードを保存します。ワーカー別の項目には、そのリクエストの P50/P90/P99 レイテンシも入ります。`resilience` では `load.by_request` に同じ内容を保存し、レイテンシはレポートのほかの値と同じく失敗を含む P50/P95/P99 です。
+
+ワーカーはこのバージョン以降が必要です。旧ワーカーはシナリオを理解できず対象に通常のリクエストを送ってしまうため、コントローラーはシナリオの実行を開始しません。
+
+シナリオを使っても CPU の使用量はフラグと変わりません。Apple M4 で毎秒 10 万リクエストを送った測定では、1 リクエストの設定も 3 リクエストの組み合わせも、シナリオ対応前のビルドとの 1 件あたり CPU の差は 1% 以内でした。`-catch-up` では組み合わせでも同じ毎秒 55 万件を維持しました。[測定記録](benchmarks/rate/recorded-m4-scenario/)
+
 ## 仕組み
 
 Go の並行処理と gRPC ストリーミングを理解するために作りました。複数のワーカーへの指示と結果の集約が、実際に動かしながら見える構成にしています。
@@ -149,6 +210,7 @@ flowchart LR
 コードを読む場合は、次のファイルから追えます。
 
 - [runner.go](./internal/worker/runner.go)：リクエストの検証と標準HTTPクライアントによる実行。
+- [scenario](./internal/scenario/)：シナリオファイルの読み込みと、値を差し込む位置を残して固定バイト列に組み立てたリクエスト。
 - [direct.go](./internal/worker/direct.go)：HTTP/1.1要求の事前生成、接続再利用、TLS検証、中断。
 - [direct_head.go](./internal/worker/direct_head.go)：よくある形のレスポンスヘッダをその場で解析し、それ以外は fasthttp に任せる処理。
 - [aggregate.go](./internal/worker/aggregate.go)：並行実行、件数集計、固定サイズのレイテンシ記録。

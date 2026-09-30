@@ -134,6 +134,67 @@ Start workers as above, then press **s**. Use an endpoint that handles POST; Pyt
 
 Use the same build for the controller and workers. Older workers ignore the new method/body/header fields and send GET requests. Updated workers still accept GET commands from older controllers.
 
+## Send a mix of requests
+
+Real traffic is rarely one request repeated. A scenario file describes several requests, how often each is sent, and values that change per request:
+
+```yaml
+# shop.yaml
+target: http://127.0.0.1:8080
+headers:                      # sent with every request
+  Authorization: "Bearer {{env.API_TOKEN}}"
+data:
+  users: {csv: users.csv, order: sequential}
+requests:
+  - name: browse
+    weight: 6
+    path: /items/{{random.int(1,5000)}}
+  - name: search
+    weight: 3
+    path: /search?q={{users.name}}
+  - name: buy
+    weight: 1
+    method: POST
+    path: /orders
+    headers: {Content-Type: application/json, Idempotency-Key: "{{random.uuid}}"}
+    body: '{"user": {{users.id}}, "seq": {{seq}}}'
+load: {requests: 1000, concurrency: 16}
+```
+
+```bash
+./swarmgo run -config shop.yaml -workers 2 -output report.json
+```
+
+About 60% of requests are `browse`, 30% `search` and 10% `buy`. Each request is picked by weight independently.
+
+| Variable | Value |
+| :--- | :--- |
+| `{{env.NAME}}` | An environment variable, read once when the file is loaded. A missing variable is an error. |
+| `{{users.name}}` | A column of the CSV file named under `data:`. One row is chosen per request, so every column of a request comes from the same row. |
+| `{{random.int(1,5000)}}` | A random integer, both ends included. |
+| `{{random.uuid}}` | A random version 4 UUID. It is unique for testing, not unpredictable. |
+| `{{seq}}` | 0, 1, 2, … across the whole run. |
+
+- `order: sequential` (the default) goes through the rows in order and starts again after the last one; `random` picks any row. With several workers, sequential rows and `{{seq}}` are shared out so no two workers send the same one.
+- Values are escaped for where they appear: path segments and query values are percent-encoded, and header values may not contain line breaks. Write `{{{{` for a literal `{{`.
+- `method` defaults to GET and `weight` to 1. `body_file` reads the body from a file, relative to the scenario file; it may contain variables too. Content-Length is set per request.
+- The target is one origin (scheme, host and port); paths belong to the requests. CSV files may hold up to 16 MiB in total; the controller sends them to the workers.
+- A mistyped key, an unknown column or an unsafe header value fails before any traffic is sent.
+
+`-config` replaces `-url`, `-method`, `-header` and `-body-file`. `-n`, `-c` and `-rate` override the file's `load:` values. It works with `run`, `master` and `resilience`; in `resilience` the scenario is the load spike and `-probe-url` stays the ordinary request.
+
+To check a file without sending anything, print the first requests exactly as a worker would send them:
+
+```bash
+./swarmgo run -config shop.yaml -print 5
+```
+
+The report adds `by_request`: for each request name, its weight, completed, succeeded and failed counts and status codes. Each worker's entry also has that request's P50/P90/P99 latency. `resilience` reports the same under `load.by_request`, with P50/P95/P99 including failed requests like the rest of its report.
+
+Workers must be this version or later. The controller refuses to start a scenario run on an older worker, which would otherwise send plain requests to the target.
+
+A scenario costs the same CPU as the flags: at 100k requests per second on an Apple M4, a one-request config and a three-request mix used within 1% of the CPU per request of the build before scenarios, and with `-catch-up` a mix held the same 550k per second. [Measurements](benchmarks/rate/recorded-m4-scenario/).
+
 ## How it works
 
 I built this project to understand Go concurrency and gRPC streaming by making the coordination visible: one controller, several request-sending workers, and a live view of the run.
@@ -151,6 +212,7 @@ The worker keeps listening for commands during a run. Quit, Stop, and a lost con
 Useful entry points in the code:
 
 - [runner.go](./internal/worker/runner.go): request validation and standard HTTP execution.
+- [scenario](./internal/scenario/): scenario files, and requests compiled into fixed bytes with slots for values.
 - [direct.go](./internal/worker/direct.go): prebuilt HTTP/1.1 requests, connection reuse, verified TLS and cancellation.
 - [direct_head.go](./internal/worker/direct_head.go): in-place parsing of common response headers, with fallback to fasthttp.
 - [aggregate.go](./internal/worker/aggregate.go): concurrent execution, counters and bounded latency histograms.
