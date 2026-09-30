@@ -5,9 +5,12 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ryokotaka/SwarmGo/internal/scenario"
 )
 
 // replayConn answers every request write with one canned response. It keeps
@@ -48,9 +51,19 @@ func benchmarkDirectRequest(b *testing.B, response string) {
 	if err != nil || plan == nil {
 		b.Fatalf("direct plan unavailable: %v", err)
 	}
+	benchmarkDirectPlan(b, plan, response)
+}
+
+// replayLane is a lane of plan whose connection answers with response.
+func replayLane(plan *directPlan, response string) *directLane {
 	lane := plan.lane(context.Background())
 	conn := &replayConn{response: []byte(response)}
 	lane.conn, lane.watched, lane.reader = conn, conn, bufio.NewReaderSize(conn, 4096)
+	return lane
+}
+
+func benchmarkDirectPlan(b *testing.B, plan *directPlan, response string) {
+	lane := replayLane(plan, response)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
@@ -70,4 +83,47 @@ func BenchmarkDirectRequestContentLength(b *testing.B) {
 func BenchmarkDirectRequestChunked(b *testing.B) {
 	benchmarkDirectRequest(b, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nTransfer-Encoding: chunked\r\n\r\n"+
 		"400\r\n"+strings.Repeat("x", 1024)+"\r\n0\r\n\r\n")
+}
+
+const benchResponse = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}"
+
+// BenchmarkDirectRequestSmall and BenchmarkDirectScenarioStatic send the same
+// POST, plain and as a one-request scenario; the scenario must cost no more.
+func BenchmarkDirectRequestSmall(b *testing.B) {
+	benchmarkDirectRequest(b, benchResponse)
+}
+
+func BenchmarkDirectScenarioStatic(b *testing.B) {
+	benchmarkScenario(b, &scenario.Spec{Target: "http://127.0.0.1:8080", Requests: []scenario.RequestSpec{
+		{Name: "work", Weight: 1, Method: http.MethodPost, Path: "/work", Headers: map[string]string{"Content-Type": "application/json"}, Body: strings.Repeat("x", 1024)},
+	}})
+}
+
+// A browse/search/buy mix with a CSV column, a random number and a UUID.
+func BenchmarkDirectScenarioMix(b *testing.B) {
+	benchmarkScenario(b, benchMixSpec())
+}
+
+func benchMixSpec() *scenario.Spec {
+	rows := make([][]string, 1000)
+	for i := range rows {
+		rows[i] = []string{strconv.Itoa(i), "user" + strconv.Itoa(i)}
+	}
+	return &scenario.Spec{
+		Target: "http://127.0.0.1:8080",
+		Requests: []scenario.RequestSpec{
+			{Name: "browse", Weight: 6, Method: http.MethodGet, Path: "/items/{{random.int(1,100000)}}"},
+			{Name: "search", Weight: 3, Method: http.MethodGet, Path: "/search?q={{users.name}}", Headers: map[string]string{"X-User": "{{users.id}}"}},
+			{Name: "buy", Weight: 1, Method: http.MethodPost, Path: "/orders", Headers: map[string]string{"Content-Type": "application/json", "Idempotency-Key": "{{random.uuid}}"}, Body: `{"user":{{users.id}},"item":{{random.int(1,100000)}}}`},
+		},
+		Data: map[string]*scenario.Table{"users": {Columns: []string{"id", "name"}, Rows: rows, Order: "random"}},
+	}
+}
+
+func benchmarkScenario(b *testing.B, spec *scenario.Spec) {
+	plan, err := NewMyRunnerWithConcurrency(1).scenarioPlan(spec, scenario.Position{Worker: 0, Workers: 1})
+	if err != nil {
+		b.Fatal(err)
+	}
+	benchmarkDirectPlan(b, plan, benchResponse)
 }

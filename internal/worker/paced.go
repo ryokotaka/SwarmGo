@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"net/http"
 	"sync"
 	"time"
 
 	hdr "github.com/HdrHistogram/hdrhistogram-go"
+	"github.com/ryokotaka/SwarmGo/internal/scenario"
 )
 
 // PaceOptions schedules requests independently of response completion. Rate is
@@ -25,6 +27,11 @@ type PaceOptions struct {
 	// as a lane frees, provided that is within MaxStartDelay, instead of
 	// missing it as busy. Later slots are still missed as late.
 	CatchUp bool
+	// Scenario, when set, replaces the target and Request: each slot sends a
+	// request picked from it by weight. Position places this runner among the
+	// run's workers for sequential rows and {{seq}}.
+	Scenario *scenario.Spec
+	Position scenario.Position
 }
 
 // PaceWindow attributes every result to its planned start, even if its response
@@ -69,6 +76,26 @@ type PaceSummary struct {
 	Canceled            bool          `json:"canceled"`
 	Windows             []PaceWindow  `json:"windows"`
 	StatusCodes         map[int]int64 `json:"status_codes"`
+	Requests            []PaceRequest `json:"requests,omitempty"` // Per scenario request, in config order.
+}
+
+// PaceRequest is one scenario request's share of a paced run. Latency includes
+// failed requests, as in PaceSummary.
+type PaceRequest struct {
+	Name         string        `json:"name"`
+	Weight       int           `json:"weight"`
+	Completed    int64         `json:"completed"`
+	Succeeded    int64         `json:"succeeded"`
+	Failed       int64         `json:"failed"`
+	LatencyP50US int64         `json:"latency_p50_us"`
+	LatencyP95US int64         `json:"latency_p95_us"`
+	LatencyP99US int64         `json:"latency_p99_us"`
+	StatusCodes  map[int]int64 `json:"status_codes"`
+}
+
+type paceRequestState struct {
+	PaceRequest
+	latency *hdr.Histogram
 }
 
 type paceWindowState struct {
@@ -81,6 +108,7 @@ type paceState struct {
 	windows        []paceWindowState
 	latency, delay *hdr.Histogram
 	rate           int64
+	reqs           []paceRequestState // One per scenario request; nil without a scenario.
 }
 
 type paceMiss int
@@ -111,11 +139,13 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 	if err != nil {
 		return nil, err
 	}
-	template, err := requestTemplate(target, options.Request)
-	if err != nil {
-		return nil, err
+	var template *http.Request
+	var plan *directPlan
+	if options.Scenario != nil {
+		plan, err = r.scenarioPlan(options.Scenario, options.Position)
+	} else if template, err = requestTemplate(target, options.Request); err == nil {
+		plan, err = r.directPlan(template)
 	}
-	plan, err := r.directPlan(template)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +154,11 @@ func (r *MyRunner) RunPaced(ctx context.Context, target string, options PaceOpti
 		concurrency = min(concurrency, plan.transport.base.MaxConnsPerHost)
 	}
 	state := newPaceState(options, planned)
+	if plan != nil && plan.scenario != nil {
+		for _, t := range plan.scenario.Templates {
+			state.reqs = append(state.reqs, paceRequestState{PaceRequest: PaceRequest{Name: t.Spec.Name, Weight: t.Spec.Weight, StatusCodes: make(map[int]int64)}})
+		}
+	}
 	startAt := options.StartAt
 	if startAt.IsZero() {
 		startAt = time.Now()
@@ -495,6 +530,19 @@ func (s *paceState) complete(ticket int64, result MyResult, completedAt float64,
 	}
 	paceRecord(&w.latency, max(0, result.MyDuration.Microseconds()))
 	s.finishWindow(w)
+	if s.reqs != nil {
+		r := &s.reqs[result.Request]
+		r.Completed++
+		if result.MyErr == nil {
+			r.Succeeded++
+		} else {
+			r.Failed++
+		}
+		if result.MyStatusCode != 0 {
+			r.StatusCodes[result.MyStatusCode]++
+		}
+		paceRecord(&r.latency, max(0, result.MyDuration.Microseconds()))
+	}
 }
 
 // Once every planned slot has a final outcome, only the compact window remains.
@@ -546,6 +594,14 @@ func (s *paceState) summary(elapsed float64, canceled bool) *PaceSummary {
 	}
 	if s.delay != nil {
 		sum.StartDelayP99US = s.delay.ValueAtQuantile(99)
+	}
+	for _, r := range s.reqs {
+		if r.latency != nil {
+			r.LatencyP50US = r.latency.ValueAtQuantile(50)
+			r.LatencyP95US = r.latency.ValueAtQuantile(95)
+			r.LatencyP99US = r.latency.ValueAtQuantile(99)
+		}
+		sum.Requests = append(sum.Requests, r.PaceRequest)
 	}
 	return sum
 }

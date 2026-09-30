@@ -40,7 +40,8 @@ type Template struct {
 	Spec        RequestSpec
 	head, body  []seg
 	bodyDynamic bool
-	tables      []int // Tables this request reads a row from.
+	tables      []int  // Tables this request reads a row from.
+	static      []byte // The whole request when it has no variables.
 }
 
 type encoding int
@@ -237,6 +238,9 @@ func compileOne(r RequestSpec, target string, tables []*Table, tableIndex map[st
 			return nil, errors.New("a variable was changed by request serialization")
 		}
 	}
+	if len(slots) == 0 {
+		t.static = bytes.Clone(wire)
+	}
 	return t, nil
 }
 
@@ -277,7 +281,7 @@ func (s *Scenario) NewLane(seed uint64) *Lane {
 }
 
 // Next picks a request by weight and fills it. The returned bytes stay valid
-// until the next call.
+// until the next call and must not be modified.
 func (l *Lane) Next() (int, []byte) {
 	i := 0
 	if len(l.s.cum) > 1 {
@@ -286,9 +290,13 @@ func (l *Lane) Next() (int, []byte) {
 	return i, l.Fill(i)
 }
 
-// Fill renders template i with fresh values.
+// Fill renders template i with fresh values. The caller must not modify the
+// result: a request without variables is returned without copying.
 func (l *Lane) Fill(i int) []byte {
 	t := l.s.Templates[i]
+	if t.static != nil {
+		return t.static
+	}
 	for _, ti := range t.tables {
 		tab := l.s.tables[ti]
 		n := uint64(len(tab.Rows))
