@@ -21,6 +21,8 @@ Highest rate held in three 60-second runs, all tools in one session ([full recor
 
 The other `recorded-m4-*` directories track SwarmGo's constant-rate engine across separate sessions; use the full record above to compare tools.
 
+[recorded-m4-scenario](recorded-m4-scenario/) compares SwarmGo's usual flags with scenario files (`-config`): the same CPU per request within 1%, and the same 550k ceiling with catch-up. `--scenario static|mix` sends [scenarios/](scenarios/) instead of the POST flags, and `--swarmgo-bin` runs another build from `benchmarks/throughput/bin`. Every run records `generator_cpu_us_per_request`.
+
 ## Verdict
 
 A run **held** its rate when, over the measured window:

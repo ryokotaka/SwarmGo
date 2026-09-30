@@ -26,6 +26,7 @@ SwarmGo is an HTTP load-testing tool. You start a controller and one or more wor
 - At a fixed request rate, `swarmgo resilience -catch-up` held 550k POSTs per second, second to wrk2 (650k) and ahead of oha (450k), vegeta and k6.
 - Workers can run on as many machines as you like. The controller starts them together and combines their results.
 - `swarmgo resilience` sends a timed traffic spike and measures ordinary requests while it runs.
+- A scenario file mixes several requests by weight and fills in values per request from CSV data, random numbers or a counter. `-print` shows what would be sent. See [sending a mix of requests](GUIDE.md#send-a-mix-of-requests).
 - `swarmgo run` writes a JSON report and exits non-zero on failed requests, timeouts or a lost worker, so it can gate a CI pipeline.
 
 ## In action

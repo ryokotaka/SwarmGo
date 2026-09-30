@@ -1,0 +1,8 @@
+Ordinary requests: 1/s throughout. Load: 100000/s for 1m10s after 1s baseline; observe recovery for 2s.
+Phase     Ordinary completed  Failed  Missed  Worst 1s p99  All windows pass
+baseline  1/1                 0       0       0.99 ms       true
+spike     70/70               0       0       0.54 ms       true
+recovery  2/2                 0       0       0.34 ms       true
+Load: 7000000/7000000 started, 0 missed; HTTP 429: 0.
+Recovery confirmed 1.00s after scheduled load stopped.
+Result: pass. Wrote /results/native.json
