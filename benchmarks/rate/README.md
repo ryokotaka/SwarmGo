@@ -17,6 +17,8 @@ Highest rate held in three 60-second runs, all tools in one session ([full recor
 | vegeta | 100k |
 | k6 | none (not 100k) |
 
+[latency-m4](latency-m4/) checks each tool's reported latency against a target that holds every request for a known time, with and without periodic stalls.
+
 The other `recorded-m4-*` directories track SwarmGo's constant-rate engine across separate sessions; use the full record above to compare tools.
 
 ## Verdict

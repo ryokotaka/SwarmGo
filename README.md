@@ -108,6 +108,7 @@ Rates are counted at the target, which validates every POST body. Each recording
 | :--- | :--- | :--- |
 | Uncapped 1 KiB POSTs, six 60-second runs | 640k POSTs/s median | [M4 re-measurement](benchmarks/throughput/rerun-m4/) |
 | Fixed rate of 1 KiB POSTs, highest rate held in three 60-second runs | 550k POSTs/s with `-catch-up`, 400k by default; wrk2 650k, oha 450k | [Constant-rate comparison](benchmarks/rate/recorded-m4-final/) |
+| Reported latency against a known 5 ms hold and 200 ms stalls | p50 within 0.3 ms of the target's own; stalled requests counted as missed, not hidden | [Latency check](benchmarks/rate/latency-m4/) |
 | 200k POSTs/s requested for 5 minutes | 59.7 million successful requests, 89.7 MiB peak memory | [Sustained-load trial](benchmarks/arrival/recorded-endurance/) |
 
 In the same session, the build before the [response-header fast path](#how-it-works) reached 628k POSTs/s. The five-minute trial predates it. Earlier throughput recordings are in [benchmarks/throughput](benchmarks/throughput/).
