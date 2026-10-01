@@ -62,7 +62,7 @@ SwarmGo exits with 2 whenever a planned request was missed, including in seconds
 
 ## Files
 
-`summary.json` lists every run with its verdict, generator and target CPU per request. `runs/<name>/` holds the harness record (`results.json`, with the manifest, samples and SwarmGo's own report), `native.json`, `run.log` and, for scenario runs, the exact `scenario.yaml` sent. The scenario build is `scenario-config` at `7a5508c`; the base build is main at `9c19afa`, built the same way (Linux ARM64, `CGO_ENABLED=0`, with `cmd/swarmgo/default.pgo`). Binary hashes are in each manifest.
+`summary.json` lists every run with its verdict, generator and target CPU per request. `runs/<name>/` holds the harness record (`results.json`, with the manifest, samples and SwarmGo's own report), `native.json`, `run.log` and, for scenario runs, the exact `scenario.yaml` sent. The scenario build is `7a5508c`, merged into main as `44c1178` with the same content; the base build is main at `9c19afa`, built the same way (Linux ARM64, `CGO_ENABLED=0`, with `cmd/swarmgo/default.pgo`). Binary hashes are in each manifest.
 
 ## Reproduce
 
