@@ -2,7 +2,7 @@
  "description": "Apple M4 CPU-per-request gate for scenario files: base build (main 9c19afa) against the scenario build with the usual flags, the same POST as a one-request config, and a three-request mix. No external fan.",
  "source": {
   "base": "9c19afa (main)",
-  "scenario_build": "scenario-config at 7a5508c"
+  "scenario_build": "7a5508c (on main as 44c1178, same tree)"
  },
  "settings": {
   "rate": 100000,

@@ -1,14 +1,62 @@
-# HTTP load-generation benchmarks
+# Benchmarks
 
-| Workload | SwarmGo | k6 v2.3.0 | Results |
-| --- | --- | --- | --- |
-| 20,000 concurrency, no per-container CPU/memory limits | **71,548 req/s**, 5/5 runs completed | 44,478 req/s, 5/5 completed | [Capacity test](capacity/) |
-| 10,000 concurrency, 2 CPU / 2 GiB generator | **47,129 req/s**, 5/5 runs completed | Memory limit reached in 5/5 runs | [Resource-budget test](concurrency/) |
+The records below ran the load generator and an owned target in Docker on one MacBook Air (Apple M4). In the comparisons, the target validates and counts each request itself, and rates come from its counts, not from what a tool reports about itself. Each record keeps its commands, tool versions, settings, raw JSON and every run, including the ones that failed or were stopped.
 
-Both workloads send 1 KiB JSON POSTs to a local HTTP/1.1 server that waits 200 ms before replying. The capacity test uses 3,000,000 requests per run; the smaller-budget test uses 1,000,000. Reported rates are target-side medians, and every completed run has zero failed requests. Each report includes every trial, CPU/memory settings, source revisions and reproduction scripts.
+| Question | Result | Record |
+| --- | --- | --- |
+| Uncapped 1 KiB POSTs per second | SwarmGo 640k; wrk 683k, oha 591k, k6 159k (medians of six runs) | [throughput/rerun-m4](throughput/rerun-m4/) |
+| Highest fixed rate held for a minute, three times | SwarmGo 550k with `-catch-up`, 400k by default; wrk2 650k, oha 450k, vegeta 100k, k6 none | [rate/recorded-m4-final](rate/recorded-m4-final/) |
+| Reported latency against the target's own timing | SwarmGo within 0.3 ms at p50 and 2.3 ms at p99, with a 5 ms hold and 200 ms stalls; four other tools compared | [rate/latency-m4](rate/latency-m4/) |
+| Cost of scenario files | CPU per request within 1% of the plain flags; the same 550k ceiling | [rate/recorded-m4-scenario](rate/recorded-m4-scenario/) |
+| Five minutes at 200k POSTs/s | SwarmGo 59.7 million successful POSTs, 89.7 MiB peak memory; oha stopped at its 6 GiB limit after 169 s | [arrival/recorded-endurance](arrival/recorded-endurance/) |
+| Ordinary requests during a spike | Worst one-second p99 3.51 s without admission control, 92 ms with it | [examples/resilience](../examples/resilience/) |
 
-The tests ran on an Apple M4 in a 10-CPU, 7.65 GiB ARM64 Docker VM. The target is also local. These are defined workload measurements, not a claim to outperform every load-testing tool or reproduce all features of a hosted service.
+The harnesses are [throughput/compare.py](throughput/compare.py) and [rate/ladder.py](rate/ladder.py); each record's README has the commands to reproduce it.
 
-## A faster raw-HTTP comparator
+## Earlier records
 
-[wrk screening](wrk/) reached 93,738 completed requests/s with zero reported errors at 20,000 connections and a 200 ms target delay. This is above SwarmGo’s observed result. Its fixed-duration timing differs from the fixed-count comparison above; the report gives the raw data and remaining gap. **SwarmGo has not demonstrated a throughput advantage over wrk.**
+These used older versions of SwarmGo, other targets or, for header-parsing, a cloud VM. They are kept as measured.
+
+| Record | What it measured |
+| --- | --- |
+| [capacity](capacity/) | 20,000 concurrent requests to a target that waits 200 ms: SwarmGo 71,548 req/s, k6 44,478 |
+| [concurrency](concurrency/) | 10,000 concurrent requests with 2 CPUs and 2 GiB: SwarmGo 47,129 req/s; k6 hit its memory limit in all five runs |
+| [wrk](wrk/) | wrk on the capacity workload: 93,738 req/s, above SwarmGo's result at the time |
+| [header-parsing](header-parsing/) | The in-place response-header parser and profile-guided optimization |
+| [throughput](throughput/) | The first uncapped comparison, [repeated runs](throughput/repeated/) and [M4 tuning](throughput/tuning-m4/) |
+| [arrival](arrival/) | SwarmGo and k6 at a fixed 200k/s arrival rate; also the harness of the five-minute trial |
+| [rate](rate/) | The paced engine from 100k to 500k: [stopped](rate/recorded-m4-partial/), [rebuilt](rate/recorded-m4-claim/), [lower overhead](rate/recorded-m4-overhead/), [catch-up](rate/recorded-m4-catchup/) |
+
+## Commit IDs in the records
+
+Most records cite commits that are not on main: some from before main's history was rewritten, others from branches that were merged with new IDs. They still open on GitHub through the pull requests that carried them. To check one out, fetch those refs:
+
+```sh
+git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*'
+```
+
+<details>
+<summary>The same content on main</summary>
+
+| Cited | On main, same files |
+| --- | --- |
+| `03a1bfd` | `22ac94b` |
+| `1401778` | `a724c91` |
+| `182e7d7` | `2c9c7f5` |
+| `310fbf5` | `653dc7b` |
+| `6b4d5df` | `f94eb97` |
+| `7105a9b` | `60180fc` |
+| `786d7ee` | `c04a479` |
+| `7a5508c` | `44c1178` |
+| `8fd2b73` | `7dbf9fe` |
+| `95425fe` | `b552648` |
+| `9dd8960` | `897a84e` |
+| `a9997b6` | `5fc6a7d` |
+| `b9ab0ae` | `171ca03` |
+| `e281d6e` | `6b701c5` |
+| `ef9e13f` | `8dd9017` |
+| `fb19876` | `1be473a` |
+| `27c8a47`, `607ff79` | none; SwarmGo's code is the same as `c01a79f` (pull request 1) |
+| `413400f`, `45b89f8`, `468ba43` | none; intermediate commits of pull request 1 |
+
+</details>
