@@ -1,0 +1,16 @@
+# go run . (three times), vegeta v12.13.0, go1.25.7, Apple M4, macOS
+## run 1
+ 2000/s  workers 50         requests   6000  rate 2000  success 100%  |  p99: vegeta estimate    6ms, exact    6ms, server-held    5ms, from schedule  183ms
+ 2000/s  workers unlimited  requests   6000  rate 2000  success 100%  |  p99: vegeta estimate  177ms, exact  177ms, server-held  175ms, from schedule  177ms
+20000/s  workers 1024       requests 200000  rate 20000  success 100%  |  p99: vegeta estimate   94ms, exact  160ms, server-held  158ms, from schedule  164ms
+20000/s  workers unlimited  requests 200000  rate 20000  success 100%  |  p99: vegeta estimate  170ms, exact  170ms, server-held  160ms, from schedule  170ms
+## run 2
+ 2000/s  workers 50         requests   6000  rate 2000  success 100%  |  p99: vegeta estimate   17ms, exact    7ms, server-held    6ms, from schedule  183ms
+ 2000/s  workers unlimited  requests   6000  rate 2000  success 100%  |  p99: vegeta estimate  177ms, exact  176ms, server-held  176ms, from schedule  177ms
+20000/s  workers 1024       requests 200000  rate 20000  success 100%  |  p99: vegeta estimate   91ms, exact  159ms, server-held  157ms, from schedule  164ms
+20000/s  workers unlimited  requests 200000  rate 20000  success 100%  |  p99: vegeta estimate  168ms, exact  168ms, server-held  159ms, from schedule  168ms
+## run 3
+ 2000/s  workers 50         requests   6000  rate 2000  success 100%  |  p99: vegeta estimate   28ms, exact   29ms, server-held    6ms, from schedule  184ms
+ 2000/s  workers unlimited  requests   6000  rate 2000  success 100%  |  p99: vegeta estimate  177ms, exact  177ms, server-held  177ms, from schedule  178ms
+20000/s  workers 1024       requests 200000  rate 20000  success 100%  |  p99: vegeta estimate  102ms, exact  160ms, server-held  158ms, from schedule  165ms
+20000/s  workers unlimited  requests 200000  rate 20000  success 100%  |  p99: vegeta estimate  168ms, exact  168ms, server-held  159ms, from schedule  168ms
